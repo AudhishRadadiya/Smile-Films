@@ -1,0 +1,12 @@
+<svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect opacity="0.1" width="50" height="50" rx="10" fill="#495AF2"/>
+<path d="M20.332 13.334V16.834" stroke="#495AF2" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M29.668 13.334V16.834" stroke="#495AF2" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M15.082 21.6055H34.9154" stroke="#495AF2" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.6654 33.1667C36.6654 34.0417 36.4204 34.87 35.9887 35.57C35.1837 36.9233 33.702 37.8333 31.9987 37.8333C30.8204 37.8333 29.747 37.4017 28.9304 36.6667C28.5687 36.3633 28.2537 35.99 28.0087 35.57C27.577 34.87 27.332 34.0417 27.332 33.1667C27.332 30.5883 29.4204 28.5 31.9987 28.5C33.3987 28.5 34.647 29.1183 35.4987 30.0866C36.222 30.915 36.6654 31.9883 36.6654 33.1667Z" stroke="#495AF2" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M30.1797 33.1668L31.3347 34.3218L33.8197 32.0234" stroke="#495AF2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M35.5 20.9173V30.0873C34.6483 29.119 33.4 28.5007 32 28.5007C29.4217 28.5007 27.3333 30.589 27.3333 33.1673C27.3333 34.0423 27.5783 34.8706 28.01 35.5706C28.255 35.9906 28.57 36.364 28.9317 36.6673H20.3333C16.25 36.6673 14.5 34.334 14.5 30.834V20.9173C14.5 17.4173 16.25 15.084 20.3333 15.084H29.6667C33.75 15.084 35.5 17.4173 35.5 20.9173Z" stroke="#495AF2" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M24.9949 26.9837H25.0054" stroke="#495AF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M20.6785 26.9837H20.689" stroke="#495AF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M20.6785 30.4837H20.689" stroke="#495AF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

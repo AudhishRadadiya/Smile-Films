@@ -1,0 +1,387 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+$primary: #000;
+$textDark: #343434;
+$textLight: #7b7b7b;
+$textGray: #96a0b5;
+$textExtraLight: #d7d7d7;
+$bgLightGray: #fbfafc;
+$borderColor: #e5ebf0;
+$borderGray: #96a0b5;
+$textPrimary: #1b1d28;
+$secondary: #ed701e;
+$textWhite: #ffffff;
+$bgWhite: #fff;
+$bgLightBlue: #f9f9fb;
+$bgPrimary: #000;
+$bgPrimaryLight: #f9f9fb;
+$textYellow: #febe3a;
+$bgYellow: #f3a533;
+$textpurple: #8e7bf6;
+$textblue: #41aeff;
+$textLightBlue: #057ed6;
+$textdarkblue: #373aa5;
+$textLightpurple: #bcc5ff;
+$borderblue: #373aa5;
+$Chatbg: #f3f5fb;
+$bggreen: #1c8f3c;
+$textRed: #c62828;
+
+body {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 17px;
+  color: #343434;
+  background: #f9f9fb;
+  overflow: hidden;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+a,
+button,
+.p-component {
+  font-family: 'Poppins', sans-serif;
+}
+p {
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 17px;
+  color: #343434;
+}
+
+a {
+  transition: 0.5s ease;
+  text-decoration: none;
+  color: $textPrimary;
+}
+a:hover {
+  color: $textLight;
+}
+
+.text_dark {
+  color: $textDark !important;
+}
+.text_light {
+  color: $textLight !important;
+}
+.text_extra_light {
+  color: $textExtraLight !important;
+}
+.text_primary {
+  color: $textPrimary !important;
+}
+.text_secondary {
+  color: $secondary !important;
+}
+.text_white {
+  color: $textWhite !important;
+}
+.text_grey {
+  color: $textGray !important;
+}
+.text_blue {
+  color: $textblue;
+}
+.text_light_Blue {
+  color: $textLightBlue;
+}
+.border {
+  border: 1px solid $borderColor;
+}
+.bg_white {
+  background: $bgWhite;
+}
+.bg_light_blue {
+  background: $bgLightBlue;
+}
+.bg_light {
+  background: $bgLightGray;
+}
+.bg_primary_light {
+  background: $bgPrimaryLight;
+}
+.text_red {
+  color: $textRed;
+}
+
+.white_space_nowrap {
+  white-space: nowrap;
+}
+.white_space_wrap {
+  white-space: break-spaces;
+}
+
+.text_small {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+h1 {
+  font-weight: 600;
+  font-size: 35px;
+  line-height: 42px;
+}
+h2 {
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 24px;
+}
+h3 {
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 22px;
+}
+h4 {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 19px;
+}
+h5 {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 17px;
+}
+h6 {
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 14px;
+}
+
+.fw_100 {
+  font-weight: 100;
+}
+.fw_200 {
+  font-weight: 200;
+}
+.fw_300 {
+  font-weight: 300;
+}
+.fw_400 {
+  font-weight: 400;
+}
+.fw_500 {
+  font-weight: 500;
+}
+.fw_600 {
+  font-weight: 600;
+}
+.fw_700 {
+  font-weight: 700;
+}
+.fw_800 {
+  font-weight: 800;
+}
+.fw_900 {
+  font-weight: 900;
+}
+.radius15 {
+  border-radius: 15px;
+}
+.radius6 {
+  border-radius: 6px;
+}
+
+.cursor_pointer {
+  cursor: pointer;
+}
+
+/* width */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 3px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: $bgPrimaryLight;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: $primary;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: $textDark;
+}
+
+.badge {
+  border-radius: 4px;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 17px;
+  padding: 5px 0;
+  width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  &.bg-success {
+    background-color: #b6f2d8 !important;
+    color: #1c8f3c;
+  }
+  &.bg-secondary {
+    background-color: #d7d7d7 !important;
+    color: #7b7b7b;
+  }
+}
+
+.react-loading-skeleton {
+  line-height: 35px !important;
+  margin: 10px 0;
+}
+.max_100 {
+  max-width: 100%;
+}
+.max_75 {
+  max-width: 75%;
+}
+.max_66 {
+  max-width: 66.667%;
+}
+.max_50 {
+  max-width: 50%;
+}
+.max_33 {
+  max-width: 33.3333%;
+}
+.max_25 {
+  max-width: 25%;
+}
+.max_100px {
+  max-width: 100px;
+  width: auto;
+}
+.max_150px {
+  max-width: 150px;
+  width: auto;
+  white-space: normal;
+}
+.max_280px {
+  max-width: 280px;
+  width: auto;
+}
+
+.pb20 {
+  padding-bottom: 20px;
+}
+
+.mb20 {
+  margin-bottom: 20px;
+}
+
+.mt90 {
+  margin-top: 90px;
+}
+.w_100 {
+  width: 100px !important;
+}
+
+@media (max-width: 1600px) {
+  p {
+    font-size: 13px;
+    line-height: 18px;
+  }
+  h1 {
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 38px;
+  }
+  h2 {
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 24px;
+  }
+  h3 {
+    font-weight: 500;
+    font-size: 17px;
+    line-height: 22px;
+  }
+  h4 {
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 19px;
+  }
+}
+
+@media (max-width: 1441px) {
+  h1 {
+    font-size: 28px;
+    line-height: 36px;
+  }
+  h2 {
+    font-size: 17px;
+    line-height: 22px;
+  }
+  h3 {
+    font-size: 17px;
+    line-height: 20px;
+  }
+  h4 {
+    font-size: 14px;
+    line-height: 19px;
+  }
+  h5 {
+    font-size: 13px;
+    line-height: 16px;
+  }
+  h6 {
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+
+@media (max-width: 1281px) {
+  h1 {
+    font-size: 26px;
+    line-height: 36px;
+  }
+  h2 {
+    font-size: 16px;
+    line-height: 22px;
+  }
+  h3 {
+    font-size: 16px;
+    line-height: 20px;
+  }
+  body {
+    font-size: 13px;
+    line-height: 17px;
+  }
+}
+
+@media (max-width: 991px) {
+}
+
+@media (max-width: 480px) {
+  .form_group.mb-3 {
+    margin-bottom: 10px !important;
+  }
+  h3 {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  h5 {
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+
+@media (min-width: 575px) {
+  .w-sm-auto {
+    width: auto !important;
+  }
+}

@@ -1,0 +1,275 @@
+.calender_view_Wrapper {
+  display: flex;
+  .calender_filter_Wrap {
+    width: 280px;
+  }
+  .calender_main_wrap {
+    width: calc(100% - 280px);
+  }
+}
+
+.calender_filter_Wrap {
+  .p-accordion {
+    .p-accordion-tab {
+      margin: 0;
+      .p-accordion-header {
+        .p-accordion-header-link {
+          flex-direction: row-reverse;
+          justify-content: space-between;
+          border: 0;
+          border-bottom: 1px solid $borderColor;
+          border-top: 1px solid $borderColor;
+          border-radius: 0;
+          font-weight: 500;
+          &:focus {
+            box-shadow: none;
+          }
+        }
+        &.p-highlight {
+          .p-accordion-header-link {
+            background: transparent;
+            border-bottom: 0;
+            border-top: 0;
+          }
+        }
+      }
+      .p-accordion-content {
+        padding: 0 20px;
+        border: 0;
+        height: calc(100vh - 378px);
+        overflow: auto;
+        ul {
+          li {
+            margin: 0 0 15px;
+          }
+        }
+      }
+    }
+  }
+}
+
+.calender_Wrapper {
+  .p-tabview {
+    .p-tabview-nav-container {
+      .p-tabview-nav-content {
+        .p-tabview-nav {
+          background: transparent;
+          border: 0;
+          .p-unselectable-text {
+            .p-tabview-nav-link {
+              background: transparent;
+              padding: 0 0 10px;
+              position: relative;
+              &:before {
+                content: '';
+                position: absolute;
+                left: 0;
+                bottom: 0;
+                width: 0;
+                height: 2px;
+                background: #000;
+                transition: 0.5s ease;
+              }
+            }
+            &.p-highlight {
+              .p-tabview-nav-link {
+                &:before {
+                  width: 100%;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.rbc-calendar {
+  height: calc(100vh - 265px) !important;
+  .rbc-toolbar {
+    margin: 0;
+    padding: 10px 0;
+    .rbc-btn-group {
+      button {
+        font-size: 14px;
+        border: 0;
+        padding: 0 10px;
+        border-radius: 0;
+        line-height: normal;
+        white-space: nowrap;
+        font-weight: 600;
+        color: #96a0b5 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        &.rbc-active {
+          color: #000 !important;
+        }
+      }
+    }
+  }
+  .rbc-month-view {
+    .rbc-month-header {
+      .rbc-header {
+        background: $bgPrimaryLight;
+        padding: 10px 0;
+      }
+    }
+    .rbc-month-row {
+      .rbc-row-bg {
+        .rbc-off-range-bg {
+          background: transparent;
+        }
+      }
+      .rbc-row-content {
+        .rbc-date-cell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          padding-top: 20px;
+          padding-right: 0;
+        }
+        .rbc-row-segment {
+          .rbc-event {
+            padding: 6px 10px;
+            background-color: #c8befb;
+            border-radius: 0;
+            color: #1b1d28;
+          }
+        }
+      }
+    }
+  }
+  .rbc-time-view {
+    .rbc-time-header {
+      .rbc-time-header-content {
+        .rbc-header {
+          padding: 10px 0;
+        }
+      }
+    }
+    .rbc-time-content {
+      .rbc-day-slot {
+        &.rbc-today {
+          background-color: transparent;
+        }
+        .rbc-events-container {
+          .rbc-event {
+            background-color: #c8befb;
+            color: #000;
+          }
+        }
+      }
+    }
+  }
+}
+
+.rbc-today {
+  background-color: transparent !important;
+}
+.rbc-calendar {
+  .rbc-event,
+  .rbc-day-slot .rbc-background-event {
+    background-color: #c8befb;
+    color: #000;
+    border-radius: 0;
+    padding: 6px 10px;
+  }
+}
+
+.previous_link_wrapper {
+  border: 1px solid #e5ebf0;
+  padding: 14px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  a {
+    color: #057ed6;
+  }
+}
+.quill {
+  .ql-toolbar.ql-snow {
+    .ql-formats {
+      margin-right: 10px;
+    }
+  }
+  .ql-container {
+    height: calc(100% - 55px);
+  }
+}
+.editor_text_wrapper {
+  p {
+    margin: 0;
+  }
+  ul,
+  ol {
+    padding: 0 0 0 20px;
+    list-style: initial;
+  }
+}
+
+.group_wrapper {
+  .group_header {
+    ul {
+      padding: 25px 20px;
+      background: $bgPrimaryLight;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid $borderColor;
+      li {
+        font-size: 15px;
+        font-weight: 600;
+      }
+    }
+  }
+  .group_content_wrapper {
+    ul {
+      li.parent {
+        border-bottom: 1px solid $borderColor;
+        &:last-child {
+          border-bottom: 0;
+        }
+        span.parent_title {
+          font-size: 15px;
+          font-weight: 600;
+          padding: 15px 20px;
+          display: block;
+        }
+        ul {
+          li.inner_child {
+            .inner_child_title {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 15px 20px;
+              padding-left: 30px;
+              border-top: 1px solid $borderColor;
+
+              span {
+                display: block;
+                border: 0;
+                padding: 0;
+                font-weight: 400;
+              }
+            }
+            .inner_child {
+              .inner_child_title {
+                padding-left: 45px;
+              }
+              .inner_child {
+                .inner_child_title {
+                  padding-left: 60px;
+                }
+                .inner_child {
+                  .inner_child_title {
+                    padding-left: 75px;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

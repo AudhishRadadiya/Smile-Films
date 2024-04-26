@@ -1,0 +1,593 @@
+.payment-status-overlay {
+  max-width: 190px;
+
+  .payment_status_wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .payment_status_type {
+    width: 100%;
+  }
+}
+
+.checkbox_wrap_main {
+  span {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    color: $textPrimary;
+  }
+}
+
+.billing_heading {
+  padding: 15px;
+  border-bottom: 1px solid $borderColor;
+
+  .billing-btn {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    li {
+      padding: 0;
+    }
+  }
+}
+
+.date_number {
+  ul {
+    display: flex;
+    // align-items: center;
+    @media (max-width: 575px) {
+      margin-top: 15px;
+    }
+    li {
+      margin-right: 40px;
+      &:last-child {
+        margin-right: 0;
+      }
+      @media (max-width: 575px) {
+        margin-right: 25px;
+      }
+      @media (max-width: 480px) {
+        margin-right: 20px;
+      }
+
+      h6 {
+        color: $textGray;
+        font-weight: 400;
+      }
+      h4 {
+        margin: 0;
+      }
+    }
+  }
+}
+
+.billing_details {
+  padding: 20px;
+  @media (max-width: 480px) {
+    padding: 15px;
+  }
+
+  .weeding_package_wrapper {
+    .payment_status_type {
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+  }
+  .order-details-wrapper {
+    min-height: 160px;
+    height: 100%;
+  }
+}
+
+.order_table {
+  .p-datatable {
+    .p-datatable-wrapper {
+      height: auto;
+    }
+  }
+}
+
+.order-items-name {
+  li {
+    margin: 2px 0;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+  }
+}
+
+.description_text {
+  width: 600px;
+  @media (max-width: 1600px) {
+    width: 430px;
+  }
+  p {
+    white-space: break-spaces;
+    margin: 0;
+  }
+}
+
+.condition-content {
+  ul {
+    li {
+      list-style: disc;
+      margin-left: 20px;
+      margin-bottom: 20px;
+      &:last-child {
+        margin-bottom: 0;
+      }
+      p {
+        font-size: 14px;
+        line-height: 20px;
+        font-weight: 400;
+        @media (max-width: 575px) {
+          font-size: 13px;
+          line-height: 18px;
+        }
+        @media (max-width: 480px) {
+          font-size: 12px;
+          line-height: 18px;
+        }
+      }
+    }
+  }
+}
+
+.sub-total-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 20px;
+  @media (max-width: 580px) {
+    gap: 6px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  &:last-child {
+    margin-bottom: 0;
+  }
+  .row {
+    align-items: center;
+  }
+  .subtotal-input {
+    width: 50%;
+    @media (max-width: 580px) {
+      width: 100%;
+    }
+    input {
+      border: 1px solid $borderColor;
+      padding: 10px;
+      border-radius: 6px;
+      width: 100%;
+    }
+    h5 {
+      margin: 0;
+    }
+  }
+  .subtotal-title {
+    width: 50%;
+    @media (max-width: 580px) {
+      width: 100%;
+    }
+    h5 {
+      margin: 0;
+      img {
+        filter: brightness(0);
+      }
+    }
+  }
+}
+
+.total-amount {
+  border-top: 1px solid $borderColor;
+  padding: 18px 0 0;
+}
+
+.payment_dialog {
+  max-width: 650px !important;
+  .p-dialog-header {
+    align-items: center;
+    // border: 0;
+  }
+  .p-dialog-content {
+    padding: 0 !important;
+    .voucher_text {
+      position: relative;
+      z-index: 1;
+      text-align: end;
+      h2 {
+        background-color: $bgWhite;
+        color: $primary;
+        font-weight: 500;
+        text-align: end;
+        z-index: 1;
+        position: relative;
+        display: inline-block;
+        padding: 0 10px;
+        margin-right: 100px;
+        margin-bottom: 0;
+      }
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: $primary;
+        z-index: 0;
+      }
+    }
+    .delete_popup_wrapper {
+      padding: 0 20px 20px;
+      .client_payment_details {
+        padding: 35px 0;
+        border-bottom: 1px dashed $primary;
+        margin-bottom: 30px;
+
+        .voucher_head {
+          h4,
+          h5 {
+            font-weight: 500;
+            color: $textPrimary;
+            margin-bottom: 0;
+            text-transform: uppercase;
+          }
+        }
+        ul {
+          display: flex;
+          padding-top: 20px;
+          margin-top: 10px;
+          border-top: 1px solid $borderColor;
+
+          &:last-child {
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid $borderColor;
+          }
+          &.salary_details_wrap {
+            li {
+              width: 100%;
+            }
+            .salary_details {
+              display: flex;
+
+              h5 {
+                color: $primary;
+                width: 70%;
+                margin: 0;
+
+                &.salary_type {
+                  width: 30%;
+                }
+              }
+            }
+          }
+          li {
+            width: 25%;
+            h5 {
+              font-weight: 400;
+            }
+            h4 {
+              color: $primary;
+              font-weight: 500;
+            }
+          }
+        }
+        .user_bank_details {
+          margin-top: 10px;
+          h5 {
+            font-weight: 500;
+            color: $textPrimary;
+            margin-bottom: 0;
+          }
+          p {
+            font-size: 12px;
+            line-height: 20px;
+            color: $primary;
+            font-weight: 400;
+            margin: 0;
+          }
+          &.bank_details_light {
+            h5 {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+
+              span {
+                font-weight: 400;
+                font-size: 12px;
+                line-height: 20px;
+              }
+            }
+          }
+        }
+      }
+      .delete_btn_wrap {
+        padding: 0;
+      }
+    }
+  }
+}
+
+.commission_dialog {
+  width: 100%;
+  max-width: 1150px;
+}
+
+.dialog_logo {
+  img {
+    width: 140px;
+    height: 60px;
+  }
+}
+
+.assign-profile-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #ebe8ff;
+  padding: 5px 10px 5px 5px;
+  border-radius: 40px;
+  .profile_user_name {
+    h5 {
+      color: #8e7bf6;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+  }
+  .assign_profile {
+    img {
+      width: 23px;
+      height: 23px;
+      border-radius: 50%;
+    }
+  }
+  &.bg_orange {
+    background-color: #fceacf;
+  }
+}
+
+.delete_btn_wrap {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.commission_dialog {
+  .p-dialog-content {
+    padding: 0 0 30px;
+  }
+}
+
+.text_green {
+  color: #6eb882;
+}
+
+.text_yellow {
+  color: #f3a533;
+}
+
+.text_gray {
+  color: $textGray;
+  font-weight: 400;
+}
+
+.balance_info {
+  h2 {
+    color: $textGray;
+    font-weight: 400;
+    margin: 15px 0 0;
+    @media (max-width: 767px) {
+      margin: 0;
+    }
+  }
+}
+
+.Receipt_Payment_head_wrapper {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  @media (max-width: 575px) {
+    gap: 5px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .Receipt_Payment_invoice_txt {
+    h5 {
+      color: #ab9df8;
+      font-weight: 400;
+    }
+  }
+}
+
+.payment_table {
+  .p-datatable {
+    .p-datatable-wrapper {
+      height: auto;
+    }
+  }
+}
+
+.client_pyment_wrapper {
+  margin-bottom: 30px;
+}
+
+.client_pyment_details {
+  margin-bottom: 15px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.table_select {
+  max-width: 100px;
+}
+
+.inquiry_multeselect {
+  // width: 13%;
+  .btn_primary {
+    padding-left: 35px;
+    position: relative;
+    &::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      top: 8px;
+      left: 10px;
+      background-image: url(../../Images/filter.svg);
+      filter: brightness(20);
+    }
+    .p-multiselect-label-container {
+      .p-multiselect-label {
+        padding: 0;
+        text-align: end;
+        color: #fff;
+      }
+    }
+    .p-multiselect-trigger {
+      justify-content: end;
+      width: auto;
+      display: none;
+      img {
+        filter: brightness(21);
+      }
+      svg {
+        filter: brightness(21);
+      }
+    }
+  }
+  .btn_border {
+    padding-left: 35px;
+    position: relative;
+    &::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      top: 8px;
+      left: 10px;
+      background-image: url(../../Images/filter.svg);
+      filter: brightness(0);
+    }
+    .p-multiselect-label-container {
+      .p-multiselect-label {
+        padding: 0;
+        text-align: end;
+        color: #000;
+      }
+    }
+    .p-multiselect-trigger {
+      justify-content: end;
+      width: auto;
+      display: none;
+      img {
+        filter: brightness(0);
+      }
+      svg {
+        filter: brightness(0);
+      }
+    }
+    &:hover {
+      &::before {
+        filter: brightness(20);
+      }
+      .p-multiselect-label-container {
+        .p-multiselect-label {
+          color: #fff;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1441px) {
+  .order-items-name li {
+    font-size: 13px;
+    line-height: 20px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .top_filter_wrap .right_filter_wrapper ul.expenses_ul,
+  .top_filter_wrap .right_filter_wrapper ul.entry_ul,
+  .top_filter_wrap .right_filter_wrapper ul.receipt_ul,
+  .top_filter_wrap .right_filter_wrapper ul.billing_ul {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .delete_btn_wrap {
+    gap: 7px 8px;
+  }
+}
+
+@media (max-width: 581px) {
+  .checkbox_wrap_main span {
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .billing_details .weeding_package_wrapper .payment_status_type {
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+  .billing_details {
+    padding: 10px;
+  }
+  .description_text {
+    width: 370px;
+  }
+  .payment_dialog
+    .p-dialog-content
+    .delete_popup_wrapper
+    .client_payment_details
+    .user_bank_details.bank_details_light
+    h5 {
+    justify-content: flex-start;
+    gap: 20px;
+  }
+  .dialog_logo img {
+    width: 100px;
+    height: 40px;
+  }
+  .description_text {
+    width: 370px;
+  }
+}
+@media (max-width: 480px) {
+  .checkbox_wrap_main span {
+    font-size: 12px;
+    line-height: 17px;
+  }
+  .sub-total-wrapper .subtotal-input input {
+    padding: 8px;
+    font-size: 12px;
+  }
+  .client_pyment_wrapper {
+    margin-bottom: 20px;
+  }
+  .order-items-name li {
+    font-size: 13px;
+    line-height: 18px;
+  }
+}
+
+@media (max-width: 380px) {
+  .payment_dialog .p-dialog-content .voucher_text h2 {
+    padding: 0 8px;
+    margin-right: 40px;
+    font-size: 14px;
+    line-height: 18px;
+  }
+}

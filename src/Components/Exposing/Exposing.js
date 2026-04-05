@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Col, Dropdown, Row } from 'react-bootstrap';
+import { Col, Dropdown, Row } from 'react-bootstrap';
+import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Column } from 'primereact/column';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import CustomPaginator from 'Components/Common/CustomPaginator';
 import ExportIcon from '../../Assets/Images/export.svg';
@@ -19,6 +20,7 @@ import {
   setExposingCurrentPage,
   setExposingPageLimit,
   setExposingSearchParam,
+  setExposingSelectedProgressIndex,
 } from 'Store/Reducers/Exposing/ExposingFlow/ExposingSlice';
 import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
 import _ from 'lodash';
@@ -40,55 +42,129 @@ const Exposing = () => {
     exposingStepLoading,
   } = useSelector(({ exposing }) => exposing);
 
+  const getExposingListApi = useCallback(
+    (start = 1, limit = 10, search = '') => {
+      dispatch(
+        getExposingList({
+          start: start,
+          limit: limit,
+          search: search?.trim(),
+        }),
+      );
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
-    dispatch(
-      getExposingList({
-        start: exposingCurrentPage,
-        limit: exposingPageLimit,
-        isActive: '',
-        search: exposingSearchParam,
-      }),
+    // dispatch(
+    //   getExposingList({
+    //     start: exposingCurrentPage,
+    //     limit: exposingPageLimit,
+    //     isActive: '',
+    //     search: exposingSearchParam,
+    //   }),
+    // );
+    getExposingListApi(
+      exposingCurrentPage,
+      exposingPageLimit,
+      exposingSearchParam,
     );
-  }, [dispatch, exposingCurrentPage, exposingPageLimit, exposingSearchParam]);
+  }, [getExposingListApi]);
 
   const onPageChange = page => {
-    let pageIndex = exposingCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setExposingCurrentPage(pageIndex));
+    if (page !== exposingCurrentPage) {
+      let pageIndex = exposingCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+
+      dispatch(setExposingCurrentPage(pageIndex));
+      getExposingListApi(pageIndex, exposingPageLimit, exposingSearchParam);
+    }
   };
 
   const onPageRowsChange = page => {
     dispatch(setExposingCurrentPage(page === 0 ? 0 : 1));
     dispatch(setExposingPageLimit(page));
+
+    const pageValue =
+      page === 0
+        ? exposingList?.totalRows
+          ? exposingList?.totalRows
+          : 0
+        : page;
+    const prevPageValue =
+      exposingPageLimit === 0
+        ? exposingList?.totalRows
+          ? exposingList?.totalRows
+          : 0
+        : exposingPageLimit;
+
+    if (
+      prevPageValue < exposingList?.totalRows ||
+      pageValue < exposingList?.totalRows
+    ) {
+      getExposingListApi(page === 0 ? 0 : 1, page, exposingSearchParam);
+    }
   };
 
   const actionBodyTemplate = row => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle id="dropdown-basic" className="action_btn">
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            <Dropdown.Item
-              onClick={() => {
-                navigate(`/exposing-data-collection/${row?._id}`);
-              }}
-            >
-              <img src={EditIcon} alt="EditIcon" /> Edit
-            </Dropdown.Item>
-            <Dropdown.Item
-              onClick={() => {
-                setDeleteId(row?._id);
-                setDeletePopup(true);
-              }}
-            >
-              <img src={TrashIcon} alt="TrashIcon" /> Delete
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle id="dropdown-basic" className="action_btn">
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       <Dropdown.Item
+      //         onClick={() => {
+      //           const step = row?.step
+      //             ? row?.step === 6
+      //               ? row?.step
+      //               : row?.step + 1
+      //             : 1;
+      //           dispatch(setExposingSelectedProgressIndex(step));
+      //           navigate(`/exposing-flow/${row?._id}`);
+      //         }}
+      //       >
+      //         <img src={EditIcon} alt="EditIcon" /> Edit
+      //       </Dropdown.Item>
+      //       <Dropdown.Item
+      //         onClick={() => {
+      //           setDeleteId(row?._id);
+      //           setDeletePopup(true);
+      //         }}
+      //       >
+      //         <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //       </Dropdown.Item>
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        <img
+          alt=""
+          src={EditIcon}
+          className="cursor_pointer"
+          onClick={() => {
+            const step = row?.step
+              ? row?.step === 6
+                ? row?.step
+                : row?.step + 1
+              : 1;
+            dispatch(setExposingSelectedProgressIndex(step));
+            navigate(`/exposing-flow/${row?._id}`);
+          }}
+        />
+        <img
+          src={TrashIcon}
+          alt=""
+          className="cursor_pointer"
+          onClick={() => {
+            setDeleteId(row?._id);
+            setDeletePopup(true);
+          }}
+        />
       </div>
     );
   };
@@ -104,51 +180,60 @@ const Exposing = () => {
           data?.exposers?.length > 0 &&
           data?.exposers?.slice(0, 2).map((item, index) => {
             return (
-              <li key={index}>
-                <div className="assign-profile-wrapper">
-                  <div className="assign_profile">
-                    <img
-                      src={item?.image ? item?.image : UserIcon}
-                      alt="profileimg"
-                      onError={handleDefaultUser}
-                    />
+              <Button
+                tooltip={`${item.employee_name} - ${item.item_name}`}
+                tooltipOptions={{ position: 'top' }}
+                className="bg-transparent border-0 p-0 custom-tooltip-btn"
+              >
+                <li key={index}>
+                  <div className="assign-profile-wrapper">
+                    <div className="assign_profile">
+                      <img
+                        src={item?.image ? item?.image : UserIcon}
+                        alt=""
+                        onError={handleDefaultUser}
+                      />
+                    </div>
+                    <div className="profile_user_name">
+                      <h5 className="m-0">{item?.employee_name}</h5>
+                    </div>
                   </div>
-                  <div className="profile_user_name">
-                    <h5 className="m-0">{item?.employee_name}</h5>
-                  </div>
-                </div>
-              </li>
+                </li>
+              </Button>
             );
           })}
-
-        <li>
-          <div className="assign_dropdown_wrapper">
-            <Dropdown className="dropdown_common position-static">
-              <Dropdown.Toggle id="dropdown-basic" className="action_btn">
-                {data?.exposers?.length - 2} More...
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>
-                  {data?.exposers &&
-                    data?.exposers?.length > 0 &&
-                    data?.exposers?.map(item => {
-                      return (
-                        <div className="assign_dropdown">
-                          <div className="assign_profile">
-                            <img
-                              src={item?.image ? item?.image : UserIcon}
-                              alt="profileimg"
-                              onError={handleDefaultUser}
-                            />
-                            <h5 className="m-0">{item?.employee_name}</h5>
+        {data?.editors?.length > 2 && (
+          <li>
+            <div className="assign_dropdown_wrapper">
+              <Dropdown className="dropdown_common position-static">
+                <Dropdown.Toggle id="dropdown-basic" className="action_btn">
+                  {data?.exposers?.length > 2 ? data?.exposers?.length - 2 : 0}{' '}
+                  More...
+                </Dropdown.Toggle>
+                <Dropdown.Menu>
+                  <Dropdown.Item>
+                    {data?.exposers &&
+                      data?.exposers?.length > 2 &&
+                      data?.exposers?.slice(2)?.map((item, index) => {
+                        return (
+                          <div className="assign_dropdown" key={index}>
+                            <div className="assign_profile">
+                              <img
+                                src={item?.image ? item?.image : UserIcon}
+                                alt="profileimg"
+                                onError={handleDefaultUser}
+                              />
+                              <h5 className="m-0">{item?.employee_name}</h5>
+                            </div>
+                            <div className="profile_user_name">
+                              <h6 className="text_gray m-0">
+                                {item?.item_name}
+                              </h6>
+                            </div>
                           </div>
-                          <div className="profile_user_name">
-                            <h6 className="text_gray m-0">{item?.item_name}</h6>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  {/* <div className="assign_dropdown">
+                        );
+                      })}
+                    {/* <div className="assign_dropdown">
                     <div className="assign_profile">
                       <img src={ProfileImg} alt="profileimg" />
                       <h5 className="m-0">Vandana</h5>
@@ -184,11 +269,12 @@ const Exposing = () => {
                       <h6 className="text_gray m-0">Photos</h6>
                     </div>
                   </div> */}
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </div>
-        </li>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
+          </li>
+        )}
       </ul>
     ) : (
       '-'
@@ -270,7 +356,7 @@ const Exposing = () => {
     return (
       <Button
         tooltip={buttonTooltip}
-        tooltipoptions={{ position: 'top' }}
+        tooltipOptions={{ position: 'top' }}
         className="btn_transparent text_dark item_name_with_tooltip"
       >
         {data?.item_name}
@@ -283,15 +369,25 @@ const Exposing = () => {
       <span
         className="cursor_pointer hover_text"
         onClick={() => {
-          navigate(`/exposing-data-collection/${row?._id}`);
+          const step = row?.step
+            ? row?.step === 6
+              ? row?.step
+              : row?.step + 1
+            : 1;
+          dispatch(setExposingSelectedProgressIndex(step));
+          navigate(`/exposing-flow/${row?._id}`);
         }}
       >
         {row?.company_name}
       </span>
     );
   };
+
   const EventDateTemplate = data => {
-    return data?.start_date + ' to ' + data?.end_date;
+    return (
+      (data?.start_date ? data?.start_date : '') +
+      (data?.end_date ? ' to ' + data?.end_date : '')
+    );
   };
 
   const handleDelete = useCallback(
@@ -327,7 +423,7 @@ const Exposing = () => {
         start: exposingCurrentPage,
         limit: exposingPageLimit,
         isActive: '',
-        search: e.target.value,
+        search: e.target.value?.trim(),
       }),
     );
   };
@@ -366,11 +462,11 @@ const Exposing = () => {
                       />
                     </div>
                   </li>
-                  <li>
+                  {/* <li>
                     <Link to="" className="btn_border icon_btn">
                       <img src={ExportIcon} alt="" />
                     </Link>
-                  </li>
+                  </li> */}
                 </ul>
               </div>
             </Col>
@@ -391,7 +487,6 @@ const Exposing = () => {
               body={companyBodyTemplate}
               sortable
             ></Column>
-            <Column field="client_name" header="Client Name" sortable></Column>
             <Column
               field="item_name"
               header="Item Names"
@@ -435,6 +530,7 @@ const Exposing = () => {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'Exposing'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}

@@ -237,7 +237,7 @@ export default function CreatePurchaseInvoice() {
               <Col xxl={4} xl={5} lg={6}>
                 <div className="amount-condition-wrapper border radius15">
                   <div className="p20 border-bottom">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div className="condition-content p20">
                     <ul>

@@ -1,21 +1,28 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import moment from 'moment';
+import { useFormik } from 'formik';
+import { toast } from 'react-toastify';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Dialog } from 'primereact/dialog';
-import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
-import PlusIcon from '../../../Assets/Images/plus.svg';
-import AddUserIcon from '../../../Assets/Images/add-user.svg';
-import ReactSelectSingle from '../../Common/ReactSelectSingle';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Tag } from 'primereact/tag';
+import Loader from 'Components/Common/Loader';
+import { Dropdown } from 'primereact/dropdown';
+import { Checkbox } from 'primereact/checkbox';
+import { DataTable } from 'primereact/datatable';
+import Close from '../../../Assets/Images/close.svg';
+import EditIcon from '../../../Assets/Images/edit.svg';
 import { useDispatch, useSelector } from 'react-redux';
+import PlusIcon from '../../../Assets/Images/plus.svg';
+import { useNavigate, useParams } from 'react-router-dom';
+import UserIcon from '../../../Assets/Images/add-user.svg';
+import CommentDataCollection from './CommentDataCollection';
+import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
+import AddUserIcon from '../../../Assets/Images/add-user.svg';
 import {
   addChecker,
   addRework,
   addStep,
-  editOrder,
   getEditingFlow,
   getItems,
   listEmployee,
@@ -23,21 +30,45 @@ import {
   setEditingReworkData,
   setEditingSelectedProgressIndex,
 } from 'Store/Reducers/Editing/EditingFlow/EditingSlice';
-import { useFormik } from 'formik';
-import CommentDataCollection from './CommentDataCollection';
-import moment from 'moment';
-import Loader from 'Components/Common/Loader';
-import { Dropdown } from 'primereact/dropdown';
-import Close from '../../../Assets/Images/close.svg';
-import { Checkbox } from 'primereact/checkbox';
-import UserIcon from '../../../Assets/Images/add-user.svg';
-import { toast } from 'react-toastify';
+import { generateUnitForDataSize } from 'Helper/CommonList';
+import {
+  clearUpdateSelectedDataCollectionData,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
 
-export default function EditingRework() {
+const getSeverityStatus = product => {
+  switch (product) {
+    case 'Initial':
+      return 'info';
+    case 'Library Done':
+      return 'orange';
+    case 'IN Progress':
+      return 'warning';
+    case 'IN Checking':
+      return 'danger';
+    case 'Completed':
+      return 'success';
+    case 'Exporting':
+      return 'primary';
+    default:
+      return null;
+  }
+};
+
+const ProjectStatus = [
+  { label: 'Initial', value: 1 },
+  { label: 'Library Done', value: 2 },
+  { label: 'IN Progress', value: 3 },
+  { label: 'IN Checking', value: 4 },
+  { label: 'Exporting', value: 5 },
+  { label: 'Completed', value: 6 },
+];
+
+const EditingRework = () => {
+  const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { id } = useParams();
-  const [createGroupModel, setCreateGroupModel] = useState(false);
+
   const {
     editingLoading,
     editingReworkData,
@@ -45,27 +76,35 @@ export default function EditingRework() {
     commentLoading,
     orderLoading,
     assignedEditorLoading,
+    reworkLoading,
+    stepLoading,
     checkerLoading,
     employeeLoading,
     itemsLoading,
   } = useSelector(({ editing }) => editing);
+  const { isGetInintialValuesDataCollection } = useSelector(
+    ({ dataCollection }) => dataCollection,
+  );
+  const [createGroupModel, setCreateGroupModel] = useState(false);
 
   useEffect(() => {
     dispatch(getItems({ order_id: id }))
       .then(response => {
         const ItemData = response.payload;
-
         return { ItemData };
       })
       .then(({ ItemData }) => {
         dispatch(getEditingFlow({ order_id: id }))
           .then(response => {
             const responseData = response.payload;
-
             return { ItemData, responseData };
           })
           .then(({ ItemData, responseData }) => {
-            dispatch(listEmployee()).then(response => {
+            dispatch(
+              listEmployee({
+                type: 1,
+              }),
+            ).then(response => {
               const responseList = response.payload;
               let updatedList = ItemData?.map(data => {
                 let filteredEmployeeList = responseList?.filter(employee => {
@@ -129,6 +168,7 @@ export default function EditingRework() {
     //   dispatch(setIsAssignedEditor(false));
     // }
   }, [dispatch, id]);
+
   const handleCheckerChange = (e, data) => {
     const newEmployee = e.value;
     let payload = {
@@ -590,15 +630,17 @@ export default function EditingRework() {
     </div>
   );
 
-  const statusItemTemplate = option => {
-    return (
-      <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
-    );
-  };
+  // const statusItemTemplate = option => {
+  //   return (
+  //     <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
+  //   );
+  // };
 
   const handleReworkChange = (data, fieldName, fieldValue) => {
     const editingList = [...values?.editingTable];
-    const index = editingList?.findIndex(x => x?.item_id === data?.item_id);
+    const index = editingList?.findIndex(
+      x => x?.item_status_id === data?.item_status_id,
+    );
     const oldObj = editingList[index];
 
     const updatedObj = {
@@ -621,113 +663,84 @@ export default function EditingRework() {
     );
   };
 
-  const getSeverityStatus = product => {
-    switch (product) {
-      case 'Initial':
-        return 'info';
-      case 'Library Done':
-        return 'orange';
-      case 'IN Progress':
-        return 'warning';
-      case 'IN Checking':
-        return 'danger';
-      case 'Completed':
-        return 'success';
-      case 'Exporting':
-        return 'primary';
+  // const handleProjectStatusChange = e => {
+  //   setFieldValue('order_status', e.value);
+  //   let payload = {
+  //     order_id: id,
+  //     project_status: e.value,
+  //   };
+  //   dispatch(editOrder(payload))
+  //     .then(response => {
+  //       dispatch(getItems({ order_id: id }))
+  //         .then(response => {
+  //           const ItemData = response.payload;
 
-      default:
-        return null;
-    }
-  };
+  //           return { ItemData };
+  //         })
+  //         .then(({ ItemData }) => {
+  //           dispatch(getEditingFlow({ order_id: id })).then(responseData => {
+  //             const response = responseData.payload;
+  //             let updatedList = ItemData?.map(data => {
+  //               let filteredEmployeeList = assignEmployeeList?.filter(
+  //                 employee => {
+  //                   return data?.employeeData?.some(
+  //                     item => item.employee_id === employee._id,
+  //                   );
+  //                 },
+  //               );
+  //               let filteredIds = data?.employeeData?.map(
+  //                 item => item.employee_id,
+  //               );
 
-  const ProjectStatus = [
-    { label: 'Initial', value: 1 },
-    { label: 'Library Done', value: 2 },
-    { label: 'IN Progress', value: 3 },
-    { label: 'IN Checking', value: 4 },
-    { label: 'Completed', value: 5 },
-    { label: 'Exporting', value: 6 },
-  ];
+  //               let AssignedEmployeeList = assignEmployeeList?.filter(
+  //                 employee => {
+  //                   return !filteredEmployeeList?.some(
+  //                     item => item._id === employee._id,
+  //                   );
+  //                 },
+  //               );
+  //               let updatedCheckerList = data?.checkerData?.map(d => {
+  //                 return {
+  //                   ...d,
+  //                   label: d?.employee_name,
+  //                   value: d?.employee_id,
+  //                 };
+  //               });
 
-  const handleProjectStatusChange = e => {
-    setFieldValue('order_status', e.value);
-    let payload = {
-      order_id: id,
-      project_status: e.value,
-    };
-    dispatch(editOrder(payload))
-      .then(response => {
-        dispatch(getItems({ order_id: id }))
-          .then(response => {
-            const ItemData = response.payload;
+  //               return {
+  //                 ...data,
+  //                 due_date: data?.due_date
+  //                   ? moment(data?.due_date)?.format('DD-MM-YYYY')
+  //                   : '',
+  //                 employeeList:
+  //                   data?.employeeData?.length > 0
+  //                     ? AssignedEmployeeList
+  //                     : assignEmployeeList,
+  //                 assignedEmployee:
+  //                   data?.employeeData?.length > 0 ? filteredIds : [],
 
-            return { ItemData };
-          })
-          .then(({ ItemData }) => {
-            dispatch(getEditingFlow({ order_id: id })).then(responseData => {
-              const response = responseData.payload;
-              let updatedList = ItemData?.map(data => {
-                let filteredEmployeeList = assignEmployeeList?.filter(
-                  employee => {
-                    return data?.employeeData?.some(
-                      item => item.employee_id === employee._id,
-                    );
-                  },
-                );
-                let filteredIds = data?.employeeData?.map(
-                  item => item.employee_id,
-                );
-
-                let AssignedEmployeeList = assignEmployeeList?.filter(
-                  employee => {
-                    return !filteredEmployeeList?.some(
-                      item => item._id === employee._id,
-                    );
-                  },
-                );
-                let updatedCheckerList = data?.checkerData?.map(d => {
-                  return {
-                    ...d,
-                    label: d?.employee_name,
-                    value: d?.employee_id,
-                  };
-                });
-
-                return {
-                  ...data,
-                  due_date: data?.due_date
-                    ? moment(data?.due_date)?.format('DD-MM-YYYY')
-                    : '',
-                  employeeList:
-                    data?.employeeData?.length > 0
-                      ? AssignedEmployeeList
-                      : assignEmployeeList,
-                  assignedEmployee:
-                    data?.employeeData?.length > 0 ? filteredIds : [],
-
-                  checkerList: updatedCheckerList,
-                  checker: data?.checker,
-                };
-              });
-              const updated = {
-                ...response,
-                editingTable: updatedList,
-              };
-              dispatch(setEditingReworkData(updated));
-            });
-          })
-          .catch(error => {
-            console.error('Error fetching Editing flow data:', error);
-          })
-          .catch(error => {
-            console.error('Error fetching product data:', error);
-          });
-      })
-      .catch(error => {
-        console.error('Error fetching product data:', error);
-      });
-  };
+  //                 checkerList: updatedCheckerList,
+  //                 checker: data?.checker,
+  //               };
+  //             });
+  //             const updated = {
+  //               ...response,
+  //               editingTable: updatedList,
+  //             };
+  //             dispatch(setEditingReworkData(updated));
+  //           });
+  //         })
+  //         .catch(error => {
+  //           console.error('Error fetching Editing flow data:', error);
+  //         })
+  //         .catch(error => {
+  //           console.error('Error fetching product data:', error);
+  //         });
+  //     })
+  //     .catch(error => {
+  //       console.error('Error fetching product data:', error);
+  //     });
+  // };
 
   const submitHandle = useCallback(
     values => {
@@ -748,7 +761,7 @@ export default function EditingRework() {
       if (isAssignEmployee && isChecker && isCompletedProject && isRework) {
         let updatedList = values?.editingTable?.map(data => {
           return {
-            item_id: data?._id,
+            item_status_id: data?.item_status_id,
             rework: data?.rework,
           };
         });
@@ -765,6 +778,7 @@ export default function EditingRework() {
             };
             dispatch(addStep(payload))
               .then(response => {
+                dispatch(setEditingReworkData({}));
                 dispatch(setEditingSelectedProgressIndex(8));
               })
               .catch(errors => {
@@ -787,6 +801,12 @@ export default function EditingRework() {
     onSubmit: submitHandle,
   });
 
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${values?.editing_hour || 0}:${values?.editing_minute || 0}:${
+      values?.editing_second || 0
+    }`;
+  }, [values?.editing_hour, values?.editing_minute, values?.editing_second]);
+
   return (
     <div className="">
       {(commentLoading ||
@@ -795,7 +815,9 @@ export default function EditingRework() {
         assignedEditorLoading ||
         checkerLoading ||
         employeeLoading ||
-        itemsLoading) && <Loader />}
+        itemsLoading ||
+        reworkLoading ||
+        stepLoading) && <Loader />}
       <div className="billing_details">
         <div className="mb25">
           <Row className="g-3 g-sm-4">
@@ -837,8 +859,25 @@ export default function EditingRework() {
                 <Row className="g-3 g-sm-4">
                   <Col md={6}>
                     <div className="order-details-wrapper p10 border radius15 h-100">
-                      <div className="pb10 border-bottom">
+                      <div className="pb10 border-bottom d-flex justify-content-between">
                         <h6 className="m-0">Job</h6>
+                        <img
+                          src={EditIcon}
+                          className="cusor-pointer"
+                          alt=""
+                          onClick={() => {
+                            dispatch(
+                              setIsGetInintialValuesDataCollection({
+                                ...isGetInintialValuesDataCollection,
+                                update: false,
+                              }),
+                            );
+                            dispatch(clearUpdateSelectedDataCollectionData());
+                            navigate(
+                              `/update-data-collection/${id}?param=editing`,
+                            );
+                          }}
+                        />
                       </div>
                       <div className="details_box pt10">
                         <div className="details_box_inner">
@@ -850,11 +889,18 @@ export default function EditingRework() {
                             <span>Couple Name :</span>
                             <h5>{values?.couple_name}</h5>
                           </div>
+                          <div className="order-date">
+                            <span>Hours :</span>
+                            <h5>{showHoursWithMinutesAndSeconds}</h5>
+                          </div>
                         </div>
                         <div className="details_box_inner">
                           <div className="order-date">
                             <span>Data Size :</span>
-                            <h5>{values?.data_size} GB</h5>
+                            <h5>
+                              {values?.data_size}
+                              {generateUnitForDataSize(values?.data_size_type)}
+                            </h5>
                           </div>
                           <div className="order-date">
                             <span>Project Type :</span>
@@ -900,7 +946,7 @@ export default function EditingRework() {
                 </Row>
               </div>
               <div className="table_main_Wrapper h-auto">
-                <div className="top_filter_wrap">
+                {/* <div className="top_filter_wrap">
                   <div className="d-flex align-items-center justify-content-end">
                     <h5 className="m-0 me-2">Project Status</h5>
                     <div className="form_group">
@@ -917,7 +963,7 @@ export default function EditingRework() {
                       />
                     </div>
                   </div>
-                </div>
+                </div> */}
                 <div className="data_table_wrapper max_height">
                   <DataTable
                     value={values?.editingTable}
@@ -1059,8 +1105,7 @@ export default function EditingRework() {
           </div>
         </div>
       </Dialog>
-
-      {/* conformation popup */}
     </div>
   );
-}
+};
+export default memo(EditingRework);

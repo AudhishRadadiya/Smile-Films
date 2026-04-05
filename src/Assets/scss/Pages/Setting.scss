@@ -59,7 +59,9 @@
           margin-bottom: 0;
         }
         li {
-          a {
+          a,
+          .side_menu_item {
+            cursor: pointer;
             display: block;
             padding: 10px 20px;
             width: 100%;
@@ -163,7 +165,7 @@
   .profile_img_wrap {
     width: 158px;
     height: 158px;
-    margin: 0 auto 30px;
+    margin: 0 auto 40px;
     border: 1px solid $primary;
     border-radius: 50%;
     padding: 10px;
@@ -236,6 +238,14 @@
       }
     }
   }
+  .profile_trash_icon {
+    margin-top: 16px;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+  }
 }
 
 .create_emp_wrap {
@@ -243,7 +253,7 @@
   flex-wrap: wrap;
   .create_emp_left_wrap {
     width: 440px;
-    height: calc(100vh - 170px);
+    height: fit-content;
     overflow: auto;
     position: sticky;
     top: 0;
@@ -587,7 +597,13 @@
   .create_emp_wrap .create_emp_right_wrap {
     width: calc(100% - 380px);
   }
-  .setting_main_wrap .setting_left_wrap .setting_left_inner_wrap ul li a {
+  .setting_main_wrap .setting_left_wrap .setting_left_inner_wrap ul li a,
+  .setting_main_wrap
+    .setting_left_wrap
+    .setting_left_inner_wrap
+    ul
+    li
+    .side_menu_item {
     font-size: 13px;
   }
 }
@@ -713,7 +729,13 @@
     height: calc(100vh - 334px);
   }
 
-  .setting_main_wrap .setting_left_wrap .setting_left_inner_wrap ul li a {
+  .setting_main_wrap .setting_left_wrap .setting_left_inner_wrap ul li a,
+  .setting_main_wrap
+    .setting_left_wrap
+    .setting_left_inner_wrap
+    ul
+    li
+    .side_menu_item {
     font-size: 12px;
   }
 

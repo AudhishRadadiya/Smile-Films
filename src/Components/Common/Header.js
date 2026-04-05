@@ -1,47 +1,69 @@
+import { clearToken, getAuthToken, saveToken } from 'Helper/AuthTokenHelper';
+import { logout } from 'Store/Reducers/Auth/ProfileSlice';
+import {
+  clearNotification,
+  getNotificationList,
+  notificationSubscribe,
+  notificationUnSubscribe,
+  readNotification,
+  readSingleNotification,
+  setAllowNotificationToggle,
+  setNotificationPermissionDialogVisible,
+} from 'Store/Reducers/Notification/NotificationSlice';
+import _ from 'lodash';
+import moment from 'moment';
+import { Avatar } from 'primereact/avatar';
+import { InputText } from 'primereact/inputtext';
+import { Menu } from 'primereact/menu';
+import { Menubar } from 'primereact/menubar';
+import { OverlayPanel } from 'primereact/overlaypanel';
+import { InputSwitch } from 'primereact/inputswitch';
+import { Sidebar } from 'primereact/sidebar';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Col, Nav, NavItem, NavLink, Row } from 'react-bootstrap';
-import Logo from '../../Assets/Images/logo.svg';
-import Search from '../../Assets/Images/search.svg';
-import Notifiaction from '../../Assets/Images/notification.svg';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import Account from '../../Assets/Images/account.svg';
+import activityOverview from '../../Assets/Images/activity-overview.svg';
+import Announcement from '../../Assets/Images/announcement.svg';
+import AssignedWork from '../../Assets/Images/assigned-work.svg';
+import Billing from '../../Assets/Images/billing.svg';
 import ChatIcon from '../../Assets/Images/chat.svg';
 import CloseIcon from '../../Assets/Images/close.svg';
 import Dashboard from '../../Assets/Images/dashboard.svg';
-import activityOverview from '../../Assets/Images/activity-overview.svg';
-import Inquiry from '../../Assets/Images/inquiry.svg';
-import ProjectStatus from '../../Assets/Images/project-status.svg';
-import EmployeeReporting from '../../Assets/Images/employee-repoting.svg';
-import Announcement from '../../Assets/Images/announcement.svg';
-import DeletedHistory from '../../Assets/Images/delete-history.svg';
-import Editing from '../../Assets/Images/editing.svg';
 import DataCollection from '../../Assets/Images/data-collection.svg';
+import DeletedHistory from '../../Assets/Images/delete-history.svg';
 import EditingFlow from '../../Assets/Images/editing-flow.svg';
-import Exposing from '../../Assets/Images/exposing.svg';
-import Project from '../../Assets/Images/project.svg';
-import Account from '../../Assets/Images/account.svg';
-import Payment from '../../Assets/Images/payment.svg';
-import AssignedWork from '../../Assets/Images/assigned-work.svg';
-import Repoting from '../../Assets/Images/repoting.svg';
-import PaymentDetails from '../../Assets/Images/payment-details.svg';
-import Transaction from '../../Assets/Images/transaction.svg';
-import Billing from '../../Assets/Images/billing.svg';
-import ReceiptPayment from '../../Assets/Images/receipt-payment.svg';
-import JournalEntry from '../../Assets/Images/journal-entry.svg';
+import Editing from '../../Assets/Images/editing.svg';
+import EmployeeReporting from '../../Assets/Images/employee-repoting.svg';
 import Expenses from '../../Assets/Images/expenses.svg';
+import Exposing from '../../Assets/Images/exposing.svg';
+import Inquiry from '../../Assets/Images/inquiry.svg';
+import JournalEntry from '../../Assets/Images/journal-entry.svg';
+import Logo from '../../Assets/Images/logo.svg';
+import Notifiaction from '../../Assets/Images/notification.svg';
+import PaymentDetails from '../../Assets/Images/payment-details.svg';
+import Payment from '../../Assets/Images/payment.svg';
+import ProjectStatus from '../../Assets/Images/project-status.svg';
+import Project from '../../Assets/Images/project.svg';
 import PurchaseInvoice from '../../Assets/Images/purchase-invoice.svg';
+import ReceiptPayment from '../../Assets/Images/receipt-payment.svg';
 import Reports from '../../Assets/Images/report.svg';
+import Repoting from '../../Assets/Images/repoting.svg';
+import Search from '../../Assets/Images/search.svg';
 import Setting from '../../Assets/Images/setting.svg';
-import { Menubar } from 'primereact/menubar';
-import { Avatar } from 'primereact/avatar';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu } from 'primereact/menu';
-import { InputText } from 'primereact/inputtext';
-import { OverlayPanel } from 'primereact/overlaypanel';
-import { Sidebar } from 'primereact/sidebar';
-import _ from 'lodash';
+import Transaction from '../../Assets/Images/transaction.svg';
 import ChangePassWord from './ChangePassWord';
-import { useDispatch, useSelector } from 'react-redux';
-import { logout } from 'Store/Reducers/Auth/ProfileSlice';
-import { clearToken, getAuthToken } from 'Helper/AuthTokenHelper';
+import { checkPermissionForLandingPage } from 'Helper/CommonHelper';
+import { SelectButton } from 'primereact/selectbutton';
+import { login, setUserPermissions } from 'Store/Reducers/Auth/authSlice';
+import Loader from './Loader';
+import Cookies from 'js-cookie';
+import {
+  setActiveTabs,
+  setSwitchedUser,
+} from 'Store/Reducers/Common/CommonSlice';
+import NotificationPermissionDialog from './NotificationPermissionDialog';
 
 const checkIsEmpty = data => {
   return _.isEmpty(data);
@@ -65,33 +87,47 @@ const items = [
 
 let rightsSessionList = [
   '/home',
+  '/my-transaction',
   '/inquiry',
   '/project-status',
-  '/reporting-summary',
+  '/employee-reporting',
   '/user-reporting',
   '/dashboard',
   '/calender-view',
   '/conversation',
   '/create-inquiry',
+  '/update-inquiry-flow',
   '/billing',
   '/add-edit-company-list',
   '/view-billing',
+  '/edit-billing',
   '/receipt-payment',
   '/create-receipt-payment',
   '/view-receipt-payment',
+  '/edit-receipt-payment',
   '/journal-entry',
   '/view-journal-entry',
   '/create-journal-entry',
+  '/edit-journal-entry',
   '/expenses',
   '/create-expenses',
+  '/edit-expenses',
   '/view-expenses',
   '/purchase-invoice',
   '/create-purchase-invoice',
+  '/edit-purchase-invoice',
   '/view-purchase-invoice',
+  '/general-billing',
+  '/create-general-billing',
+  '/edit-general-billing',
+  '/view-general-billing',
   '/exposing',
-  '/exposing-data-collection',
+  '/exposing-flow',
   '/order-form',
   '/company-list',
+  '/company-permission',
+  '/edit-company-permission',
+  '/subscription',
   '/create-company',
   '/employee',
   '/create-employee',
@@ -120,52 +156,72 @@ let rightsSessionList = [
   '/editing',
   '/client-dashboard',
   '/assigned-projects',
+  '/project-work-editing',
+  '/project-work-exposing',
   '/add-edit-assigned-projects',
   '/projects',
   '/project-details',
   '/payment-details',
-  '/transaction',
+  '/my-transaction',
   '/user-dashboard',
   '/reporting',
   '/my-pay',
   '/my-profile',
   '/update-employee',
   '/update-company',
+  '/update-company-profile',
   '/announcement',
   '/deleted-history',
-  '/editing-data-collection',
+  '/editing-flow',
   '/editing-quotation',
   '/editing-quotation-approve',
   '/editing-assign',
   '/editing-overview',
   '/editing-completed',
   '/setting',
+  '/subscription-status',
+  '/upgrade-subscription-plans',
+  '/upgrade-subscription-payment',
   '/update-inquiry',
   '/update-data-collection',
+  '/change-year',
+  '/reports',
+  '/profit-loss',
+  '/balance-sheet',
+  '/account-ledger',
+  '/ledger',
+  '/trading',
+  '/account-history',
+  '/account-history-reports',
 ];
 
 const NavTab = () => {
+  const scrollHere = useRef(null);
   let { pathname } = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const locationPath = pathname?.split('/');
 
-  const [state, setState] = useState({
-    tabs: [
-      {
-        // name: locationPath?.length > 2 ? locationPath[2] : locationPath[1],
-        name: locationPath[1],
-        largePath: locationPath?.length > 2 ? pathname : null,
-      },
-    ],
-    currentTab: {
-      // name: locationPath?.length > 2 ? locationPath[2] : locationPath[1],
-      name: locationPath[1],
-      largePath: locationPath?.length > 2 ? pathname : null,
-    },
-  });
+  const currentUserData = getAuthToken();
 
-  const scrollHere = useRef(null);
+  const { activeTabs } = useSelector(({ common }) => common);
+
+  // const [state, setState] = useState({
+  //   tabs: [
+  //     // {
+  //     //   // name: locationPath?.length > 2 ? locationPath[2] : locationPath[1],
+  //     //   // name: locationPath[1],
+  //     //   // largePath: locationPath?.length > 2 ? pathname : null,
+  //     // },
+  //   ],
+  //   currentTab: {
+  //     // name: locationPath?.length > 2 ? locationPath[2] : locationPath[1],
+  //     // name: locationPath[1],
+  //     // largePath: locationPath?.length > 2 ? pathname : null,
+  //   },
+  // });
+
   useEffect(() => {
     if (scrollHere.current) {
       scrollHere.current.scrollIntoView();
@@ -173,7 +229,7 @@ const NavTab = () => {
   });
 
   const createTabs = () => {
-    const { tabs, currentTab } = state;
+    const { tabs, currentTab } = activeTabs;
     let tabView = [];
 
     tabs?.forEach(item => {
@@ -190,7 +246,9 @@ const NavTab = () => {
           <NavItem key={i}>
             {currentTab?.name === tab?.name ? <div ref={scrollHere}></div> : ''}
             <NavLink
-              className={currentTab?.name === tab?.name ? 'active' : ''}
+              className={`${currentTab?.name === tab?.name ? 'active' : ''} ${
+                tabView?.length === 1 ? 'last_active_tab' : ''
+              }`}
               onClick={e => handleSelectTab(e, tab)}
             >
               <span className="d-inline-flex align-items-center justify-content-between w-100">
@@ -223,7 +281,7 @@ const NavTab = () => {
   };
 
   const handleAddTab = () => {
-    let { tabs } = state;
+    const { tabs } = activeTabs;
     // const newTabObject = {
     //   name: locationPath?.length > 2 ? locationPath?.[2] : locationPath?.[1],
     //   content: `This is Tab ${tabs?.length + 1}`,
@@ -236,22 +294,40 @@ const NavTab = () => {
     };
     // !((configAppConst.appTabs).includes((locationPath.length > 2) ? locationPath[2] : locationPath[1]))
     if (tabs?.[0]?.name === 'login') {
-      setState({
-        tabs: [newTabObject],
-        currentTab: newTabObject,
-      });
-    } else {
-      if (state?.tabs?.length <= 100) {
-        setState({
-          tabs: [...tabs, newTabObject],
+      // setState({
+      //   tabs: [newTabObject],
+      //   currentTab: newTabObject,
+      // });
+      dispatch(
+        setActiveTabs({
+          tabs: [newTabObject],
           currentTab: newTabObject,
-        });
+        }),
+      );
+    } else {
+      if (activeTabs?.tabs?.length <= 100) {
+        // setState({
+        //   tabs: [...tabs, newTabObject],
+        //   currentTab: newTabObject,
+        // });
+        dispatch(
+          setActiveTabs({
+            tabs: [...tabs, newTabObject],
+            currentTab: newTabObject,
+          }),
+        );
       } else {
         tabs?.splice(0, 1);
-        setState({
-          tabs: [...tabs, newTabObject],
-          currentTab: newTabObject,
-        });
+        // setState({
+        //   tabs: [...tabs, newTabObject],
+        //   currentTab: newTabObject,
+        // });
+        dispatch(
+          setActiveTabs({
+            tabs: [...tabs, newTabObject],
+            currentTab: newTabObject,
+          }),
+        );
       }
     }
   };
@@ -263,7 +339,8 @@ const NavTab = () => {
       //     item?.name ===
       //     (item?.largePath !== null ? locationPath?.[2] : locationPath?.[1]),
       // )?.length <= 0
-      state?.tabs?.filter(item => item?.name === locationPath?.[1])?.length <= 0
+      activeTabs?.tabs?.filter(item => item?.name === locationPath?.[1])
+        ?.length <= 0
     ) {
       handleAddTab();
     } else {
@@ -276,28 +353,82 @@ const NavTab = () => {
         name: locationPath?.[1],
         largePath: locationPath?.length > 2 ? pathname : null,
       };
-      let index = state?.tabs?.findIndex(x => x?.name === locationPath?.[1]);
-      // let cloneTabs = { ...JSON.parse(JSON.stringify(state)) };
-      let cloneTabs = { ...state };
+      let index = activeTabs?.tabs?.findIndex(
+        x => x?.name === locationPath?.[1],
+      );
+
+      let cloneTabs = [...activeTabs.tabs];
+
       if (index >= 0)
-        cloneTabs.tabs[index].largePath =
-          locationPath?.length > 2 ? pathname : null;
-      setState({ ...cloneTabs, currentTab: selectBySidebare });
+        cloneTabs[index] = {
+          ...cloneTabs[index],
+          largePath: locationPath?.length > 2 ? pathname : null,
+        };
+      // setState({ ...cloneTabs, currentTab: selectBySidebare });
+      dispatch(
+        setActiveTabs({
+          tabs: cloneTabs,
+          currentTab: selectBySidebare,
+        }),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, locationPath?.length, state?.tabs?.length]);
+  }, [pathname, locationPath?.length, activeTabs?.tabs?.length]);
 
   const handleDeleteTab = (e, tabToDelete) => {
     e.preventDefault();
     e.stopPropagation();
-    const { tabs, currentTab } = state;
+    const { tabs, currentTab } = activeTabs;
+
     if (tabs?.length <= 1) {
-      if (currentTab.name !== 'home') {
-        setState({
-          tabs: [],
-          currentTab: { name: '', largePath: null },
-        });
-        navigate('/home');
+      const checkedPermissionData =
+        checkPermissionForLandingPage(currentUserData);
+
+      if ([1, 2].includes(currentUserData?.role)) {
+        // SuperAdmin or SubAdmin
+        if (currentTab.name !== 'home') {
+          // setState({
+          //   tabs: [],
+          //   currentTab: { name: '', largePath: null },
+          // });
+          dispatch(
+            setActiveTabs({
+              tabs: [],
+              currentTab: { name: '', largePath: null },
+            }),
+          );
+          navigate(checkedPermissionData?.path);
+        }
+      } else if (currentUserData?.role === 3) {
+        // Employee
+        if (currentTab.name !== 'user-dashboard') {
+          // setState({
+          //   tabs: [],
+          //   currentTab: { name: '', largePath: null },
+          // });
+          dispatch(
+            setActiveTabs({
+              tabs: [],
+              currentTab: { name: '', largePath: null },
+            }),
+          );
+          navigate(checkedPermissionData?.path);
+        }
+      } else if (currentUserData?.role === 4) {
+        // Client
+        if (currentTab.name !== 'client-dashboard') {
+          // setState({
+          //   tabs: [],
+          //   currentTab: { name: '', largePath: null },
+          // });
+          dispatch(
+            setActiveTabs({
+              tabs: [],
+              currentTab: { name: '', largePath: null },
+            }),
+          );
+          navigate(checkedPermissionData?.path);
+        }
       }
     } else {
       const tabToDeleteIndex = tabs?.findIndex(
@@ -309,20 +440,32 @@ const NavTab = () => {
       const previousTab =
         tabs?.[tabToDeleteIndex - 1] || tabs?.[tabToDeleteIndex + 1] || {};
       if (currentTab?.name === tabToDelete?.name) {
-        setState({
-          tabs: updatedTabs,
-          currentTab: previousTab,
-        });
+        // setState({
+        //   tabs: updatedTabs,
+        //   currentTab: previousTab,
+        // });
+        dispatch(
+          setActiveTabs({
+            tabs: updatedTabs,
+            currentTab: previousTab,
+          }),
+        );
         if (previousTab?.largePath !== null) {
           navigate(`${previousTab?.largePath}`);
         } else {
           navigate(`/${previousTab?.name}`);
         }
       } else {
-        setState({
-          ...state,
-          tabs: updatedTabs,
-        });
+        // setState({
+        //   ...state,
+        //   tabs: updatedTabs,
+        // });
+        dispatch(
+          setActiveTabs({
+            ...activeTabs,
+            tabs: updatedTabs,
+          }),
+        );
         if (currentTab?.largePath !== null) {
           navigate(`${currentTab?.largePath}`);
         } else {
@@ -336,10 +479,16 @@ const NavTab = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    setState({
-      ...state,
-      currentTab: tab,
-    });
+    // setState({
+    //   ...state,
+    //   currentTab: tab,
+    // });
+    dispatch(
+      setActiveTabs({
+        ...activeTabs,
+        currentTab: tab,
+      }),
+    );
     if (tab?.largePath !== null) {
       navigate(`${tab?.largePath}`);
     } else {
@@ -351,13 +500,14 @@ const NavTab = () => {
 };
 
 const Header = () => {
-  const dispatch = useDispatch();
   const op = useRef(null);
+  const dispatch = useDispatch();
   const menuRight = useRef(null);
   const navigate = useNavigate();
+  const userData = getAuthToken();
   let { pathname } = useLocation();
 
-  const userData = getAuthToken();
+  const switchUserOptions = ['Admin', 'Employee'];
 
   const [changePasswordModal, setChangePasswordModal] = useState(false);
   const [visibleRight, setVisibleRight] = useState(false);
@@ -365,8 +515,17 @@ const Header = () => {
     profile_logo: '',
     name: '',
   });
-  const { userPermissions } = useSelector(({ auth }) => auth);
+  const { switchedUser } = useSelector(({ common }) => common);
+  const { chatMessageCount } = useSelector(({ chat }) => chat);
+  const { userPermissions, loginLoading } = useSelector(({ auth }) => auth);
   const { currentUser } = useSelector(({ profile }) => profile);
+  const {
+    notificationList,
+    notificationPageLimit,
+    notificationCurrentPage,
+    allowNotificationToggle,
+    notificationPermissionDialogVisible,
+  } = useSelector(({ notification }) => notification);
 
   const handleOptionClickEvent = (e, options) => {
     options?.onClick(e);
@@ -401,7 +560,7 @@ const Header = () => {
         className: `${
           pathname === '/inquiry' ||
           pathname === '/project-status' ||
-          pathname === '/reporting-summary' ||
+          pathname === '/employee-reporting' ||
           pathname === '/user-reporting' ||
           pathname === '/create-inquiry'
             ? 'active'
@@ -431,7 +590,7 @@ const Header = () => {
           },
           {
             className: `${
-              pathname === '/reporting-summary' ||
+              pathname === '/employee-reporting' ||
               pathname === '/user-reporting'
                 ? 'active'
                 : ''
@@ -439,7 +598,7 @@ const Header = () => {
             itemName: 'Employee Reporting',
             resName: 'employee-reporting',
             icon: EmployeeReporting,
-            navigateTo: '/reporting-summary',
+            navigateTo: '/employee-reporting',
           },
           {
             className: `${pathname === '/announcement' ? 'active' : ''}`,
@@ -467,7 +626,7 @@ const Header = () => {
           pathname === '/editing-assign' ||
           pathname === '/editing-overview' ||
           pathname === '/editing-completed' ||
-          pathname === '/editing-data-collection'
+          pathname === '/editing-flow'
             ? 'active'
             : ''
         }`,
@@ -495,7 +654,7 @@ const Header = () => {
               pathname === '/editing-assign' ||
               pathname === '/editing-overview' ||
               pathname === '/editing-completed' ||
-              pathname === '/editing-data-collection'
+              pathname === '/editing-flow'
                 ? 'active'
                 : ''
             }`,
@@ -527,15 +686,25 @@ const Header = () => {
         className: `${
           pathname === '/billing' ||
           pathname === '/view-billing' ||
+          pathname === '/edit-billing' ||
           pathname === '/record-receipt-payment' ||
           pathname === '/payment' ||
           pathname === '/journal-entry' ||
           pathname === '/create-journal-entry' ||
           pathname === '/view-journal-entry' ||
+          pathname === '/edit-journal-entry' ||
           pathname === '/expenses' ||
           pathname === '/create-expenses' ||
           pathname === '/view-expenses' ||
-          pathname === '/receipt-payment'
+          pathname === '/edit-expenses' ||
+          pathname === '/receipt-payment' ||
+          pathname === '/create-receipt-payment' ||
+          pathname.includes('/edit-receipt-payment') ||
+          pathname.includes('/view-receipt-payment') ||
+          pathname === '/purchase-invoice' ||
+          pathname === '/create-purchase-invoice' ||
+          pathname.includes('/edit-purchase-invoice') ||
+          pathname.includes('/view-purchase-invoice')
             ? 'active'
             : ''
         }`,
@@ -551,7 +720,14 @@ const Header = () => {
             navigateTo: '/billing',
           },
           {
-            className: `${pathname === '/receipt-payment' ? 'active' : ''}`,
+            className: `${
+              pathname === '/receipt-payment' ||
+              pathname === '/create-receipt-payment' ||
+              pathname.includes('/edit-receipt-payment') ||
+              pathname.includes('/view-receipt-payment')
+                ? 'active'
+                : ''
+            }`,
             itemName: 'Receipt / Payment',
             resName: 'receipt-payment',
             icon: ReceiptPayment,
@@ -572,7 +748,14 @@ const Header = () => {
             navigateTo: '/expenses',
           },
           {
-            className: `${pathname === '/purchase-invoice' ? 'active' : ''}`,
+            className: `${
+              pathname === '/purchase-invoice' ||
+              pathname === '/create-purchase-invoice' ||
+              pathname.includes('/edit-purchase-invoice') ||
+              pathname.includes('/view-purchase-invoice')
+                ? 'active'
+                : ''
+            }`,
             itemName: 'Purchase Invoice',
             resName: 'purchase-invoice',
             icon: PurchaseInvoice,
@@ -581,16 +764,19 @@ const Header = () => {
         ],
       },
       {
-        className: '',
+        className: `${
+          pathname === '/reports' || pathname === '/profit-loss' ? 'active' : ''
+        }`,
         itemName: 'Report',
         icon: Reports,
-        navigateTo: '',
+        navigateTo: '/reports',
         subItems: [],
       },
       {
         className: `${
           pathname === '/setting' ||
           pathname === '/company-list' ||
+          pathname === '/company-permission' ||
           pathname === '/create-company' ||
           pathname === '/employee' ||
           pathname === '/create-employee' ||
@@ -605,7 +791,8 @@ const Header = () => {
           pathname === '/currency' ||
           pathname === '/account' ||
           pathname === '/group' ||
-          pathname === '/product'
+          pathname === '/product' ||
+          pathname === '/change-year'
             ? 'active'
             : ''
         }`,
@@ -615,7 +802,11 @@ const Header = () => {
         subItems: [],
       },
       {
-        className: `${pathname === '/projects' ? 'active' : ''}`,
+        className: `${
+          pathname === '/projects' || pathname.includes('project-details')
+            ? 'active'
+            : ''
+        }`,
         itemName: 'Projects',
         icon: Project,
         navigateTo: '/projects',
@@ -623,7 +814,7 @@ const Header = () => {
       },
       {
         className: `${
-          pathname === '/payment-details' || pathname === '/transaction'
+          pathname === '/payment-details' || pathname === '/my-transaction'
             ? 'active'
             : ''
         }`,
@@ -639,16 +830,22 @@ const Header = () => {
             navigateTo: '/payment-details',
           },
           {
-            className: `${pathname === '/transaction' ? 'active' : ''}`,
+            className: `${pathname === '/my-transaction' ? 'active' : ''}`,
             itemName: 'Transaction',
-            resName: 'Transaction',
+            resName: 'my-transaction',
             icon: Transaction,
-            navigateTo: '/transaction',
+            navigateTo: '/my-transaction',
           },
         ],
       },
       {
-        className: `${pathname === '/assigned-projects' ? 'active' : ''}`,
+        className: `${
+          pathname === '/assigned-projects' ||
+          pathname.includes('project-work-editing') ||
+          pathname.includes('project-work-exposing')
+            ? 'active'
+            : ''
+        }`,
         itemName: 'Assigned Worked',
         icon: AssignedWork,
         navigateTo: '/assigned-projects',
@@ -662,7 +859,9 @@ const Header = () => {
         subItems: [],
       },
       {
-        className: `${pathname === '/my-pay' ? 'active' : ''}`,
+        className: `${
+          pathname === '/my-pay' || pathname === '/transaction' ? 'active' : ''
+        }`,
         itemName: 'My Finance',
         icon: Payment,
         navigateTo: '',
@@ -670,18 +869,32 @@ const Header = () => {
           {
             className: `${pathname === '/my-pay' ? 'active' : ''}`,
             itemName: 'My Pay',
-            resName: 'payment-details',
+            resName: 'my-pay',
             icon: PaymentDetails,
             navigateTo: '/my-pay',
           },
           {
-            className: `${pathname === '/' ? 'active' : ''}`,
+            className: `${pathname === '/transaction' ? 'active' : ''}`,
             itemName: 'Transaction',
-            resName: 'Transaction',
+            resName: 'transaction',
             icon: Transaction,
-            navigateTo: '/',
+            navigateTo: '/transaction',
           },
         ],
+      },
+      {
+        className: `${
+          pathname === '/general-billing' ||
+          pathname === '/create-general-billing' ||
+          pathname.includes('/edit-general-billing') ||
+          pathname.includes('/view-general-billing')
+            ? 'active'
+            : ''
+        }`,
+        itemName: 'General',
+        icon: Reports,
+        navigateTo: '/general-billing',
+        subItems: [],
       },
     ];
   }, [pathname]);
@@ -689,11 +902,13 @@ const Header = () => {
   const updatedMenuItems = useMemo(() => {
     const navLinks = [];
     const filteredPermissionData = [];
+
     // To set a permission item in the FilterData array as per permission
     userPermissions?.forEach(item => {
       item.permission.forEach(data => {
         const { main_module_key, role_id, sub_module_key, _id, ...rest } = data;
         const hasPermission = Object.keys(rest).some(key => rest[key] === true);
+
         if (rest?.name !== 'Other' && hasPermission) {
           const findIndex = filteredPermissionData.findIndex(
             i => i.key === item.key,
@@ -727,6 +942,7 @@ const Header = () => {
 
         const match = filteredPermissionData.find(headerItem => {
           const headerItemNameLowerCase = headerItem.name?.toLowerCase();
+
           return (
             itemNameLowerCase === headerItemNameLowerCase
             // || itemNameLowerCase === 'reports'
@@ -792,6 +1008,7 @@ const Header = () => {
             </>
           );
         },
+
         items: childItem,
         command: () => {
           if (x?.navigateTo) navigate(x?.navigateTo);
@@ -841,6 +1058,14 @@ const Header = () => {
             : `${userData?.employee?.company_name}`,
       });
     }
+
+    // re-set the toggle value
+    if (
+      (userData?.role === 2 || (userData?.role === 3 && userData?.is_admin)) &&
+      switchedUser !== userData?.switch_user
+    ) {
+      dispatch(setSwitchedUser(userData?.switch_user));
+    }
   }, [
     currentUser,
     userData?.employee?.image,
@@ -869,7 +1094,7 @@ const Header = () => {
       className: `${
         pathname === '/inquiry' ||
         pathname === '/project-status' ||
-        pathname === '/reporting-summary' ||
+        pathname === '/employee-reporting' ||
         pathname === '/user-reporting' ||
         pathname === '/create-inquiry'
           ? 'active'
@@ -929,7 +1154,7 @@ const Header = () => {
         },
         {
           className: `${
-            pathname === '/reporting-summary' || pathname === '/user-reporting'
+            pathname === '/employee-reporting' || pathname === '/user-reporting'
               ? 'active'
               : ''
           }`,
@@ -945,7 +1170,7 @@ const Header = () => {
             );
           },
           command: () => {
-            navigate('/reporting-summary');
+            navigate('/employee-reporting');
           },
         },
         {
@@ -994,7 +1219,7 @@ const Header = () => {
         pathname === '/editing-assign' ||
         pathname === '/editing-overview' ||
         pathname === '/editing-completed' ||
-        pathname === '/editing-data-collection'
+        pathname === '/editing-flow'
           ? 'active'
           : ''
       }`,
@@ -1042,7 +1267,7 @@ const Header = () => {
             pathname === '/editing-assign' ||
             pathname === '/editing-overview' ||
             pathname === '/editing-completed' ||
-            pathname === '/editing-data-collection'
+            pathname === '/editing-flow'
               ? 'active'
               : ''
           }`,
@@ -1093,14 +1318,17 @@ const Header = () => {
       className: `${
         pathname === '/billing' ||
         pathname === '/view-billing' ||
+        pathname === '/edit-billing' ||
         pathname === '/record-receipt-payment' ||
         pathname === '/payment' ||
         pathname === '/journal-entry' ||
+        pathname === '/edit-journal-entry' ||
         pathname === '/create-journal-entry' ||
         pathname === '/view-journal-entry' ||
         pathname === '/expenses' ||
         pathname === '/create-expenses' ||
         pathname === '/view-expenses' ||
+        pathname === '/edit-expenses' ||
         pathname === '/receipt-payment'
           ? 'active'
           : ''
@@ -1221,6 +1449,7 @@ const Header = () => {
     {
       className: `${
         pathname === '/company-list' ||
+        pathname === '/company-permission' ||
         pathname === '/create-company' ||
         pathname === '/employee' ||
         pathname === '/create-employee' ||
@@ -1271,7 +1500,7 @@ const Header = () => {
     },
     {
       className: `${
-        pathname === '/payment-details' || pathname === '/transaction'
+        pathname === '/payment-details' || pathname === '/my-transaction'
           ? 'active'
           : ''
       }`,
@@ -1307,7 +1536,7 @@ const Header = () => {
           },
         },
         {
-          className: `${pathname === '/transaction' ? 'active' : ''}`,
+          className: `${pathname === '/my-transaction' ? 'active' : ''}`,
           template: (item, options) => {
             return (
               <span
@@ -1320,7 +1549,7 @@ const Header = () => {
             );
           },
           command: () => {
-            navigate('/transaction');
+            navigate('/my-transaction');
           },
         },
       ],
@@ -1359,7 +1588,7 @@ const Header = () => {
     },
     {
       className: `${
-        pathname === '/my-pay' || pathname === '/' ? 'active' : ''
+        pathname === '/my-pay' || pathname === '/transaction' ? 'active' : ''
       }`,
       template: (item, options) => {
         return (
@@ -1393,7 +1622,7 @@ const Header = () => {
           },
         },
         {
-          className: `${pathname === '/' ? 'active' : ''}`,
+          className: `${pathname === '/transaction' ? 'active' : ''}`,
           template: (item, options) => {
             return (
               <span
@@ -1406,12 +1635,29 @@ const Header = () => {
             );
           },
           command: () => {
-            navigate('/');
+            navigate('/transaction');
           },
         },
       ],
     },
+    {
+      className: `${pathname === '/general-billing' ? 'active' : ''}`,
+      template: (item, options) => {
+        return (
+          <>
+            <span className="menu_item_wrap" onClick={e => options?.onClick(e)}>
+              <Avatar image={Reports} />
+              <span>General Billing</span>
+            </span>
+          </>
+        );
+      },
+      command: () => {
+        navigate('/general-billing');
+      },
+    },
   ];
+
   const userMenu = [
     {
       items: [
@@ -1434,149 +1680,127 @@ const Header = () => {
             localStorage.clear();
             clearToken();
             navigate('/');
+            setLoginUserData({ ...loginUserData, profile_logo: '', name: '' });
+            Cookies.remove('notificationPermissionNotAllow');
           },
+        },
+        {
+          label: 'Allow Permission',
+          template: () => (
+            <div className="d-flex p-menuitem-link justify-content-between align-items-center switch-input">
+              <span className="">Allow Permission</span>
+
+              <InputSwitch
+                checked={allowNotificationToggle}
+                onChange={e => {
+                  dispatch(setAllowNotificationToggle(e.value));
+                  if (!!e.value) {
+                    dispatch(notificationSubscribe());
+                  } else {
+                    dispatch(notificationUnSubscribe());
+                    Cookies.set('notificationPermissionNotAllow', true, {
+                      expires: 12,
+                    });
+                  }
+                }}
+              />
+            </div>
+          ),
         },
       ],
     },
   ];
 
+  const navigatePageAsPerPermission = () => {
+    const checkedPermissionData = checkPermissionForLandingPage(userData);
+    return checkedPermissionData?.path;
+  };
+
+  const setUserName = () => {
+    const firstName = userData?.employee?.first_name
+      ? userData?.employee?.first_name
+      : userData?.employee?.company_name?.split(' ')[0] || '';
+
+    const lastName = userData?.employee?.last_name
+      ? userData?.employee?.last_name
+      : userData?.employee?.company_name?.split(' ')[1] || '';
+
+    return (
+      (firstName || lastName) &&
+      `${firstName?.charAt(0)?.toUpperCase()}
+        ${lastName?.charAt(0)?.toUpperCase()}`
+    );
+  };
+
   const start = (
-    <Link to="/home">
+    <Link to={navigatePageAsPerPermission()}>
       <img alt="logo" src={Logo} />
     </Link>
   );
+
   const end = (
     <ul className="right_header">
-      <li>
-        <div className="form_group search_input">
-          <InputText placeholder="Search" className="input_wrap search_wrap" />
-        </div>
-      </li>
+      {(userData?.role === 2 ||
+        (userData?.role === 3 && userData?.is_admin)) && (
+        <li className="header_toggle_btn">
+          <SelectButton
+            className="select_toggle_button"
+            value={switchedUser}
+            options={switchUserOptions}
+            onChange={async e => {
+              if (!!e.value) {
+                dispatch(setSwitchedUser(e.value));
+
+                saveToken({
+                  ...userData,
+                  switch_user: e.value,
+                });
+
+                const { company_name, email_id, original_password } =
+                  userData?.employee;
+
+                const role = e.value === 'Employee' ? true : false;
+
+                const newObj = {
+                  username: email_id,
+                  password: original_password,
+                  company_id: company_name,
+                  switch_role: role,
+                };
+
+                let res = await dispatch(login(newObj));
+                const responseData = res?.payload?.data;
+
+                const checkedPermissionData =
+                  checkPermissionForLandingPage(responseData);
+
+                dispatch(
+                  setUserPermissions(checkedPermissionData?.updated_permission),
+                );
+                navigate(checkedPermissionData?.path);
+              }
+            }}
+          />
+        </li>
+      )}
       <li className="char_menu_wrap">
         <Link to="/conversation">
           <img src={ChatIcon} alt="" />
-          <span>3</span>
+          {chatMessageCount > 0 && (
+            <span>{chatMessageCount > 0 ? chatMessageCount : ''}</span>
+          )}
         </Link>
       </li>
       <li className="notification_wrapper">
         <Button
-          className="btn_transperant notification_btn"
-          onClick={e => op?.current?.toggle(e)}
+          className={`btn_transperant ${
+            notificationList?.unreadCount ? 'notification_btn' : ''
+          }`}
+          onClick={e => op?.current?.show(e)}
         >
           <img src={Notifiaction} alt="" />
           <span></span>
         </Button>
-        <OverlayPanel ref={op} showCloseIcon className="notification_overlay">
-          <div className="overlay_top_wrap">
-            <h3>Notifications </h3>
-          </div>
-          <div className="notification_main_wrapper">
-            <div className="notification_top">
-              <Row>
-                <Col>
-                  <h5>
-                    All <span>1</span>
-                  </h5>
-                </Col>
-                <Col className="text-end">
-                  <span>Mark all as read</span>
-                </Col>
-              </Row>
-            </div>
-            <div className="notification_body">
-              <div className="notification_box unread">
-                <div className="notification_icon orange">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon green">
-                  <span>BR</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon blue">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon yellow">
-                  <span>RK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="notification_footer d-flex justify-content-between align-items-center">
-              <Button className="btn_transperant text_primary">
-                Clear all notifications
-              </Button>
-              <Button
-                className="btn_primary"
-                onClick={e => {
-                  setVisibleRight(true);
-                  op.current?.toggle(e);
-                }}
-              >
-                View all notifications
-              </Button>
-            </div>
-          </div>
-        </OverlayPanel>
       </li>
       <li>
         <Menu
@@ -1603,17 +1827,14 @@ const Header = () => {
                   color: 'black',
                 }}
               >
-                {userData?.employee?.first_name &&
+                {setUserName()}
+                {/* {userData?.employee?.first_name &&
                   userData?.employee?.last_name &&
                   `${userData?.employee?.first_name?.charAt(0)?.toUpperCase()}
-            ${userData?.employee?.last_name?.charAt(0)?.toUpperCase()}`}
+            ${userData?.employee?.last_name?.charAt(0)?.toUpperCase()}`} */}
               </div>
             )}
           </div>
-          {/* <div className="user_img">
-            <img src={userImg} alt="" />
-          </div> */}
-          {/* <span className="pl10">John Doe</span> */}
           {loginUserData?.name ? (
             <span className="pl10">{loginUserData?.name}</span>
           ) : (
@@ -1624,8 +1845,95 @@ const Header = () => {
     </ul>
   );
 
+  /* NOTIFICATION */
+  useEffect(() => {
+    dispatch(
+      getNotificationList({
+        start: notificationCurrentPage,
+        limit: 5,
+      }),
+    );
+  }, [dispatch, notificationCurrentPage, notificationPageLimit]);
+
+  const handleClearNotification = () => {
+    if (notificationList?.list?.length > 0) {
+      dispatch(clearNotification());
+    }
+  };
+
+  const handleReadNotification = () => {
+    if (notificationList?.unreadCount) {
+      dispatch(readNotification())
+        .then(() => {
+          dispatch(
+            getNotificationList({
+              start: notificationCurrentPage,
+              limit: visibleRight ? notificationPageLimit : 5,
+            }),
+          );
+        })
+        .catch(error => {
+          console.error('Error marking notifications as read:', error);
+        });
+    } else {
+      console.log('No unread notifications to mark as read');
+    }
+  };
+
+  const handleAllNotifications = e => {
+    dispatch(
+      getNotificationList({
+        start: notificationCurrentPage,
+        limit: notificationPageLimit,
+      }),
+    );
+    setVisibleRight(true);
+    op.current?.hide();
+  };
+
+  const handleHide = () => {
+    dispatch(
+      getNotificationList({
+        start: notificationCurrentPage,
+        limit: 5,
+      }),
+    );
+    setVisibleRight(false);
+  };
+
+  const handleNotificationNavigate = useCallback(
+    (type, order_id) => {
+      if (type?.toLowerCase() === 'editing' && order_id) {
+        navigate(`editing-flow/${order_id}`);
+      } else if (type?.toLowerCase() === 'exposing' && order_id) {
+        navigate(`exposing-flow/${order_id}`);
+      } else if (type?.toLowerCase() === 'inquiry' && order_id) {
+        navigate(`update-inquiry-flow/${order_id}`);
+      }
+    },
+    [navigate],
+  );
+
+  const handleSingleReadNotification = useCallback((id, type, orderId) => {
+    op.current?.hide();
+    handleNotificationNavigate(type, orderId);
+    dispatch(readSingleNotification({ notification_id: id }))
+      .then(() => {
+        handleHide();
+      })
+      .catch(error => {
+        console.error('Error marking single notifications as read:', error);
+      });
+  }, []);
+
+  const debounceHandleSingleReadNotification = useCallback(
+    _.debounce(handleSingleReadNotification, 250),
+    [],
+  );
+
   return (
     <>
+      {loginLoading && <Loader />}
       <header>
         <div className="main_header">
           <div className="menu_wrapper">
@@ -1635,265 +1943,93 @@ const Header = () => {
         <div className="page_tab_wrapper">
           <NavTab />
         </div>
-        {/* Profile pic popup */}
-
         <ChangePassWord
           changePasswordModal={changePasswordModal}
           setChangePasswordModal={setChangePasswordModal}
         />
-        {/* / Notification Modal / */}
         <Sidebar
           visible={visibleRight}
           position="right"
-          onHide={() => setVisibleRight(false)}
+          onHide={handleHide}
           className="notification_sidebar"
         >
           <div className="notification_main_wrapper">
-            <h3 className="sidebar_title">Notification</h3>
+            <h3 className="sidebar_title">Notifications</h3>
             <div className="notification_top">
               <Row>
                 <Col>
                   <h5>
-                    All <span>1</span>
+                    All <span>{notificationList?.unreadCount}</span>
                   </h5>
                 </Col>
                 <Col className="text-end">
-                  <span>Mark all as read</span>
+                  <Button
+                    className="btn_transperant text_primary"
+                    onClick={handleReadNotification}
+                  >
+                    Mark all as read
+                  </Button>
                 </Col>
               </Row>
             </div>
             <div className="notification_body">
-              <div className="notification_box unread">
-                <div className="notification_icon orange">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
+              {notificationList?.list?.length > 0 ? (
+                notificationList?.list.map(notification => (
+                  <div
+                    key={notification._id}
+                    className={`notification_box ${
+                      notification?.is_read ? '' : 'unread'
+                    }`}
+                  >
+                    <div className="notification_icon orange">
+                      <span>{notification?.user_data?.name?.charAt(0)}</span>
+                    </div>
+                    <div className="notification_content">
+                      <h5
+                        className={
+                          notification?.type && notification?.order_id
+                            ? 'link_color'
+                            : ''
+                        }
+                        onClick={() => {
+                          !notification?.is_read &&
+                            debounceHandleSingleReadNotification(
+                              notification?._id,
+                              notification?.type,
+                              notification?.order_id,
+                            );
+                        }}
+                      >
+                        {notification?.message}
+                      </h5>
+                      <div className="d-flex justify-content-between">
+                        <p className="text_light m-0">
+                          <small>
+                            {moment(notification?.created_at).format(
+                              'dddd hh:mm A',
+                            )}
+                          </small>
+                        </p>
+                        <p className="text_light m-0">
+                          <small>
+                            {moment(notification?.created_at).format(
+                              'MMM D, YYYY',
+                            )}
+                          </small>
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon green">
-                  <span>BR</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon blue">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon yellow">
-                  <span>RK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box unread">
-                <div className="notification_icon orange">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon green">
-                  <span>BR</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon blue">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon yellow">
-                  <span>RK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box unread">
-                <div className="notification_icon orange">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon green">
-                  <span>BR</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon blue">
-                  <span>KK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="notification_box">
-                <div className="notification_icon yellow">
-                  <span>RK</span>
-                </div>
-                <div className="notification_content">
-                  <h5>
-                    A new order has been created by the salesman 1, Kindly
-                    review the details and proceed accordingly.
-                  </h5>
-                  <div className="d-flex justify-content-between">
-                    <p className="text_light m-0">
-                      <small>Wednesday at 9:40 AM</small>
-                    </p>
-                    <p className="text_light m-0">
-                      <small>Jun 05, 2024</small>
-                    </p>
-                  </div>
-                </div>
-              </div>
+                ))
+              ) : (
+                <p className="no-notification-txt">No Notifications Found</p>
+              )}
             </div>
             <div className="notification_footer d-flex justify-content-between align-items-center">
-              <Button className="btn_transperant text_primary">
+              <Button
+                className="btn_transperant text_primary"
+                onClick={handleClearNotification}
+              >
                 Clear all notifications
               </Button>
             </div>
@@ -1902,115 +2038,99 @@ const Header = () => {
       </header>
       <OverlayPanel ref={op} showCloseIcon className="notification_overlay">
         <div className="overlay_top_wrap">
-          <h3>Notifications </h3>
+          <h3>Notifications</h3>
         </div>
         <div className="notification_main_wrapper">
           <div className="notification_top">
             <Row>
               <Col>
                 <h5>
-                  All <span>1</span>
+                  All <span>{notificationList?.unreadCount}</span>
                 </h5>
               </Col>
               <Col className="text-end">
-                <span>Mark all as read</span>
+                <Button
+                  className="btn_transperant text_primary"
+                  onClick={handleReadNotification}
+                >
+                  Mark all as read
+                </Button>
               </Col>
             </Row>
           </div>
           <div className="notification_body">
-            <div className="notification_box unread">
-              <div className="notification_icon orange">
-                <span>KK</span>
-              </div>
-              <div className="notification_content">
-                <h5>
-                  A new order has been created by the salesman 1, Kindly review
-                  the details and proceed accordingly.
-                </h5>
-                <div className="d-flex justify-content-between">
-                  <p className="text_light m-0">
-                    <small>Wednesday at 9:40 AM</small>
-                  </p>
-                  <p className="text_light m-0">
-                    <small>Jun 05, 2024</small>
-                  </p>
+            {notificationList?.list?.length > 0 ? (
+              notificationList?.list?.map(notification => (
+                <div
+                  key={notification._id}
+                  className={`notification_box ${
+                    notification.is_read ? '' : 'unread'
+                  }`}
+                >
+                  <div className="notification_icon orange">
+                    <span>{notification?.user_data.name?.charAt(0)}</span>
+                  </div>
+                  <div className="notification_content">
+                    <h5
+                      className={
+                        notification?.type && notification?.order_id
+                          ? 'link_color'
+                          : ''
+                      }
+                      onClick={e => {
+                        !notification?.is_read &&
+                          debounceHandleSingleReadNotification(
+                            notification?._id,
+                            notification?.type,
+                            notification?.order_id,
+                          );
+                      }}
+                    >
+                      {notification?.message}
+                    </h5>
+                    <div className="d-flex justify-content-between">
+                      <p className="text_light m-0">
+                        <small>
+                          {moment(notification?.created_at).format(
+                            'dddd hh:mm A',
+                          )}
+                        </small>
+                      </p>
+                      <p className="text_light m-0">
+                        <small>
+                          {moment(notification?.created_at).format(
+                            'DD MMMM YYYY',
+                          )}
+                        </small>
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="notification_box">
-              <div className="notification_icon green">
-                <span>BR</span>
-              </div>
-              <div className="notification_content">
-                <h5>
-                  A new order has been created by the salesman 1, Kindly review
-                  the details and proceed accordingly.
-                </h5>
-                <div className="d-flex justify-content-between">
-                  <p className="text_light m-0">
-                    <small>Wednesday at 9:40 AM</small>
-                  </p>
-                  <p className="text_light m-0">
-                    <small>Jun 05, 2024</small>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="notification_box">
-              <div className="notification_icon blue">
-                <span>KK</span>
-              </div>
-              <div className="notification_content">
-                <h5>
-                  A new order has been created by the salesman 1, Kindly review
-                  the details and proceed accordingly.
-                </h5>
-                <div className="d-flex justify-content-between">
-                  <p className="text_light m-0">
-                    <small>Wednesday at 9:40 AM</small>
-                  </p>
-                  <p className="text_light m-0">
-                    <small>Jun 05, 2024</small>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="notification_box">
-              <div className="notification_icon yellow">
-                <span>RK</span>
-              </div>
-              <div className="notification_content">
-                <h5>
-                  A new order has been created by the salesman 1, Kindly review
-                  the details and proceed accordingly.
-                </h5>
-                <div className="d-flex justify-content-between">
-                  <p className="text_light m-0">
-                    <small>Wednesday at 9:40 AM</small>
-                  </p>
-                  <p className="text_light m-0">
-                    <small>Jun 05, 2024</small>
-                  </p>
-                </div>
-              </div>
-            </div>
+              ))
+            ) : (
+              <p className="no-notification-txt">No Notifications Found</p>
+            )}
           </div>
           <div className="notification_footer d-flex justify-content-between align-items-center">
-            <Button className="btn_transperant text_primary">
+            <Button
+              className="btn_transperant text_primary"
+              onClick={handleClearNotification}
+            >
               Clear all notifications
             </Button>
-            <Button
-              className="btn_primary"
-              onClick={e => {
-                setVisibleRight(true);
-                op.current?.toggle(e);
-              }}
-            >
+            <Button className="btn_primary" onClick={handleAllNotifications}>
               View all notifications
             </Button>
           </div>
         </div>
       </OverlayPanel>
+      {notificationPermissionDialogVisible && (
+        <NotificationPermissionDialog
+          onClose={() =>
+            dispatch(setNotificationPermissionDialogVisible(false))
+          }
+        />
+      )}
     </>
   );
 };

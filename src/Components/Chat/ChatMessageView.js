@@ -35,7 +35,7 @@ const ChatMessageView = ({ viewChatData, fetchChatDetails }) => {
             : 'live_chat_welcome_txt'
         }`}
       >
-        <ul className="h-100">
+        <ul className="h-100 position-relative">
           {chatCurrentData?.count > 0 && (
             <div
               id="scrollableDiv"

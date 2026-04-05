@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Col, Dropdown, OverlayTrigger, Row, Tooltip } from 'react-bootstrap';
+import { Col, Dropdown, Row } from 'react-bootstrap';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import PlusIcon from '../../../Assets/Images/plus.svg';
@@ -11,10 +11,9 @@ import EditIcon from '../../../Assets/Images/edit.svg';
 import TrashIcon from '../../../Assets/Images/trash.svg';
 import ExportIcon from '../../../Assets/Images/export.svg';
 import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  clearAddSelectedDataCollectionData,
   clearUpdateSelectedDataCollectionData,
   deleteDataCollection,
   getDataCollectionList,
@@ -28,7 +27,7 @@ import {
 } from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
 import _ from 'lodash';
 import Loader from 'Components/Common/Loader';
-import { DataCollectionList } from 'Helper/CommonList';
+import { convertIntoNumber } from 'Helper/CommonHelper';
 
 export default function DataCollection({ hasAccess }) {
   const { is_create_access, is_delete_access, is_edit_access } = hasAccess;
@@ -48,16 +47,27 @@ export default function DataCollection({ hasAccess }) {
     isGetInintialValuesDataCollection,
   } = useSelector(({ dataCollection }) => dataCollection);
 
+  const getDataCollectionListApi = useCallback(
+    (start = 1, limit = 10, search = '') => {
+      dispatch(
+        getDataCollectionList({
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+        }),
+      );
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
-    dispatch(
-      getDataCollectionList({
-        start: dataCollectionCurrentPage,
-        limit: dataCollectionPageLimit,
-        isActive: '',
-        search: dataCollectionSearchParam,
-      }),
+    getDataCollectionListApi(
+      dataCollectionCurrentPage,
+      dataCollectionPageLimit,
+      dataCollectionSearchParam,
     );
-  }, [dispatch, dataCollectionCurrentPage, dataCollectionPageLimit]);
+  }, [getDataCollectionListApi]);
 
   useEffect(() => {
     if (
@@ -95,60 +105,119 @@ export default function DataCollection({ hasAccess }) {
 
   const actionBodyTemplate = row => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {' '}
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  dispatch(
-                    setIsGetInintialValuesDataCollection({
-                      ...isGetInintialValuesDataCollection,
-                      update: false,
-                    }),
-                  );
-                  dispatch(clearUpdateSelectedDataCollectionData());
-                  navigate(`/update-data-collection/${row?._id}`);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle
+      //       id="dropdown-basic"
+      //       className="action_btn"
+      //       disabled={is_edit_access || is_delete_access ? false : true}
+      //     >
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       {is_edit_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             dispatch(
+      //               setIsGetInintialValuesDataCollection({
+      //                 ...isGetInintialValuesDataCollection,
+      //                 update: false,
+      //               }),
+      //             );
+      //             dispatch(clearUpdateSelectedDataCollectionData());
+      //             navigate(`/update-data-collection/${row?._id}`);
+      //           }}
+      //         >
+      //           <img src={EditIcon} alt="EditIcon" /> Edit
+      //         </Dropdown.Item>
+      //       )}
+      //       {is_delete_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             setDeleteId(row?._id);
+      //             setDeletePopup(true);
+      //           }}
+      //         >
+      //           <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //         </Dropdown.Item>
+      //       )}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        {is_edit_access && (
+          <img
+            alt=""
+            src={EditIcon}
+            className="cursor_pointer"
+            onClick={() => {
+              dispatch(
+                setIsGetInintialValuesDataCollection({
+                  ...isGetInintialValuesDataCollection,
+                  update: false,
+                }),
+              );
+              dispatch(clearUpdateSelectedDataCollectionData());
+              navigate(`/update-data-collection/${row?._id}`);
+            }}
+          />
+        )}
+        {is_delete_access && (
+          <img
+            src={TrashIcon}
+            alt=""
+            className="cursor_pointer"
+            onClick={() => {
+              setDeleteId(row?._id);
+              setDeletePopup(true);
+            }}
+          />
+        )}
       </div>
     );
   };
 
   const onPageChange = page => {
-    let pageIndex = dataCollectionCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setDataCollectionCurrentPage(pageIndex));
+    if (page !== dataCollectionCurrentPage) {
+      let pageIndex = dataCollectionCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+      dispatch(setDataCollectionCurrentPage(pageIndex));
+      getDataCollectionListApi(
+        pageIndex,
+        dataCollectionPageLimit,
+        dataCollectionSearchParam,
+      );
+    }
   };
 
   const onPageRowsChange = page => {
     dispatch(setDataCollectionCurrentPage(page === 0 ? 0 : 1));
     dispatch(setDataCollectionPageLimit(page));
+    const pageValue =
+      page === 0
+        ? dataCollectionList?.totalRows
+          ? dataCollectionList?.totalRows
+          : 0
+        : page;
+    const prevPageValue =
+      dataCollectionPageLimit === 0
+        ? dataCollectionList?.totalRows
+          ? dataCollectionList?.totalRows
+          : 0
+        : dataCollectionPageLimit;
+    if (
+      prevPageValue < dataCollectionList?.totalRows ||
+      pageValue < dataCollectionList?.totalRows
+    ) {
+      getDataCollectionListApi(
+        page === 0 ? 0 : 1,
+        page,
+        dataCollectionSearchParam,
+      );
+    }
   };
 
   const handleDelete = useCallback(() => {
@@ -168,7 +237,7 @@ export default function DataCollection({ hasAccess }) {
         start: 1,
         limit: dataCollectionPageLimit,
         isActive: '',
-        search: e.target.value,
+        search: e.target.value?.trim(),
       }),
     );
   };
@@ -203,6 +272,19 @@ export default function DataCollection({ hasAccess }) {
     );
   };
 
+  const companyBodyTemplate = data => {
+    return (
+      <span className="hover_text">
+        <Link
+          to={`/update-data-collection/${data?._id}`}
+          className="hover_text"
+        >
+          {data?.company_name}
+        </Link>
+      </span>
+    );
+  };
+
   const deviceTemplate = data => {
     let device = data?.device_name;
     let result;
@@ -228,6 +310,10 @@ export default function DataCollection({ hasAccess }) {
         {data?.item_name}
       </Button>
     );
+  };
+
+  const dataSizeTemplete = data => {
+    return convertIntoNumber(data?.data_size ? data?.data_size : '');
   };
 
   return (
@@ -261,7 +347,7 @@ export default function DataCollection({ hasAccess }) {
                       />
                     </div>
                   </li>
-                  <li>
+                  {/* <li>
                     <Dropdown className="dropdown_common export_dropdown position-static">
                       <OverlayTrigger
                         overlay={props => <Tooltip {...props}>Export</Tooltip>}
@@ -280,8 +366,8 @@ export default function DataCollection({ hasAccess }) {
                         <Dropdown.Item>XLS</Dropdown.Item>
                       </Dropdown.Menu>
                     </Dropdown>
-                  </li>
-                  {is_create_access === true && (
+                  </li> */}
+                  {/* {is_create_access === true && (
                     <li>
                       <Button
                         onClick={() => {
@@ -299,7 +385,7 @@ export default function DataCollection({ hasAccess }) {
                         <img src={PlusIcon} alt="" /> Collect Data
                       </Button>
                     </li>
-                  )}
+                  )} */}
                 </ul>
               </div>
             </Col>
@@ -323,8 +409,10 @@ export default function DataCollection({ hasAccess }) {
               field="company_name"
               header="Company Name"
               sortable
+              body={companyBodyTemplate}
             ></Column>
             <Column field="client_name" header="Client Name" sortable></Column>
+            <Column field="couple_name" header="Couple Name" sortable></Column>
             <Column
               field="item_name"
               header="Item Names"
@@ -342,10 +430,15 @@ export default function DataCollection({ hasAccess }) {
               body={deviceTemplate}
               sortable
             ></Column>
-            <Column field="data_size" header="Data Size" sortable></Column>
+            <Column
+              field="data_size"
+              header="Data Size"
+              body={dataSizeTemplete}
+              sortable
+            ></Column>
             <Column
               field="remark"
-              header="Remark"
+              header="Description"
               sortable
               body={remarkBodyTemplate}
               className="with_concate"
@@ -354,7 +447,6 @@ export default function DataCollection({ hasAccess }) {
             <Column
               field="action"
               header="Action"
-              sortable
               body={actionBodyTemplate}
             ></Column>
           </DataTable>
@@ -369,6 +461,7 @@ export default function DataCollection({ hasAccess }) {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'Data Collection'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}

@@ -4,7 +4,7 @@ import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Dialog } from 'primereact/dialog';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import ArrowIcon from '../../Assets/Images/left_arrow.svg';
 import ProfileImg from '../../Assets/Images/profile-img.svg';
 import InfoIcon from '../../Assets/Images/Info-icon.svg';
@@ -15,14 +15,14 @@ import {
   editExposingItems,
   getExposingDetails,
   getExposingItems,
-  setExposerAssignData,
+  getExposingStep,
   setExposerOverviewData,
   setExposingSelectedProgressIndex,
 } from 'Store/Reducers/Exposing/ExposingFlow/ExposingSlice';
-import { generateUniqueId } from 'Helper/CommonHelper';
 import Loader from 'Components/Common/Loader';
 import { useFormik } from 'formik';
 import moment from 'moment';
+import UserIcon from '../../Assets/Images/add-user.svg';
 
 const ExposingOverview = () => {
   const { id } = useParams();
@@ -59,6 +59,9 @@ const ExposingOverview = () => {
 
             const overviewAlldata = {
               ...responseData,
+              mobile_no: Array.isArray(responseData?.mobile_no)
+                ? responseData?.mobile_no?.join(', ')
+                : responseData?.mobile_no,
               overviewTableList: overviewTableData,
             };
 
@@ -99,6 +102,7 @@ const ExposingOverview = () => {
         };
         dispatch(addExposingStep(payload))
           .then(response => {
+            dispatch(getExposingStep({ order_id: id }));
             dispatch(setExposingSelectedProgressIndex(6));
           })
           .catch(errors => {
@@ -124,6 +128,9 @@ const ExposingOverview = () => {
     const formattedTime =
       rowData?.admin_confirmation_at &&
       moment(rowData?.admin_confirmation_at).format('hh:mm:ss A');
+    const updatedOrderDate = rowData?.order_date
+      ? moment(rowData?.order_date).format('DD-MM-YYYY')
+      : '';
     return (
       <div className="assigned_exposer">
         {rowData?.admin_confirmation ? (
@@ -138,12 +145,15 @@ const ExposingOverview = () => {
         ) : rowData?.sent_confirmation ? (
           <Button
             className="btn_as_text"
-            onClick={() =>
+            onClick={() => {
               setConfirmation({
-                confirmationRowData: rowData,
+                confirmationRowData: {
+                  ...rowData,
+                  order_date: updatedOrderDate,
+                },
                 confirmationModal: true,
-              })
-            }
+              });
+            }}
           >
             <div className="confection_text">
               <img src={InfoIcon} alt="" />
@@ -171,7 +181,7 @@ const ExposingOverview = () => {
                 } assign-profile-wrapper`}
               >
                 <div className="assign_profile">
-                  <img src={item?.image} alt="profileimg" />
+                  <img src={item?.image ? item?.image : UserIcon} alt="" />
                 </div>
                 <div className="profile_user_name">
                   <h5 className="m-0">{item?.employee_name}</h5>
@@ -184,9 +194,33 @@ const ExposingOverview = () => {
     );
   };
 
+  const packageWithItemNameTemplate = data => {
+    const packageWithItem = `${
+      data?.package_name ? data?.package_name + ' -' : ''
+    } ${data?.item_name ? data?.item_name : ''}`;
+
+    return packageWithItem;
+  };
+
   const eventDateTemplate = rowData => {
-    const updatedDate = moment(rowData?.order_date)?.format('YYYY-MM-DD');
-    return <span>{updatedDate}</span>;
+    // const updatedDate = moment(rowData?.order_date)?.format('DD-MM-YYYY');
+    const orderStartDate = rowData?.order_start_date
+      ? moment(rowData?.order_start_date).format('DD-MM-YYYY')
+      : '';
+
+    const orderEndDate = rowData?.order_end_date
+      ? moment(rowData?.order_end_date).format('DD-MM-YYYY')
+      : '';
+
+    return (
+      <span>
+        {orderStartDate
+          ? orderStartDate + (orderEndDate ? ' To ' + orderEndDate : '')
+          : orderEndDate
+          ? ' To ' + orderEndDate
+          : ''}
+      </span>
+    );
   };
 
   const dateSizeBodyTemplet = rowData => {
@@ -202,9 +236,7 @@ const ExposingOverview = () => {
 
       dispatch(editExposingItems(payload))
         .then(response => {
-          dispatch(
-            getExposingItems({ order_id: id || '66177ff0ce1cf55c9b9a5e40' }),
-          )
+          dispatch(getExposingItems({ order_id: id }))
             .then(response => {
               const overviewTableData = response.payload;
 
@@ -245,7 +277,7 @@ const ExposingOverview = () => {
     <>
       {(exposingItemsLoading || exposingLoading) && <Loader />}
       <div className="main_Wrapper">
-        <div className="processing_main bg-white radius15 border">
+        <div className="processing_main">
           {/* <div className="billing_heading">
             <div className="processing_bar_wrapper">
               <div className="verifide_wrap">
@@ -274,141 +306,152 @@ const ExposingOverview = () => {
               </div>
             </div>
           </div> */}
-          <div className="billing_details">
-            <div className="mb25">
-              <div className="process_order_wrap p-0 pb-3">
-                <Row className="align-items-center">
-                  <Col sm={6}>
-                    <div className="back_page">
-                      <div className="btn_as_text d-flex align-items-center">
-                        {/* <Link to="/assign-to-exposer">
+          {/* <div className="billing_details"> */}
+          <div className="mb25">
+            <div className="process_order_wrap p-0 pb-3">
+              <Row className="align-items-center">
+                <Col sm={6}>
+                  <div className="back_page">
+                    <div className="btn_as_text d-flex align-items-center">
+                      {/* <Link to="/assign-to-exposer">
                           <img src={ArrowIcon} alt="ArrowIcon" />
                         </Link> */}
-                        <Button
-                          className="btn_transparent"
-                          onClick={() => {
-                            dispatch(setExposingSelectedProgressIndex(4));
-                          }}
-                        >
-                          <img src={ArrowIcon} alt="ArrowIcon" />
-                        </Button>
-                        <h2 className="m-0 ms-2 fw_500">Overview</h2>
-                      </div>
+                      <Button
+                        className="btn_transparent"
+                        onClick={() => {
+                          dispatch(setExposingSelectedProgressIndex(4));
+                        }}
+                      >
+                        <img src={ArrowIcon} alt="ArrowIcon" />
+                      </Button>
+                      <h2 className="m-0 ms-2 fw_500">Overview</h2>
                     </div>
-                  </Col>
-                  <Col sm={6}>
-                    <div className="date_number">
-                      <ul className="justify-content-end">
-                        <li>
-                          <h6>Order No.</h6>
-                          <h4>{values?.inquiry_no}</h4>
-                        </li>
-                        <li>
-                          <h6>Creat Date</h6>
-                          <h4>{values?.create_date}</h4>
-                        </li>
-                      </ul>
-                    </div>
-                  </Col>
-                </Row>
-              </div>
-              <Row>
-                <Col lg={8}>
-                  <div className="job_company mt-3">
-                    <Row className="g-3 g-sm-4">
-                      <Col md={6}>
-                        <div className="order-details-wrapper p10 border radius15">
-                          <div className="pb10 border-bottom">
-                            <h6 className="m-0">Job</h6>
-                          </div>
-                          <div className="details_box pt10">
-                            <div className="details_box_inner">
-                              <div className="order-date">
-                                <span>Dates :</span>
-                                <h5>
-                                  {values?.start_date &&
-                                    values?.end_date &&
-                                    `${values?.start_date} To ${values?.end_date}`}
-                                </h5>
-                              </div>
-                              <div className="order-date">
-                                <span>Venue :</span>
-                                <h5>{values?.venue}</h5>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Col>
-                      <Col md={6}>
-                        <div className="order-details-wrapper p10 border radius15">
-                          <div className="pb10 border-bottom">
-                            <h6 className="m-0">Company</h6>
-                          </div>
-                          <div className="details_box pt10">
-                            <div className="details_box_inner">
-                              <div className="order-date">
-                                <span>Company Name :</span>
-                                <h5>{values?.company_name}</h5>
-                              </div>
-                              <div className="order-date">
-                                <span>Client Name :</span>
-                                <h5>{values?.client_full_name}</h5>
-                              </div>
-                            </div>
-                            <div className="details_box_inner">
-                              <div className="order-date">
-                                <span>Phone No :</span>
-                                <h5>{values?.mobile_no}</h5>
-                              </div>
-                              <div className="order-date">
-                                <span>Email :</span>
-                                <h5>{values?.email_id}</h5>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Col>
-                    </Row>
+                  </div>
+                </Col>
+                <Col sm={6}>
+                  <div className="date_number">
+                    <ul className="justify-content-end">
+                      <li>
+                        <h6>Order No.</h6>
+                        <h4>{values?.inquiry_no}</h4>
+                      </li>
+                      <li>
+                        <h6>Create Date</h6>
+                        <h4>
+                          {moment(values?.create_date)?.format('DD-MM-YYYY')}
+                        </h4>
+                      </li>
+                    </ul>
                   </div>
                 </Col>
               </Row>
             </div>
-            <div className="data_table_wrapper max_height Exposing_table border radius15">
-              <DataTable
-                value={values?.overviewTableList}
-                sortField="price"
-                sortOrder={1}
-                rows={10}
-              >
-                <Column field="item_name" header="Item Name" sortable></Column>
-                <Column field="quantity" header="Quantity" sortable></Column>
-                <Column
-                  field="event_date"
-                  header="Event Date"
-                  sortable
-                  body={eventDateTemplate}
-                ></Column>
-                <Column
-                  field="assigned_exposer"
-                  header="Assigned Exposer"
-                  sortable
-                  body={AssignBodyTemplet}
-                ></Column>
-                <Column
-                  field="date_size"
-                  header="Date Size"
-                  sortable
-                  body={dateSizeBodyTemplet}
-                ></Column>
-                <Column
-                  field="assigned_freelancer_exposer"
-                  header="Assigned Freelancer Exposer"
-                  sortable
-                  body={ConfectionTemplet}
-                ></Column>
-              </DataTable>
-            </div>
-            {/* <div class="delete_btn_wrap mt-4 p-0 text-end">
+            <Row>
+              <Col lg={8}>
+                <div className="job_company mt-3">
+                  <Row className="g-3 g-sm-4">
+                    <Col md={6}>
+                      <div className="order-details-wrapper p10 border radius15">
+                        <div className="pb10 border-bottom">
+                          <h6 className="m-0">Job</h6>
+                        </div>
+                        <div className="details_box pt10">
+                          <div className="details_box_inner">
+                            <div className="order-date">
+                              <span>Dates :</span>
+                              <h5>
+                                {values?.start_date &&
+                                  values?.end_date &&
+                                  `${moment(values?.start_date)?.format(
+                                    'DD-MM-YYYY',
+                                  )} To ${moment(values?.end_date)?.format(
+                                    'DD-MM-YYYY',
+                                  )}`}
+                              </h5>
+                            </div>
+                            <div className="order-date">
+                              <span>Venue :</span>
+                              <h5>{values?.venue}</h5>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="order-details-wrapper p10 border radius15">
+                        <div className="pb10 border-bottom">
+                          <h6 className="m-0">Company</h6>
+                        </div>
+                        <div className="details_box pt10">
+                          <div className="details_box_inner">
+                            <div className="order-date">
+                              <span>Company Name :</span>
+                              <h5>{values?.company_name}</h5>
+                            </div>
+                            <div className="order-date">
+                              <span>Client Name :</span>
+                              <h5>{values?.client_full_name}</h5>
+                            </div>
+                          </div>
+                          <div className="details_box_inner">
+                            <div className="order-date">
+                              <span>Phone No :</span>
+                              <h5>{values?.mobile_no}</h5>
+                            </div>
+                            <div className="order-date">
+                              <span>Email :</span>
+                              <h5>{values?.email_id}</h5>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              </Col>
+            </Row>
+          </div>
+          <div className="data_table_wrapper max_height Exposing_table border radius15">
+            <DataTable
+              value={values?.overviewTableList}
+              sortField="price"
+              sortOrder={1}
+              rows={10}
+            >
+              <Column
+                field="item_name"
+                header="Item Name"
+                sortable
+                body={packageWithItemNameTemplate}
+              ></Column>
+              <Column field="quantity" header="Quantity" sortable></Column>
+              <Column
+                field="event_date"
+                header="Event Date"
+                sortable
+                body={eventDateTemplate}
+              ></Column>
+              <Column
+                field="assigned_exposer"
+                header="Assigned Exposer"
+                sortable
+                body={AssignBodyTemplet}
+              ></Column>
+              <Column
+                field="date_size"
+                header="Date Size"
+                sortable
+                body={dateSizeBodyTemplet}
+              ></Column>
+              <Column
+                field="assigned_freelancer_exposer"
+                header="Give Data Confirmation to Employee"
+                sortable
+                body={ConfectionTemplet}
+              ></Column>
+            </DataTable>
+          </div>
+          {/* <div class="delete_btn_wrap mt-4 p-0 text-end">
               <Link to="/exposing" class="btn_border_dark">
                 Exit Page
               </Link>
@@ -416,27 +459,26 @@ const ExposingOverview = () => {
                 Save
               </Link>
             </div> */}
+          <div className="btn_group text-end mt20">
+            <Button
+              onClick={() => {
+                navigate('/exposing');
+              }}
+              className="btn_border_dark"
+            >
+              Exit Page
+            </Button>
 
-            <div className="btn_group text-end mt20">
-              <Button
-                onClick={() => {
-                  navigate('/exposing');
-                }}
-                className="btn_border_dark"
-              >
-                Exit Page
-              </Button>
-
-              <Button
-                onClick={handleSubmit}
-                type="submit"
-                className="btn_primary ms-2"
-                disabled={isShowNext}
-              >
-                Next
-              </Button>
-            </div>
+            <Button
+              onClick={handleSubmit}
+              type="submit"
+              className="btn_primary ms-2"
+              disabled={isShowNext}
+            >
+              Next
+            </Button>
           </div>
+          {/* </div> */}
         </div>
         {/* conformation popup */}
         <Dialog

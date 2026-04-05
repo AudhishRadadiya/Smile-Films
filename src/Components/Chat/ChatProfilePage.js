@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { InputText } from 'primereact/inputtext';
 import _ from 'lodash';
@@ -17,9 +17,12 @@ const ChatProfilePage = ({
   allListData,
   activeIndex,
   viewChatData,
+  setFieldValue,
   favoritesearch,
+  setIsOpenChatBar,
   fetchChatDetails,
 }) => {
+  const isProcessingRef = useRef(false);
   const { favoriteListData } = useSelector(({ chat }) => chat);
 
   const formatTime = useCallback(isoString => {
@@ -34,20 +37,49 @@ const ChatProfilePage = ({
       }${minutes} ${amOrPm}`;
     }
   }, []);
+
+  const handleListDataContainer = useCallback(
+    data => {
+      if (viewChatData?.group_id !== data.group_id) {
+        isProcessingRef.current = true;
+        fetchList(activeIndex, activeIndex === 0 ? allSearch : favoritesearch);
+        setIsOpenChatBar(true);
+        dispatch(setClearChatDetails({}));
+        setTimeout(async () => {
+          if (data?.group_id) {
+            await fetchChatDetails(data.group_id, 1, 10, true);
+          }
+          isProcessingRef.current = false;
+        }, 600);
+      } else {
+        isProcessingRef.current = false;
+      }
+    },
+    [
+      activeIndex,
+      allSearch,
+      dispatch,
+      favoritesearch,
+      fetchChatDetails,
+      fetchList,
+      setIsOpenChatBar,
+      viewChatData,
+    ],
+  );
+
   const allListDataContainer = useMemo(() => {
     return allListData?.map((list, index) => {
       return (
         <li
           key={`chat_list_${index}`}
           onClick={() => {
-            fetchList(
-              activeIndex,
-              activeIndex === 0 ? allSearch : favoritesearch,
-            );
-            dispatch(setClearChatDetails({}));
-            setTimeout(() => {
-              list?.group_id && fetchChatDetails(list.group_id, 1, 10, true);
-            }, 600);
+            if (
+              !isProcessingRef.current &&
+              viewChatData?.group_id !== list?.group_id
+            ) {
+              setFieldValue('message', '');
+              handleListDataContainer(list);
+            }
           }}
         >
           <div className="people_profile_wrap">
@@ -79,17 +111,7 @@ const ChatProfilePage = ({
         </li>
       );
     });
-  }, [
-    dispatch,
-    fetchList,
-    allSearch,
-    formatTime,
-    allListData,
-    activeIndex,
-    favoritesearch,
-    fetchChatDetails,
-    viewChatData?.group_id,
-  ]);
+  }, [allListData, formatTime, viewChatData, handleListDataContainer]);
 
   const allFavoriteListContainer = useMemo(() => {
     return favoriteListData?.map((list, index) => {
@@ -102,6 +124,7 @@ const ChatProfilePage = ({
               activeIndex === 0 ? allSearch : favoritesearch,
             );
             dispatch(setClearChatDetails({}));
+            setIsOpenChatBar(true);
             setTimeout(() => {
               list?.group_id && fetchChatDetails(list.group_id, 1, 10, true);
             }, 600);
@@ -145,6 +168,7 @@ const ChatProfilePage = ({
     viewChatData,
     favoritesearch,
     fetchChatDetails,
+    setIsOpenChatBar,
     favoriteListData,
   ]);
 

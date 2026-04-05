@@ -17,6 +17,7 @@ export default function AddDataCollection() {
     if (isGetInintialValuesDataCollection?.add === true) {
       setInitialData(addSelectedDataCollectionData);
     } else {
+      // clear step the data
       dispatch(
         setIsGetInintialValuesDataCollection({
           ...isGetInintialValuesDataCollection,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
@@ -7,14 +7,13 @@ import { Dialog } from 'primereact/dialog';
 import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
 import PlusIcon from '../../../Assets/Images/plus.svg';
 import AddUserIcon from '../../../Assets/Images/add-user.svg';
-import ReactSelectSingle from '../../Common/ReactSelectSingle';
+import EditIcon from '../../../Assets/Images/edit.svg';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Tag } from 'primereact/tag';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   addChecker,
   addStep,
-  editOrder,
   getEditingFlow,
   getItems,
   listEmployee,
@@ -30,8 +29,22 @@ import { Dropdown } from 'primereact/dropdown';
 import Close from '../../../Assets/Images/close.svg';
 import UserIcon from '../../../Assets/Images/add-user.svg';
 import { Checkbox } from 'primereact/checkbox';
+import { generateUnitForDataSize } from 'Helper/CommonList';
+import {
+  clearUpdateSelectedDataCollectionData,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
 
-export default function EditingReworkOverview() {
+const ProjectStatus = [
+  { label: 'Initial', value: 1 },
+  { label: 'Library Done', value: 2 },
+  { label: 'IN Progress', value: 3 },
+  { label: 'IN Checking', value: 4 },
+  { label: 'Exporting', value: 5 },
+  { label: 'Completed', value: 6 },
+];
+
+const EditingReworkOverview = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -49,6 +62,9 @@ export default function EditingReworkOverview() {
     checkerLoading,
     itemsLoading,
   } = useSelector(({ editing }) => editing);
+  const { isGetInintialValuesDataCollection } = useSelector(
+    ({ dataCollection }) => dataCollection,
+  );
 
   useEffect(() => {
     dispatch(getItems({ order_id: id }))
@@ -65,7 +81,11 @@ export default function EditingReworkOverview() {
             return { responseData };
           })
           .then(({ responseData }) => {
-            dispatch(listEmployee()).then(response => {
+            dispatch(
+              listEmployee({
+                type: 1,
+              }),
+            ).then(response => {
               const responseList = response.payload;
               let updatedList = ItemData?.map(data => {
                 let filteredEmployeeList = responseList?.filter(employee => {
@@ -110,16 +130,17 @@ export default function EditingReworkOverview() {
                 editingTable: updatedList,
               };
 
-              const isAssignEmployee = responseData?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = responseData?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
 
-              const isCompletedProject = responseData?.order_status >= 5;
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              // const isCompletedProject = responseData?.order_status >= 5;
+
+              if (isAssignEmployee && isChecker) {
                 setShowJobCompleted(true);
               } else {
                 setShowJobCompleted(false);
@@ -210,17 +231,17 @@ export default function EditingReworkOverview() {
                 editingTable: updatedList,
               };
 
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
 
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setShowJobCompleted(true);
               } else {
                 setShowJobCompleted(false);
@@ -309,16 +330,16 @@ export default function EditingReworkOverview() {
                 ...response,
                 editingTable: updatedList,
               };
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setShowJobCompleted(true);
               } else {
                 setShowJobCompleted(false);
@@ -403,17 +424,17 @@ export default function EditingReworkOverview() {
                 editingTable: updatedList,
               };
 
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
 
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setShowJobCompleted(true);
               } else {
                 setShowJobCompleted(false);
@@ -650,11 +671,11 @@ export default function EditingReworkOverview() {
     </div>
   );
 
-  const statusItemTemplate = option => {
-    return (
-      <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
-    );
-  };
+  // const statusItemTemplate = option => {
+  //   return (
+  //     <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
+  //   );
+  // };
 
   const getSeverityValue = item => {
     switch (item) {
@@ -667,9 +688,9 @@ export default function EditingReworkOverview() {
       case 4:
         return 'In Checking';
       case 5:
-        return 'Completed';
-      case 6:
         return 'Exporting';
+      case 6:
+        return 'Completed';
       default:
         return null;
     }
@@ -695,148 +716,143 @@ export default function EditingReworkOverview() {
       case 4:
         return 'danger';
       case 5:
-        return 'success';
+        return 'primary';
       case 6:
-        return 'primary';
-
-      default:
-        return null;
-    }
-  };
-
-  const getSeverityStatus = product => {
-    switch (product) {
-      case 'Initial':
-        return 'info';
-      case 'Library Done':
-        return 'orange';
-      case 'IN Progress':
-        return 'warning';
-      case 'IN Checking':
-        return 'danger';
-      case 'Completed':
         return 'success';
-      case 'Exporting':
-        return 'primary';
-
       default:
         return null;
     }
   };
-
-  const ProjectStatus = [
-    { label: 'Initial', value: 1 },
-    { label: 'Library Done', value: 2 },
-    { label: 'IN Progress', value: 3 },
-    { label: 'IN Checking', value: 4 },
-    { label: 'Completed', value: 5 },
-    { label: 'Exporting', value: 6 },
-  ];
 
   const reworkTemplate = data => {
     return <Checkbox checked={data?.is_rework} disabled></Checkbox>;
   };
 
-  const handleProjectStatusChange = e => {
-    setFieldValue('order_status', e.value);
-    let payload = {
-      order_id: id,
-      project_status: e.value,
-    };
-    dispatch(editOrder(payload))
-      .then(response => {
-        dispatch(getItems({ order_id: id }))
-          .then(response => {
-            const ItemData = response.payload;
+  // const getSeverityStatus = product => {
+  //   switch (product) {
+  //     case 'Initial':
+  //       return 'info';
+  //     case 'Library Done':
+  //       return 'orange';
+  //     case 'IN Progress':
+  //       return 'warning';
+  //     case 'IN Checking':
+  //       return 'danger';
+  //     case 'Exporting':
+  //       return 'primary';
+  //     case 'Completed':
+  //       return 'success';
+  //     default:
+  //       return null;
+  //   }
+  // };
 
-            return { ItemData };
-          })
-          .then(({ ItemData }) => {
-            dispatch(getEditingFlow({ order_id: id })).then(responseData => {
-              const response = responseData.payload;
-              let updatedList = ItemData?.map(data => {
-                let filteredEmployeeList = assignEmployeeList?.filter(
-                  employee => {
-                    return data?.employeeData?.some(
-                      item => item.employee_id === employee._id,
-                    );
-                  },
-                );
-                let filteredIds = data?.employeeData?.map(
-                  item => item.employee_id,
-                );
+  // const handleProjectStatusChange = e => {
+  //   setFieldValue('order_status', e.value);
+  //   let payload = {
+  //     order_id: id,
+  //     project_status: e.value,
+  //   };
+  //   dispatch(editOrder(payload))
+  //     .then(response => {
+  //       dispatch(getItems({ order_id: id }))
+  //         .then(response => {
+  //           const ItemData = response.payload;
 
-                let AssignedEmployeeList = assignEmployeeList?.filter(
-                  employee => {
-                    return !filteredEmployeeList?.some(
-                      item => item._id === employee._id,
-                    );
-                  },
-                );
-                let updatedCheckerList = data?.checkerData?.map(d => {
-                  return {
-                    ...d,
-                    label: d?.employee_name,
-                    value: d?.employee_id,
-                  };
-                });
+  //           return { ItemData };
+  //         })
+  //         .then(({ ItemData }) => {
+  //           dispatch(getEditingFlow({ order_id: id })).then(responseData => {
+  //             const response = responseData.payload;
+  //             let updatedList = ItemData?.map(data => {
+  //               let filteredEmployeeList = assignEmployeeList?.filter(
+  //                 employee => {
+  //                   return data?.employeeData?.some(
+  //                     item => item.employee_id === employee._id,
+  //                   );
+  //                 },
+  //               );
+  //               let filteredIds = data?.employeeData?.map(
+  //                 item => item.employee_id,
+  //               );
 
-                return {
-                  ...data,
-                  due_date: data?.due_date
-                    ? moment(data?.due_date)?.format('DD-MM-YYYY')
-                    : '',
-                  employeeList:
-                    data?.employeeData?.length > 0
-                      ? AssignedEmployeeList
-                      : assignEmployeeList,
-                  assignedEmployee:
-                    data?.employeeData?.length > 0 ? filteredIds : [],
+  //               let AssignedEmployeeList = assignEmployeeList?.filter(
+  //                 employee => {
+  //                   return !filteredEmployeeList?.some(
+  //                     item => item._id === employee._id,
+  //                   );
+  //                 },
+  //               );
+  //               let updatedCheckerList = data?.checkerData?.map(d => {
+  //                 return {
+  //                   ...d,
+  //                   label: d?.employee_name,
+  //                   value: d?.employee_id,
+  //                 };
+  //               });
 
-                  checkerList: updatedCheckerList,
-                  checker: data?.checker,
-                };
-              });
-              const updated = {
-                ...response,
-                editingTable: updatedList,
-              };
-              const isAssignEmployee = response?.orderItems?.every(item => {
-                return item?.employeeData?.length > 0;
-              });
+  //               return {
+  //                 ...data,
+  //                 due_date: data?.due_date
+  //                   ? moment(data?.due_date)?.format('DD-MM-YYYY')
+  //                   : '',
+  //                 employeeList:
+  //                   data?.employeeData?.length > 0
+  //                     ? AssignedEmployeeList
+  //                     : assignEmployeeList,
+  //                 assignedEmployee:
+  //                   data?.employeeData?.length > 0 ? filteredIds : [],
 
-              const isChecker = response?.orderItems?.every(item => {
-                return item?.checker;
-              });
+  //                 checkerList: updatedCheckerList,
+  //                 checker: data?.checker,
+  //               };
+  //             });
+  //             const updated = {
+  //               ...response,
+  //               editingTable: updatedList,
+  //             };
+  //             const isAssignEmployee = ItemData?.every(item => {
+  //               return item?.employeeData?.length > 0;
+  //             });
 
-              const isCompletedProject = response?.order_status >= 5;
+  //             const isChecker = ItemData?.every(item => {
+  //               return item?.checker;
+  //             });
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
-                setShowJobCompleted(true);
-              } else {
-                setShowJobCompleted(false);
-              }
-              dispatch(setEditingReworkOverviewData(updated));
-            });
-          })
+  //             const isCompletedProject = response?.order_status >= 5;
 
-          .catch(error => {
-            console.error('Error fetching editing data:', error);
-          })
+  //             if (isAssignEmployee && isChecker && isCompletedProject) {
+  //               setShowJobCompleted(true);
+  //             } else {
+  //               setShowJobCompleted(false);
+  //             }
+  //             dispatch(setEditingReworkOverviewData(updated));
+  //           });
+  //         })
 
-          .catch(error => {
-            console.error('Error fetching editing flow:', error);
-          });
-      })
-      .catch(error => {
-        console.error('Error project status change:', error);
-      });
-  };
+  //         .catch(error => {
+  //           console.error('Error fetching editing data:', error);
+  //         })
 
-  const { values, setFieldValue } = useFormik({
+  //         .catch(error => {
+  //           console.error('Error fetching editing flow:', error);
+  //         });
+  //     })
+  //     .catch(error => {
+  //       console.error('Error project status change:', error);
+  //     });
+  // };
+
+  const { values } = useFormik({
     enableReinitialize: true,
     initialValues: editingReworkOverviewData,
   });
+
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${values?.editing_hour || 0}:${values?.editing_minute || 0}:${
+      values?.editing_second || 0
+    }`;
+  }, [values?.editing_hour, values?.editing_minute, values?.editing_second]);
 
   return (
     <div className="">
@@ -888,8 +904,25 @@ export default function EditingReworkOverview() {
                 <Row className="g-3 g-sm-4">
                   <Col md={6}>
                     <div className="order-details-wrapper p10 border radius15 h-100">
-                      <div className="pb10 border-bottom">
+                      <div className="pb10 border-bottom d-flex justify-content-between">
                         <h6 className="m-0">Job</h6>
+                        <img
+                          src={EditIcon}
+                          className="cusor-pointer"
+                          alt=""
+                          onClick={() => {
+                            dispatch(
+                              setIsGetInintialValuesDataCollection({
+                                ...isGetInintialValuesDataCollection,
+                                update: false,
+                              }),
+                            );
+                            dispatch(clearUpdateSelectedDataCollectionData());
+                            navigate(
+                              `/update-data-collection/${id}?param=editing`,
+                            );
+                          }}
+                        />
                       </div>
                       <div className="details_box pt10">
                         <div className="details_box_inner">
@@ -901,11 +934,18 @@ export default function EditingReworkOverview() {
                             <span>Couple Name :</span>
                             <h5>{values?.couple_name}</h5>
                           </div>
+                          <div className="order-date">
+                            <span>Hours :</span>
+                            <h5>{showHoursWithMinutesAndSeconds}</h5>
+                          </div>
                         </div>
                         <div className="details_box_inner">
                           <div className="order-date">
                             <span>Data Size :</span>
-                            <h5>{values?.data_size} GB</h5>
+                            <h5>
+                              {values?.data_size}
+                              {generateUnitForDataSize(values?.data_size_type)}
+                            </h5>
                           </div>
                           <div className="order-date">
                             <span>Project Type :</span>
@@ -951,7 +991,7 @@ export default function EditingReworkOverview() {
                 </Row>
               </div>
               <div className="table_main_Wrapper h-auto">
-                <div className="top_filter_wrap">
+                {/* <div className="top_filter_wrap">
                   <div className="d-flex align-items-center justify-content-end">
                     <h5 className="m-0 me-2">Project Status</h5>
                     <div className="form_group">
@@ -968,7 +1008,7 @@ export default function EditingReworkOverview() {
                       />
                     </div>
                   </div>
-                </div>
+                </div> */}
                 <div className="data_table_wrapper max_height">
                   <DataTable
                     value={values?.editingTable}
@@ -1074,8 +1114,7 @@ export default function EditingReworkOverview() {
           </div>
         </div>
       </Dialog>
-
-      {/* conformation popup */}
     </div>
   );
-}
+};
+export default memo(EditingReworkOverview);

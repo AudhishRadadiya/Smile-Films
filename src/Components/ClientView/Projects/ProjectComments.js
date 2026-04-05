@@ -1,23 +1,23 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Col, Row } from 'react-bootstrap';
-import { useParams } from 'react-router-dom';
-import { Button } from 'primereact/button';
-import { Editor } from 'primereact/editor';
-import { useDispatch, useSelector } from 'react-redux';
+import Loader from 'Components/Common/Loader';
+import { convertDate, fetchingDateFromComment } from 'Helper/CommonHelper';
+import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
+import { clientCommentSchema } from 'Schema/ClientFlow/ClientSchema';
 import {
   addClientComment,
   getClientCommentList,
   setIsAddClientComment,
 } from 'Store/Reducers/ClientFlow/Project/ClientProjectSlice';
-import { convertDate } from 'Helper/CommonHelper';
 import { useFormik } from 'formik';
-import { clientCommentSchema } from 'Schema/ClientFlow/ClientSchema';
-import Loader from 'Components/Common/Loader';
-import ProjectOrderNote from './ProjectOrderNote';
+import { Button } from 'primereact/button';
+import { memo, useCallback, useEffect } from 'react';
+import { Col, Row } from 'react-bootstrap';
 import ReactQuill from 'react-quill';
-import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
+import UserIcon from '../../../Assets/Images/add-user.svg';
+import ProjectOrderNote from './ProjectOrderNote';
 
-export default function ProjectComments() {
+const ProjectComments = () => {
   const dispatch = useDispatch();
   const { id } = useParams();
   const {
@@ -41,15 +41,18 @@ export default function ProjectComments() {
   }, [isAddClientComment, dispatch, id]);
 
   const submitHandle = useCallback(
-    values => {
-      const payload = {
-        ...values,
-        order_id: id,
-      };
-      dispatch(addClientComment(payload));
-      resetForm();
+    (values, { resetForm }) => {
+      const fetchedCommentData = fetchingDateFromComment(values?.comment);
+      if (fetchedCommentData) {
+        const payload = {
+          ...values,
+          order_id: id,
+        };
+        dispatch(addClientComment(payload));
+        resetForm();
+      }
     },
-    [dispatch],
+    [dispatch, id],
   );
 
   const { values, errors, touched, handleSubmit, resetForm, setFieldValue } =
@@ -108,7 +111,7 @@ export default function ProjectComments() {
           <ProjectOrderNote />
         </Col>
         <Col md={7}>
-          <div className="comment_box_wrap">
+          <div className="comment_box_wrap h-100">
             <div className="comment_box_inner">
               <ul>
                 {clientCommentList &&
@@ -116,8 +119,15 @@ export default function ProjectComments() {
                   clientCommentList?.map((data, i) => {
                     return (
                       <li key={i}>
-                        <div className="comment_img">
-                          <img src={data?.user_image} alt="UserImg" />
+                        <div
+                          className={`comment_img ${
+                            !data?.user_image ? 'comment_dummy_icon' : ''
+                          }`}
+                        >
+                          <img
+                            src={data?.user_image ? data?.user_image : UserIcon}
+                            alt=""
+                          />
                         </div>
                         <div className="comment_right">
                           <h5>
@@ -126,7 +136,12 @@ export default function ProjectComments() {
                               {convertDate(data.created_at)}
                             </span>
                           </h5>
-                          <p>{data?.comment}</p>
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: data?.comment,
+                            }}
+                          ></div>
+                          {/* <p>{data?.comment}</p> */}
                         </div>
                       </li>
                     );
@@ -154,7 +169,7 @@ export default function ProjectComments() {
                 )}
               </div>
               <div className="text-end">
-                <Button className="btn_grey" onClick={handleSubmit}>
+                <Button className="btn_primary" onClick={handleSubmit}>
                   Comment
                 </Button>
               </div>
@@ -164,4 +179,5 @@ export default function ProjectComments() {
       </Row>
     </div>
   );
-}
+};
+export default memo(ProjectComments);

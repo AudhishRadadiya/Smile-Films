@@ -9,6 +9,7 @@ import {
   setIsFavoritedSucess,
   setViewChatData,
 } from 'Store/Reducers/Editing/EditingFlow/ChatSlice';
+import UserIcon from '../../Assets/Images/add-user.svg';
 
 const ChatSideBarPage = ({
   dispatch,
@@ -176,7 +177,7 @@ const GroupMemberViewContainer = ({
   const memberImgTag = useMemo(() => {
     return (
       <div className="people_img gray-profile">
-        <img src={image} alt="group_member_img" />
+        <img src={image ? image : UserIcon} alt="group_member_img" />
       </div>
     );
   }, [image]);

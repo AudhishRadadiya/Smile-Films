@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Button, Col, Dropdown, Row } from 'react-bootstrap';
 import { InputText } from 'primereact/inputtext';
 import PlusIcon from '../../../Assets/Images/plus.svg';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import CompanySidebar from '../CompanySidebar';
@@ -54,8 +54,8 @@ export default function CompanyList({ hasAccess }) {
     companyList,
     companyCurrentPage,
     companyPageLimit,
-    isAddCompany,
-    isUpdateCompany,
+    /*     isAddCompany,
+    isUpdateCompany, */
     isDeleteCompany,
     companySearchParam,
     companyLoading,
@@ -64,122 +64,175 @@ export default function CompanyList({ hasAccess }) {
   const [deletePopup, setDeletePopup] = useState(false);
   const [deleteId, setDeleteId] = useState('');
 
-  useEffect(() => {
-    dispatch(
-      getCompanyList({
-        start: companyCurrentPage,
-        limit: companyPageLimit,
-        isActive: '',
-        search: companySearchParam,
-      }),
-    );
-  }, [dispatch, companyCurrentPage, companyPageLimit]);
-
-  useEffect(() => {
-    if (isDeleteCompany) {
+  const getCompanyListData = useCallback(
+    (start = 1, limit = 10, search = '') => {
       dispatch(
         getCompanyList({
-          start: companyCurrentPage,
-          limit: companyPageLimit,
+          start: start,
+          limit: limit,
           isActive: '',
-          search: companySearchParam,
+          search: search?.trim(),
         }),
       );
-    }
+    },
+    [dispatch],
+  );
 
+  useEffect(() => {
+    getCompanyListData(
+      companyCurrentPage,
+      companyPageLimit,
+      companySearchParam,
+    );
+  }, []);
+
+  useEffect(() => {
     if (isDeleteCompany) {
+      getCompanyListData(
+        companyCurrentPage,
+        companyPageLimit,
+        companySearchParam,
+      );
       dispatch(setIsDeleteCompany(false));
     }
-  }, [
-    isAddCompany,
-    isUpdateCompany,
-    isDeleteCompany,
-    dispatch,
-    companyCurrentPage,
-    companyPageLimit,
-    companySearchParam,
-  ]);
+  }, [dispatch, isDeleteCompany]);
 
   const actionBodyTemplate = row => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  dispatch(
-                    setIsGetInitialValues({
-                      ...isGetInitialValues,
-                      update: false,
-                    }),
-                  );
-                  dispatch(clearUpdateSelectedCompanyData());
-                  navigate(`/update-company/${row?._id}`);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle
+      //       id="dropdown-basic"
+      //       className="action_btn"
+      //       disabled={is_edit_access || is_delete_access ? false : true}
+      //     >
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       {is_edit_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             dispatch(
+      //               setIsGetInitialValues({
+      //                 ...isGetInitialValues,
+      //                 update: false,
+      //               }),
+      //             );
+      //             dispatch(clearUpdateSelectedCompanyData());
+      //             navigate(`/update-company/${row?._id}`);
+      //           }}
+      //         >
+      //           <img src={EditIcon} alt="EditIcon" /> Edit
+      //         </Dropdown.Item>
+      //       )}
+      //       {is_delete_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             setDeleteId(row?._id);
+      //             setDeletePopup(true);
+      //           }}
+      //         >
+      //           <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //         </Dropdown.Item>
+      //       )}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        <img
+          alt=""
+          src={EditIcon}
+          className="cursor_pointer"
+          onClick={() => {
+            dispatch(
+              setIsGetInitialValues({
+                ...isGetInitialValues,
+                update: false,
+              }),
+            );
+            dispatch(clearUpdateSelectedCompanyData());
+            navigate(`/update-company/${row?._id}`);
+          }}
+        />
+        <img
+          src={TrashIcon}
+          alt=""
+          className="cursor_pointer"
+          onClick={() => {
+            setDeleteId(row?._id);
+            setDeletePopup(true);
+          }}
+        />
       </div>
     );
   };
 
-  const onPageChange = page => {
-    let pageIndex = companyCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setCompanyCurrentPage(pageIndex));
-  };
-
-  const onPageRowsChange = page => {
-    dispatch(setCompanyCurrentPage(page === 0 ? 0 : 1));
-    dispatch(setCompanyPageLimit(page));
-  };
-
-  const handleDelete = useCallback(
-    async => {
-      const deleteItemObj = {
-        company_id: deleteId,
-      };
-      if (deleteId) {
-        dispatch(deleteCompany(deleteItemObj));
+  const onPageChange = useCallback(
+    page => {
+      if (page !== companyCurrentPage) {
+        let pageIndex = companyCurrentPage;
+        if (page?.page === 'Prev') pageIndex--;
+        else if (page?.page === 'Next') pageIndex++;
+        else pageIndex = page;
+        dispatch(setCompanyCurrentPage(pageIndex));
+        getCompanyListData(pageIndex, companyPageLimit, companySearchParam);
       }
-      setDeletePopup(false);
     },
-    [dispatch, deleteId],
+    [
+      dispatch,
+      companyCurrentPage,
+      companyPageLimit,
+      companySearchParam,
+      getCompanyListData,
+    ],
   );
+
+  const onPageRowsChange = useCallback(
+    page => {
+      dispatch(setCompanyCurrentPage(page === 0 ? 0 : 1));
+      dispatch(setCompanyPageLimit(page));
+      const pageValue =
+        page === 0
+          ? companyList?.totalRows
+            ? companyList?.totalRows
+            : 0
+          : page;
+      const prevPageValue =
+        companyPageLimit === 0
+          ? companyList?.totalRows
+            ? companyList?.totalRows
+            : 0
+          : companyPageLimit;
+      if (
+        prevPageValue < companyList?.totalRows ||
+        pageValue < companyList?.totalRows
+      ) {
+        getCompanyListData(page === 0 ? 0 : 1, page, companySearchParam);
+      }
+    },
+    [
+      dispatch,
+      companyList,
+      companyPageLimit,
+      companySearchParam,
+      getCompanyListData,
+    ],
+  );
+
+  const handleDelete = useCallback(() => {
+    const deleteItemObj = {
+      company_id: deleteId,
+    };
+    if (deleteId) {
+      dispatch(deleteCompany(deleteItemObj));
+    }
+    setDeletePopup(false);
+  }, [dispatch, deleteId]);
 
   const handleSearchInput = e => {
     dispatch(setCompanyCurrentPage(1));
-    dispatch(
-      getCompanyList({
-        start: 1,
-        limit: companyPageLimit,
-        isActive: '',
-        search: e.target.value,
-      }),
-    );
+    getCompanyListData(1, companyPageLimit, e.target.value?.trim());
   };
 
   const debounceHandleSearchInput = useCallback(
@@ -295,6 +348,7 @@ export default function CompanyList({ hasAccess }) {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'company'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}

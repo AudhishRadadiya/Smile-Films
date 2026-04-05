@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import SendIcon from '../../Assets/Images/send-icon.svg';
 import { socket } from 'socket';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,16 +12,18 @@ import {
   setIsFavoritedSucess,
   setIsDeleted,
   setIsClearChat,
-  setUserID,
   setFetchListParams,
   setClearChatDetails,
   setIsReplaceMsg,
+  setIsChatProfileInView,
+  setChatMessageCount,
 } from 'Store/Reducers/Editing/EditingFlow/ChatSlice';
 
 import { useFormik } from 'formik';
 import ChatProfilePage from './ChatProfilePage';
 import ChatDetailPage from './ChatDetailPage';
 import ChatMessageView from './ChatMessageView';
+import { isMobileDevice } from 'Helper/CommonHelper';
 
 export default function Chat() {
   const dispatch = useDispatch();
@@ -35,7 +37,23 @@ export default function Chat() {
     favoritesearch,
     fetchListParams,
     isAuthortiyToSendMsg,
+    isChatProfileInView,
   } = useSelector(({ chat }) => chat);
+  const [isOpenChatBar, setIsOpenChatBar] = useState(false);
+
+  const deviceType = useMemo(() => {
+    const detectDeviceType = () => {
+      if (
+        /Android|webOS|iPhone|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent,
+        )
+      )
+        return 'mobile';
+      else if (/iPad|iPod/i.test(navigator.userAgent)) return 'tablet';
+      else return 'browser';
+    };
+    return detectDeviceType();
+  }, []);
 
   const emitEvents = useCallback(sendDataDetails => {
     socket.emit('req', sendDataDetails);
@@ -46,7 +64,7 @@ export default function Chat() {
       const { data, en } = res;
       if (en === 'LIST' && data) {
         if (activeIndex === 0) {
-          const reversedData = [...data];
+          const reversedData = data?.length ? [...data] : [];
           dispatch(setAllListData(reversedData));
           dispatch(setFavoriteListData([]));
         } else {
@@ -69,6 +87,8 @@ export default function Chat() {
       } else if (en === 'CLEAR_CHAT' && data?.msg) {
         dispatch(setClearChatDetails({}));
         dispatch(setIsClearChat(data.msg));
+      } else if (en === 'MESSAGE_COUNT') {
+        dispatch(setChatMessageCount(data?.count));
       }
     },
     [dispatch, activeIndex],
@@ -82,27 +102,27 @@ export default function Chat() {
     });
   }, [dispatch, updateSocketData]);
 
-  useEffect(() => {
-    function onConnect() {
-      let UserPreferences = localStorage.getItem('UserPreferences');
-      if (UserPreferences) {
-        UserPreferences = JSON.parse(window?.atob(UserPreferences));
-      }
-      var sendData = {
-        en: 'JU',
-        data: {
-          user_id: UserPreferences?.employee?._id,
-        },
-      };
-      socket.emit('req', sendData);
-      dispatch(setUserID(sendData?.data?.user_id));
-    }
-    onConnect();
-    socket.on('connect', onConnect);
-    return () => {
-      socket.off('connect', onConnect);
-    };
-  }, [dispatch]);
+  // useEffect(() => {
+  //   function onConnect() {
+  //     let UserPreferences = localStorage.getItem('UserPreferences');
+  //     if (UserPreferences) {
+  //       UserPreferences = JSON.parse(window?.atob(UserPreferences));
+  //     }
+  //     var sendData = {
+  //       en: 'JU',
+  //       data: {
+  //         user_id: UserPreferences?.employee?._id,
+  //       },
+  //     };
+  //     socket.emit('req', sendData);
+  //     dispatch(setUserID(sendData?.data?.user_id));
+  //   }
+  //   onConnect();
+  //   socket.on('connect', onConnect);
+  //   return () => {
+  //     socket.off('connect', onConnect);
+  //   };
+  // }, [dispatch]);
 
   const fetchList = useCallback(
     (isFavouriteValue = 0, searchValue = '') => {
@@ -165,12 +185,15 @@ export default function Chat() {
       message: '',
     },
     onSubmit: values => {
-      sendMessage(viewChatData.group_id, values.message, 1, '');
-      resetForm();
+      if (values?.message) {
+        sendMessage(viewChatData.group_id, values.message, 1, '');
+        resetForm();
+      }
     },
   });
 
-  const { values, handleChange, resetForm, handleSubmit } = formik;
+  const { values, handleChange, resetForm, handleSubmit, setFieldValue } =
+    formik;
 
   const sendMessage = useCallback(
     (group_id, message, messageType, link) => {
@@ -215,7 +238,15 @@ export default function Chat() {
   return (
     <div className="main_Wrapper">
       <div className="chat_main_wrapper">
-        <div className="chat_profile">
+        <div
+          className={
+            deviceType === 'browser'
+              ? 'chat_profile'
+              : isOpenChatBar
+              ? 'chat_profile d-none'
+              : 'chat_profile'
+          }
+        >
           <ChatProfilePage
             dispatch={dispatch}
             fetchList={fetchList}
@@ -223,11 +254,22 @@ export default function Chat() {
             allListData={allListData}
             activeIndex={activeIndex}
             viewChatData={viewChatData}
+            setFieldValue={setFieldValue}
             favoritesearch={favoritesearch}
             fetchChatDetails={fetchChatDetails}
+            setIsOpenChatBar={setIsOpenChatBar}
           />
         </div>
-        <div className="chat_details">
+
+        <div
+          className={
+            deviceType === 'browser'
+              ? 'chat_details'
+              : isOpenChatBar
+              ? 'chat_details'
+              : 'chat_details d-none'
+          }
+        >
           <ChatDetailPage
             dispatch={dispatch}
             fetchList={fetchList}
@@ -238,6 +280,7 @@ export default function Chat() {
             viewChatData={viewChatData}
             favoritesearch={favoritesearch}
             fetchChatDetails={fetchChatDetails}
+            setIsOpenChatBar={setIsOpenChatBar}
           />
           <ChatMessageView
             viewChatData={viewChatData}
@@ -264,7 +307,7 @@ export default function Chat() {
                 />
               </div>
               <div className="send_btn_wrapper">
-                <button type="submit">
+                <button type="submit" disabled={!values?.message}>
                   <img src={SendIcon} alt="" />
                 </button>
               </div>

@@ -1,15 +1,16 @@
 import React from 'react';
-import EditingProgress from './EditingProgress';
-import EditingDataCollection from './EditingDataCollection';
-import EditingQuotation from './EditingQuotation';
-import EditingQuotesApprove from './EditingQuotesApprove';
-import EditingAssign from './EditingAssign';
-import EditingOverview from './EditingOverview';
-import EditingCompleted from './EditingCompleted';
 import { useSelector } from 'react-redux';
 import EditingRework from './EditingRework';
+import EditingAssign from './EditingAssign';
+import EditingOverview from './EditingOverview';
+import EditingProgress from './EditingProgress';
+import EditingQuotation from './EditingQuotation';
+import EditingCompleted from './EditingCompleted';
+import EditingQuotesApprove from './EditingQuotesApprove';
+import EditingDataCollection from './EditingDataCollection';
 import EditingReworkOverview from './EditingReworkOverview';
 import EditingReworkCompleted from './EditingReworkCompleted';
+
 const getEditingFlowComponent = index => {
   switch (index) {
     case 1:

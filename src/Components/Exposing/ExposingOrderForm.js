@@ -1,29 +1,32 @@
-import React, { memo, useCallback, useEffect, useState } from 'react';
-import { useFormik } from 'formik';
-import { Col, Row } from 'react-bootstrap';
-import { Button } from 'primereact/button';
-import { RadioButton } from 'primereact/radiobutton';
-import { Calendar } from 'primereact/calendar';
-import { DataTable } from 'primereact/datatable';
-import { ColumnGroup } from 'primereact/columngroup';
-import { Column } from 'primereact/column';
 import Loader from 'Components/Common/Loader';
-import { useNavigate, useParams } from 'react-router-dom';
-import { MultiSelect } from 'primereact/multiselect';
-import ReactSelectSingle from '../Common/ReactSelectSingle';
+import { totalCount } from 'Helper/CommonHelper';
+import { getFormattedDate } from 'Helper/CommonList';
+import { exposingOrderFormSchema } from 'Schema/Exposing/exposingSchema';
 import {
   addExposingStep,
   editExposingFlow,
   getExposingFlow,
+  getExposingStep,
   setExposingSelectedProgressIndex,
 } from 'Store/Reducers/Exposing/ExposingFlow/ExposingSlice';
-import { useDispatch, useSelector } from 'react-redux';
-import { totalCount } from 'Helper/CommonHelper';
-import { getFormattedDate } from 'Helper/CommonList';
-import { exposingOrderFormSchema } from 'Schema/Exposing/exposingSchema';
+import { getClientCompanyList } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
 import { getPackageList } from 'Store/Reducers/Settings/Master/PackageSlice';
 import { getProductList } from 'Store/Reducers/Settings/Master/ProductSlice';
-import { getClientCompanyList } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
+import { useFormik } from 'formik';
+import moment from 'moment';
+import { Button } from 'primereact/button';
+import { Calendar } from 'primereact/calendar';
+import { Column } from 'primereact/column';
+import { ColumnGroup } from 'primereact/columngroup';
+import { DataTable } from 'primereact/datatable';
+import { MultiSelect } from 'primereact/multiselect';
+import { RadioButton } from 'primereact/radiobutton';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { Col, Row } from 'react-bootstrap';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import ReactSelectSingle from '../Common/ReactSelectSingle';
 
 const ExposingOrderForm = () => {
   const { id } = useParams();
@@ -70,6 +73,7 @@ const ExposingOrderForm = () => {
         limit: 0,
         isActive: true,
         search: '',
+        type: 2,
       }),
     )
       .then(response => {
@@ -89,6 +93,7 @@ const ExposingOrderForm = () => {
             limit: 0,
             isActive: true,
             search: '',
+            type: 2,
           }),
         )
           .then(response => {
@@ -116,18 +121,33 @@ const ExposingOrderForm = () => {
   const submitHandle = useCallback(
     (value, { resetForm }) => {
       const orderTableData = value?.exposing_order_table?.map(item => {
+        const startDate =
+          item?.order_date?.length && item?.order_date[0]
+            ? moment(item?.order_date[0])?.format('YYYY-MM-DD')
+            : '';
+        const endDate =
+          item?.order_date?.length && item?.order_date[1]
+            ? moment(item?.order_date[1])?.format('YYYY-MM-DD')
+            : '';
+
         return {
           ...(item?._id && { orderItems_id: item?._id }),
           item_id: item?.item_id ? item?.item_id : '',
           item_name: item?.item_name ? item?.item_name : '',
           quantity: item?.quantity ? item?.quantity : 0,
-          order_date: item?.order_date
-            ? getFormattedDate(item?.order_date)
-            : '',
+          // order_date: item?.order_date
+          //   ? getFormattedDate(item?.order_date)
+          //   : '',
+          order_start_date: startDate,
+          order_end_date: endDate,
           rate: item?.rate ? item?.rate : 0,
           amount: item?.amount ? item?.amount : 0,
           description: item?.description ? item?.description : '',
         };
+      });
+
+      const isEventDate = orderTableData?.some(item => {
+        return !item?.order_start_date && !item?.order_end_date;
       });
 
       const payloadObj = {
@@ -139,22 +159,43 @@ const ExposingOrderForm = () => {
         exposing_item: orderTableData,
       };
 
-      dispatch(editExposingFlow(payloadObj))
-        .then(response => {
-          dispatch(getExposingFlow({ order_id: id }))
-            .then(responseData => {
-              resetForm();
-              setIsShowNext(true);
-            })
-            .catch(error => {
-              console.error('Error fetching Exposing Flow:', error);
-            });
-        })
-        .catch(error => {
-          console.error('Error fetching while edit order form:', error);
-        });
+      if (!isEventDate) {
+        dispatch(editExposingFlow(payloadObj))
+          .then(response => {
+            dispatch(getExposingFlow({ order_id: id }))
+              .then(responseData => {
+                setIsShowNext(true);
+                if (
+                  !getExposingStepData?.step ||
+                  getExposingStepData?.step < 1
+                ) {
+                  let payload = {
+                    order_id: id,
+                    step: 1,
+                  };
+                  dispatch(addExposingStep(payload))
+                    .then(response => {
+                      dispatch(getExposingStep({ order_id: id }));
+                      resetForm();
+                      // setIsShowNext(true);
+                    })
+                    .catch(errors => {
+                      console.error('Add Status:', errors);
+                    });
+                }
+              })
+              .catch(error => {
+                console.error('Error fetching Exposing Flow:', error);
+              });
+          })
+          .catch(error => {
+            console.error('Error fetching while edit order form:', error);
+          });
+      } else {
+        toast.error('Select Event Date in Order Item');
+      }
     },
-    [dispatch, id],
+    [dispatch, getExposingStepData, id],
   );
 
   const {
@@ -184,9 +225,10 @@ const ExposingOrderForm = () => {
   const DescriptionTemplate = rowData => {
     return (
       <>
-        <div className="description_text">
-          <p>{rowData?.description}</p>
-        </div>
+        <div
+          className="editor_text_wrapper max_500"
+          dangerouslySetInnerHTML={{ __html: rowData?.description }}
+        />
       </>
     );
   };
@@ -202,18 +244,36 @@ const ExposingOrderForm = () => {
   const EventBodyTemplet = (rowData, item) => {
     const fieldName = item?.field;
     return (
-      <div className="form_group date_select_wrapper w_150 hover_date">
-        <Calendar
+      <div className="form_group date_select_wrapper w_260 hover_date">
+        {/* <Calendar
           showIcon
           dateFormat="dd-mm-yy"
           name={fieldName}
-          value={rowData[fieldName]}
+          placeholder="Select Event Date"
+          value={new Date(rowData[fieldName])}
           onChange={e => {
-            const orderDate = new Date(e.value);
+            const orderDate = e?.value //new Date(e.value)
+              ? getFormattedDate(e?.value)
+              : '';
             handleExposingTableChange(rowData, e.target.name, orderDate);
           }}
           onBlur={handleBlur}
           showButtonBar
+          disabled={isShowNext ? true : false}
+        /> */}
+
+        <Calendar
+          name={fieldName}
+          placeholder="Select Event Date"
+          value={rowData[fieldName] ? rowData[fieldName] : []}
+          showIcon
+          showButtonBar
+          selectionMode="range"
+          dateFormat="dd-mm-yy"
+          readOnlyInput
+          onChange={e => {
+            handleExposingTableChange(rowData, e.target.name, e.value);
+          }}
         />
       </div>
     );
@@ -232,7 +292,7 @@ const ExposingOrderForm = () => {
           item_id: data?._id,
           item_name: data?.package_name,
           description: data?.remark,
-          order_date: new Date(),
+          order_date: [],
           quantity: 1,
           rate: data?.price,
           amount: data?.price,
@@ -242,7 +302,7 @@ const ExposingOrderForm = () => {
           item_id: data?._id,
           item_name: data?.item_name,
           description: data?.item_description,
-          order_date: new Date(),
+          order_date: [],
           quantity: 1,
           rate: data?.item_price,
           amount: data?.item_price,
@@ -288,70 +348,76 @@ const ExposingOrderForm = () => {
 
   return (
     <>
-      {exposingLoading ||
-        clientCompanyLoading ||
+      {(exposingLoading ||
         packageLoading ||
-        (productLoading && <Loader />)}
-      <div className="main_Wrapper">
-        <div className="processing_main bg-white radius15 border">
-          <div className="process_order_wrap">
-            <Row className="align-items-center">
-              <Col sm={5}>
-                <div className="back_page">
-                  <div className="btn_as_text d-flex align-items-center">
-                    {/* <Link to="/exposing">
+        clientCompanyLoading ||
+        productLoading) && <Loader />}
+      {/* <div className="main_Wrapper"> */}
+      <div className="processing_main">
+        <div className="process_order_wrap">
+          <Row className="align-items-center">
+            <Col sm={5}>
+              <div className="back_page">
+                <div className="btn_as_text d-flex align-items-center">
+                  {/* <Link to="/exposing">
                     <img src={ArrowIcon} alt="ArrowIcon" />
                     </Link> */}
-                    <Button
-                      className="btn_transparent"
-                      onClick={() => {
-                        navigate('/exposing');
-                      }}
-                    ></Button>
-                    <h2 className="m-0 ms-2 fw_500">Order Form</h2>
+                  <Button
+                    className="btn_transparent"
+                    onClick={() => {
+                      navigate('/exposing');
+                    }}
+                  ></Button>
+                  <h2 className="m-0 ms-2 fw_500">Order Form</h2>
+                </div>
+              </div>
+            </Col>
+            <Col sm={7}>
+              <div className="date_number">
+                <ul className="justify-content-end">
+                  <li>
+                    <h6>Order No.</h6>
+                    <h4>{values?.inquiry_no}</h4>
+                  </li>
+                  <li>
+                    <h6>Create Date</h6>
+                    <h4>
+                      {values?.create_date
+                        ? moment(values?.create_date)?.format('DD-MM-YYYY')
+                        : ''}
+                    </h4>
+                  </li>
+                  <li>
+                    <h6>Confirm By </h6>
+                    <h4>{values?.confirm_by ? values?.confirm_by : ''}</h4>
+                  </li>
+                </ul>
+              </div>
+            </Col>
+          </Row>
+        </div>
+        <div className="billing_details">
+          <Row>
+            <Col lg={6}>
+              <Row className="align-items-end">
+                <Col sm={6}>
+                  <div class="form_group mb-3">
+                    <label>
+                      Company <span className="text-danger fs-6">*</span>
+                    </label>
+                    <ReactSelectSingle
+                      filter
+                      name="client_company_id"
+                      value={values?.client_company_id}
+                      options={clientCompanyOptionList}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      placeholder="Select Company"
+                      disabled
+                    />
                   </div>
-                </div>
-              </Col>
-              <Col sm={7}>
-                <div className="date_number">
-                  <ul className="justify-content-end">
-                    <li>
-                      <h6>Order No.</h6>
-                      <h4>{values?.inquiry_no}</h4>
-                    </li>
-                    <li>
-                      <h6>Creat Date</h6>
-                      <h4>{values?.create_date}</h4>
-                    </li>
-                    <li>
-                      <h6>Confirm By </h6>
-                      <h4>{values?.confirm_by ? values?.confirm_by : ''}</h4>
-                    </li>
-                  </ul>
-                </div>
-              </Col>
-            </Row>
-          </div>
-          <div className="billing_details">
-            <Row>
-              <Col lg={6}>
-                <Row className="align-items-end">
-                  <Col sm={6}>
-                    <div class="form_group mb-3">
-                      <label>Company</label>
-                      <ReactSelectSingle
-                        filter
-                        name="client_company_id"
-                        value={values?.client_company_id}
-                        options={clientCompanyOptionList}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        placeholder="Select Company"
-                        disabled
-                      />
-                    </div>
-                  </Col>
-                  {/* <Col sm={6}>
+                </Col>
+                {/* <Col sm={6}>
                   <div className="addclient_popup">
                     <Button
                       className="btn_primary filter_btn mb-3"
@@ -362,77 +428,79 @@ const ExposingOrderForm = () => {
                     </Button>
                   </div>
                 </Col> */}
-                  <Col sm={6}>
-                    <div class="form_group mb-3">
-                      <label>Client Name</label>
-                      <input
-                        name="client_full_name"
-                        value={values?.client_full_name}
-                        onChange={handleChange}
-                        disabled
-                        placeholder="Client Name"
-                        class="p-inputtext p-component input_wrap"
-                      />
-                    </div>
-                  </Col>
-                </Row>
-                <Row className="align-items-end">
-                  <Col sm={6}>
-                    <div class="form_group mb-3">
-                      <label>Email Address</label>
-                      <input
-                        placeholder="Write email address"
-                        class="p-inputtext p-component input_wrap"
-                        name="email_id"
-                        value={values?.email_id}
-                        onChange={handleChange}
-                        disabled
-                      />
-                    </div>
-                  </Col>
-                  <Col sm={6}>
-                    <div class="form_group mb-3">
-                      <label>Phone Number</label>
-                      <input
-                        placeholder="Write number"
-                        type="number"
-                        class="p-inputtext p-component input_wrap"
-                        name="mobile_no"
-                        value={values?.mobile_no}
-                        onChange={handleChange}
-                        disabled
-                      />
-                    </div>
-                  </Col>
-                </Row>
-              </Col>
-              <Col lg={6}>
-                <div className="delivery_timing">
-                  <ul>
-                    <li>
-                      <div className="form_group mb-3">
-                        <label>Delivery Date</label>
-                        <div className="date_select">
-                          <Calendar
-                            id="Delivery Date"
-                            placeholder="Select Delivery Date"
-                            showIcon
-                            dateFormat="dd-mm-yy"
-                            name="delivery_date"
-                            value={values?.delivery_date || ''}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            showButtonBar
-                          />
-                          {touched?.delivery_date && errors?.delivery_date && (
-                            <p className="text-danger">
-                              {errors?.delivery_date}
-                            </p>
-                          )}
-                        </div>
+                <Col sm={6}>
+                  <div class="form_group mb-3">
+                    <label>Client Name</label>
+                    <input
+                      name="client_full_name"
+                      value={values?.client_full_name}
+                      onChange={handleChange}
+                      disabled
+                      placeholder="Client Name"
+                      class="p-inputtext p-component input_wrap"
+                    />
+                  </div>
+                </Col>
+              </Row>
+              <Row className="align-items-end">
+                <Col sm={6}>
+                  <div class="form_group mb-3">
+                    <label>Email Address</label>
+                    <input
+                      placeholder="Write email address"
+                      class="p-inputtext p-component input_wrap"
+                      name="email_id"
+                      value={values?.email_id}
+                      onChange={handleChange}
+                      disabled
+                    />
+                  </div>
+                </Col>
+                <Col sm={6}>
+                  <div class="form_group mb-3">
+                    <label>Phone Number</label>
+                    <input
+                      // type="number"
+                      placeholder="Phone Number"
+                      class="p-inputtext p-component input_wrap"
+                      name="mobile_no"
+                      value={values?.mobile_no}
+                      onChange={handleChange}
+                      disabled
+                    />
+                  </div>
+                </Col>
+              </Row>
+            </Col>
+            <Col lg={6}>
+              <div className="delivery_timing">
+                <ul>
+                  <li>
+                    <div className="form_group mb-3">
+                      <label>
+                        Delivery Date
+                        <span className="text-danger fs-6">*</span>
+                      </label>
+                      <div className="date_select">
+                        <Calendar
+                          id="Delivery Date"
+                          placeholder="Select Delivery Date"
+                          showIcon
+                          dateFormat="dd-mm-yy"
+                          name="delivery_date"
+                          value={values?.delivery_date || ''}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          showButtonBar
+                          disabled={isShowNext ? true : false}
+                        />
+                        {touched?.delivery_date && errors?.delivery_date && (
+                          <p className="text-danger">{errors?.delivery_date}</p>
+                        )}
                       </div>
-                    </li>
-                    {/* <li>
+                    </div>
+                  </li>
+                  {/* <li>
                     <div className="form_group mb-3">
                       <label className="d-block">Timing</label>
                       <Calendar
@@ -444,8 +512,8 @@ const ExposingOrderForm = () => {
                       />
                     </div>
                   </li> */}
-                    <li>
-                      {/* <div className="checkbox_wrap_main d-flex align-items-center gap-2 mb-2 mb-sm-3">
+                  <li>
+                    {/* <div className="checkbox_wrap_main d-flex align-items-center gap-2 mb-2 mb-sm-3">
                       <div className="form_group checkbox_wrap">
                         <Checkbox
                           onChange={e => setEdit(e.checked)}
@@ -455,38 +523,40 @@ const ExposingOrderForm = () => {
                       <span>Yes Editing</span>
                     </div> */}
 
-                      <div className="radio_wrapper d-flex flex-wrap align-items-center mb20">
-                        <div className="radio-inner-wrap d-flex align-items-center me-3">
-                          <RadioButton
-                            inputId="YesEditing"
-                            name="is_editing"
-                            onBlur={handleBlur}
-                            onChange={() => {
-                              setFieldValue('is_editing', !values?.is_editing);
-                            }}
-                            checked={values?.is_editing}
-                          />
-                          <label htmlFor="ingredient1" className="ms-sm-2 ms-1">
-                            Yes Editing
-                          </label>
-                        </div>
-                        <div className="radio-inner-wrap d-flex align-items-center">
-                          <RadioButton
-                            inputId="NoEditing"
-                            name="is_editing"
-                            onBlur={handleBlur}
-                            onChange={() => {
-                              setFieldValue('is_editing', !values?.is_editing);
-                            }}
-                            checked={!values?.is_editing}
-                          />
-                          <label htmlFor="ingredient2" className="ms-sm-2 ms-1">
-                            No Editing
-                          </label>
-                        </div>
+                    <div className="radio_wrapper d-flex flex-wrap align-items-center mb20">
+                      <div className="radio-inner-wrap d-flex align-items-center me-3">
+                        <RadioButton
+                          inputId="YesEditing"
+                          name="is_editing"
+                          onBlur={handleBlur}
+                          onChange={() => {
+                            setFieldValue('is_editing', !values?.is_editing);
+                          }}
+                          checked={values?.is_editing}
+                          disabled={isShowNext ? true : false}
+                        />
+                        <label htmlFor="ingredient1" className="ms-sm-2 ms-1">
+                          Yes Editing
+                        </label>
                       </div>
-                    </li>
-                    {/* <li>
+                      <div className="radio-inner-wrap d-flex align-items-center">
+                        <RadioButton
+                          inputId="NoEditing"
+                          name="is_editing"
+                          onBlur={handleBlur}
+                          onChange={() => {
+                            setFieldValue('is_editing', !values?.is_editing);
+                          }}
+                          checked={!values?.is_editing}
+                          disabled={isShowNext ? true : false}
+                        />
+                        <label htmlFor="ingredient2" className="ms-sm-2 ms-1">
+                          No Editing
+                        </label>
+                      </div>
+                    </div>
+                  </li>
+                  {/* <li>
                     <div className="checkbox_wrap_main d-flex align-items-center gap-2 mb-2 mb-sm-3">
                       <div className="form_group checkbox_wrap">
                         <Checkbox
@@ -497,142 +567,151 @@ const ExposingOrderForm = () => {
                       <span>No Editing</span>
                     </div>
                   </li> */}
-                  </ul>
-                </div>
-                <div class="form_group mb-3">
-                  <label>Venue</label>
-                  <input
-                    name="venue"
-                    value={values?.venue}
-                    onChange={handleChange}
+                </ul>
+              </div>
+
+              <div class="form_group mb-3">
+                <label>
+                  Venue <span className="text-danger fs-6">*</span>
+                </label>
+                <input
+                  name="venue"
+                  value={values?.venue}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Enter Venue"
+                  class="p-inputtext p-component input_wrap"
+                  disabled={isShowNext ? true : false}
+                />
+                {errors?.venue && (
+                  <p className="text-danger">{errors?.venue}</p>
+                )}
+              </div>
+              <div class="form_group mb-3">
+                <label>Description</label>
+                <input
+                  name="remark"
+                  value={values?.remark}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Enter Description"
+                  class="p-inputtext p-component input_wrap"
+                  disabled={isShowNext ? true : false}
+                />
+              </div>
+            </Col>
+          </Row>
+          <div className="order_items">
+            <h3>
+              Order Item <span className="text-danger fs-6">*</span>
+            </h3>
+            <Row>
+              <Col xl={2} lg={4} sm={6}>
+                <div class="form_group">
+                  <MultiSelect
+                    filter
+                    value={values?.selected_exposing_order_item}
+                    name="selected_exposing_order_item"
+                    options={exposingItemOptionList}
+                    onChange={e => {
+                      handleitemList(e.target.name, e.value, e);
+                    }}
+                    optionLabel="label"
+                    optionGroupLabel="label"
+                    optionGroupChildren="items"
+                    optionGroupTemplate={exposingItemsTemplate}
+                    placeholder="Select Editing Items"
+                    className="w-100"
+                    showSelectAll={false}
                     onBlur={handleBlur}
-                    placeholder="Enter Venue"
-                    class="p-inputtext p-component input_wrap"
+                    disabled={isShowNext ? true : false}
                   />
-                  {errors?.venue && (
-                    <p className="text-danger">{errors?.venue}</p>
-                  )}
-                </div>
-                <div class="form_group mb-3">
-                  <label>Remark</label>
-                  <input
-                    name="remark"
-                    value={values?.remark}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="Enter Remark"
-                    class="p-inputtext p-component input_wrap"
-                  />
+                  {touched?.selected_exposing_order_item &&
+                    errors?.selected_exposing_order_item && (
+                      <p className="text-danger">
+                        {errors?.selected_exposing_order_item}
+                      </p>
+                    )}
                 </div>
               </Col>
             </Row>
-            <div className="order_items">
-              <h3>Order Item</h3>
-              <Row>
-                <Col xl={2} lg={4} sm={6}>
-                  <div class="form_group">
-                    <MultiSelect
-                      filter
-                      value={values?.selected_exposing_order_item}
-                      name="selected_exposing_order_item"
-                      options={exposingItemOptionList}
-                      onChange={e => {
-                        handleitemList(e.target.name, e.value, e);
-                      }}
-                      optionLabel="label"
-                      optionGroupLabel="label"
-                      optionGroupChildren="items"
-                      optionGroupTemplate={exposingItemsTemplate}
-                      placeholder="Select Editing Items"
-                      className="w-100"
-                      showSelectAll={false}
-                      onBlur={handleBlur}
-                    />
-                    {touched?.selected_exposing_order_item &&
-                      errors?.selected_exposing_order_item && (
-                        <p className="text-danger">
-                          {errors?.selected_exposing_order_item}
-                        </p>
-                      )}
-                  </div>
-                </Col>
-              </Row>
-            </div>
-            <div className="data_table_wrapper max_height border radius15 overflow-hidden">
-              <DataTable
-                value={values?.exposing_order_table}
-                sortField="price"
-                sortOrder={1}
-                rows={10}
-                footerColumnGroup={footerGroup}
+          </div>
+          <div className="data_table_wrapper max_height border radius15 overflow-hidden">
+            <DataTable
+              value={values?.exposing_order_table}
+              sortField="price"
+              sortOrder={1}
+              rows={10}
+              footerColumnGroup={footerGroup}
+            >
+              <Column field="item_name" header="Item" sortable></Column>
+              <Column
+                field="description"
+                header="Description"
+                body={DescriptionTemplate}
+                sortable
+              ></Column>
+              <Column
+                field="order_date"
+                header="Event Date"
+                sortable
+                body={EventBodyTemplet}
+              ></Column>
+              <Column field="quantity" header="Quantity" sortable></Column>
+              <Column field="rate" header="Rate" sortable></Column>
+              <Column field="amount" header="Amount" sortable></Column>
+            </DataTable>
+          </div>
+          <div class="delete_btn_wrap mt-4 p-0 text-end">
+            <Button
+              onClick={() => {
+                navigate('/exposing');
+              }}
+              className="btn_border_dark"
+            >
+              Exit Page
+            </Button>
+            {!isShowNext && (
+              <Button
+                className="btn_primary ms-2"
+                type="submit"
+                onClick={handleSubmit}
               >
-                <Column field="item_name" header="Item" sortable></Column>
-                <Column
-                  field="description"
-                  header="Description"
-                  body={DescriptionTemplate}
-                  sortable
-                ></Column>
-                <Column
-                  field="order_date"
-                  header="Event Date"
-                  sortable
-                  body={EventBodyTemplet}
-                ></Column>
-                <Column field="quantity" header="Quantity" sortable></Column>
-                <Column field="rate" header="Rate" sortable></Column>
-                <Column field="amount" header="Amount" sortable></Column>
-              </DataTable>
-            </div>
-            <div class="delete_btn_wrap mt-4 p-0 text-end">
+                Save
+              </Button>
+            )}
+            {isShowNext && (
               <Button
                 onClick={() => {
-                  navigate('/exposing');
+                  // if (
+                  //   !getExposingStepData?.step ||
+                  //   getExposingStepData?.step < 1
+                  // ) {
+                  //   let payload = {
+                  //     order_id: id,
+                  //     step: 1,
+                  //   };
+                  //   dispatch(addExposingStep(payload))
+                  //     .then(response => {
+                  //       dispatch(setExposingSelectedProgressIndex(2));
+                  //     })
+                  //     .catch(errors => {
+                  //       console.error('Add Status:', errors);
+                  //     });
+                  // } else {
+                  //   dispatch(setExposingSelectedProgressIndex(2));
+                  // }
+                  dispatch(setExposingSelectedProgressIndex(2));
                 }}
-                className="btn_border_dark"
+                className="btn_primary ms-2"
               >
-                Exit Page
+                Next
               </Button>
-              {!isShowNext && (
-                <Button
-                  className="btn_primary ms-2"
-                  type="submit"
-                  onClick={handleSubmit}
-                >
-                  Save
-                </Button>
-              )}
-              {isShowNext && (
-                <Button
-                  onClick={() => {
-                    if (
-                      !getExposingStepData?.step ||
-                      getExposingStepData?.step < 1
-                    ) {
-                      let payload = {
-                        order_id: id,
-                        step: 1,
-                      };
-                      dispatch(addExposingStep(payload))
-                        .then(response => {
-                          dispatch(setExposingSelectedProgressIndex(2));
-                        })
-                        .catch(errors => {
-                          console.error('Add Status:', errors);
-                        });
-                    } else {
-                      dispatch(setExposingSelectedProgressIndex(2));
-                    }
-                  }}
-                  className="btn_primary ms-2"
-                >
-                  Next
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
+      {/* </div> */}
     </>
   );
 };

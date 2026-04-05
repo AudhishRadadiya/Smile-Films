@@ -171,7 +171,7 @@ export default function AssigntoExposer() {
 
   return (
     <div className="main_Wrapper">
-      <div className="processing_main bg-white radius15 border">
+      <div className="processing_main">
         <div className="billing_heading">
           <div className="processing_bar_wrapper">
             <div className="verifide_wrap">
@@ -200,126 +200,126 @@ export default function AssigntoExposer() {
             </div>
           </div>
         </div>
-        <div className="billing_details">
-          <div className="mb25">
-            <div className="process_order_wrap p-0 pb-3">
-              <Row className="align-items-center">
-                <Col sm={6}>
-                  <div className="back_page">
-                    <div className="d-flex align-items-center">
-                      <Link to="/quotes-approve">
-                        <img src={ArrowIcon} alt="ArrowIcon" />
-                      </Link>
-                      <h2 className="m-0 ms-2 fw_500">Assign to Exposer</h2>
-                    </div>
+        {/* <div className="billing_details"> */}
+        <div className="mb25">
+          <div className="process_order_wrap p-0 pb-3">
+            <Row className="align-items-center">
+              <Col sm={6}>
+                <div className="back_page">
+                  <div className="d-flex align-items-center">
+                    <Link to="/quotes-approve">
+                      <img src={ArrowIcon} alt="ArrowIcon" />
+                    </Link>
+                    <h2 className="m-0 ms-2 fw_500">Assign to Exposer</h2>
                   </div>
-                </Col>
-                <Col sm={6}>
-                  <div className="date_number">
-                    <ul className="justify-content-end">
-                      <li>
-                        <h6>Order No.</h6>
-                        <h4>#564892</h4>
-                      </li>
-                      <li>
-                        <h6>Creat Date</h6>
-                        <h4>27/06/2023</h4>
-                      </li>
-                    </ul>
-                  </div>
-                </Col>
-              </Row>
-            </div>
-            <Row>
-              <Col lg={8}>
-                <div className="job_company mt-3">
-                  <Row className="g-3 g-sm-4">
-                    <Col md={6}>
-                      <div className="order-details-wrapper p10 border radius15">
-                        <div className="pb10 border-bottom">
-                          <h6 className="m-0">Job</h6>
-                        </div>
-                        <div className="details_box pt10">
-                          <div className="details_box_inner">
-                            <div className="order-date">
-                              <span>Dates :</span>
-                              <h5>27/08/2023 To 29/08/2023</h5>
-                            </div>
-                            <div className="order-date">
-                              <span>Venue :</span>
-                              <h5>Omkar Exotica, Ankleswar</h5>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="order-details-wrapper p10 border radius15">
-                        <div className="pb10 border-bottom">
-                          <h6 className="m-0">Company</h6>
-                        </div>
-                        <div className="details_box pt10">
-                          <div className="details_box_inner">
-                            <div className="order-date">
-                              <span>Company Name :</span>
-                              <h5>ABC Enterprise</h5>
-                            </div>
-                            <div className="order-date">
-                              <span>Client Name :</span>
-                              <h5>Rajesh Singhania</h5>
-                            </div>
-                          </div>
-                          <div className="details_box_inner">
-                            <div className="order-date">
-                              <span>Phone No :</span>
-                              <h5>+91 9876541230</h5>
-                            </div>
-                            <div className="order-date">
-                              <span>Email :</span>
-                              <h5>rajeshsinghania@gmail.com</h5>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Col>
-                  </Row>
+                </div>
+              </Col>
+              <Col sm={6}>
+                <div className="date_number">
+                  <ul className="justify-content-end">
+                    <li>
+                      <h6>Order No.</h6>
+                      <h4>#564892</h4>
+                    </li>
+                    <li>
+                      <h6>Creat Date</h6>
+                      <h4>27/06/2023</h4>
+                    </li>
+                  </ul>
                 </div>
               </Col>
             </Row>
           </div>
-          <div className="data_table_wrapper max_height Exposing_table border radius15">
-            <DataTable
-              value={QuotationData}
-              sortField="price"
-              sortOrder={1}
-              rows={10}
-            >
-              <Column field="item_name" header="Item Name" sortable></Column>
-              <Column field="quantity" header="Quantity" sortable></Column>
-              <Column field="event_date" header="Event Date" sortable></Column>
-              <Column
-                field="assigned_exposer"
-                header="Assigned Exposer"
-                sortable
-                body={AssignBodyTemplet}
-              ></Column>
-              <Column
-                field="assigned_freelancer_exposer"
-                header="Assigned Freelancer Exposer"
-                sortable
-                body={FreelancerBodyTemplet}
-              ></Column>
-            </DataTable>
-          </div>
-          <div class="delete_btn_wrap mt-4 p-0 text-end">
-            <Link to="/exposing" class="btn_border_dark">
-              Exit Page
-            </Link>
-            <Link to="/overview" class="btn_primary">
-              Save
-            </Link>
-          </div>
+          <Row>
+            <Col lg={8}>
+              <div className="job_company mt-3">
+                <Row className="g-3 g-sm-4">
+                  <Col md={6}>
+                    <div className="order-details-wrapper p10 border radius15">
+                      <div className="pb10 border-bottom">
+                        <h6 className="m-0">Job</h6>
+                      </div>
+                      <div className="details_box pt10">
+                        <div className="details_box_inner">
+                          <div className="order-date">
+                            <span>Dates :</span>
+                            <h5>27/08/2023 To 29/08/2023</h5>
+                          </div>
+                          <div className="order-date">
+                            <span>Venue :</span>
+                            <h5>Omkar Exotica, Ankleswar</h5>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <div className="order-details-wrapper p10 border radius15">
+                      <div className="pb10 border-bottom">
+                        <h6 className="m-0">Company</h6>
+                      </div>
+                      <div className="details_box pt10">
+                        <div className="details_box_inner">
+                          <div className="order-date">
+                            <span>Company Name :</span>
+                            <h5>ABC Enterprise</h5>
+                          </div>
+                          <div className="order-date">
+                            <span>Client Name :</span>
+                            <h5>Rajesh Singhania</h5>
+                          </div>
+                        </div>
+                        <div className="details_box_inner">
+                          <div className="order-date">
+                            <span>Phone No :</span>
+                            <h5>+91 9876541230</h5>
+                          </div>
+                          <div className="order-date">
+                            <span>Email :</span>
+                            <h5>rajeshsinghania@gmail.com</h5>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+            </Col>
+          </Row>
         </div>
+        <div className="data_table_wrapper max_height Exposing_table border radius15">
+          <DataTable
+            value={QuotationData}
+            sortField="price"
+            sortOrder={1}
+            rows={10}
+          >
+            <Column field="item_name" header="Item Name" sortable></Column>
+            <Column field="quantity" header="Quantity" sortable></Column>
+            <Column field="event_date" header="Event Date" sortable></Column>
+            <Column
+              field="assigned_exposer"
+              header="Assigned Exposer"
+              sortable
+              body={AssignBodyTemplet}
+            ></Column>
+            <Column
+              field="assigned_freelancer_exposer"
+              header="Assigned Freelancer Exposer"
+              sortable
+              body={FreelancerBodyTemplet}
+            ></Column>
+          </DataTable>
+        </div>
+        <div class="delete_btn_wrap mt-4 p-0 text-end">
+          <Link to="/exposing" class="btn_border_dark">
+            Exit Page
+          </Link>
+          <Link to="/overview" class="btn_primary">
+            Save
+          </Link>
+        </div>
+        {/* </div> */}
       </div>
 
       {/* freelancer popup */}

@@ -4,6 +4,7 @@ import { Dialog } from 'primereact/dialog';
 import { useSelector } from 'react-redux';
 import ActionBtn from '../../Assets/Images/action.svg';
 import TrashIcon from '../../Assets/Images/trash.svg';
+import ArrowLeft from '../../Assets/Images/arrow-up.svg';
 import ChatSideBarPage from './ChatSideBarPage';
 
 const ChatDetailPage = ({
@@ -16,6 +17,7 @@ const ChatDetailPage = ({
   viewChatData = {},
   favoritesearch,
   fetchChatDetails,
+  setIsOpenChatBar,
 }) => {
   const { group_id, group_name } = viewChatData || {};
   const { groupInfo, isFavoritedSucess, isDeleted, isClearChat } = useSelector(
@@ -45,7 +47,7 @@ const ChatDetailPage = ({
         draggable={false}
       >
         <div className="delete_popup_wrapper">
-          <h2>Are you Sure you want to Delete this Group?</h2>
+          <h2>Are you sure, You want to delete this group?</h2>
           <div className="delete_btn_wrap">
             <button
               className="btn_primary"
@@ -105,8 +107,8 @@ const ChatDetailPage = ({
     Object.keys(viewChatData).length > 0 && (
       <>
         <div className="people_massge_header">
-          <Row>
-            <Col sm={6}>
+          <Row className="g-2 justify-content-between">
+            <Col className="col-auto">
               <div className="card flex justify-content-center">
                 <ChatSideBarPage
                   dispatch={dispatch}
@@ -127,13 +129,26 @@ const ChatDetailPage = ({
                   fetchChatDetails={fetchChatDetails}
                   isFavoritedSucess={isFavoritedSucess}
                 />
-                <button
+                {/* <button
                   onClick={() => {
                     setVisibleRight(true);
                     group_id && fetchGroupInfo(group_id);
                   }}
-                >
-                  <div className="people_profile_wrap">
+                > */}
+                <div className="people_profile_wrap">
+                  <div
+                    className="back_to_profiles"
+                    onClick={() => setIsOpenChatBar(false)}
+                  >
+                    <img src={ArrowLeft} alt="ArrowLeft" />
+                  </div>
+                  <div
+                    className="profile_inner_wrapper"
+                    onClick={() => {
+                      setVisibleRight(true);
+                      group_id && fetchGroupInfo(group_id);
+                    }}
+                  >
                     <div className="people_img gray-profile">
                       <span>
                         {group_name
@@ -151,10 +166,11 @@ const ChatDetailPage = ({
                       </div>
                     </div>
                   </div>
-                </button>
+                </div>
+                {/* </button> */}
               </div>
             </Col>
-            <Col sm={6}>
+            <Col className="col-auto">
               <div className="chat_search_wrapper">
                 {/* <div className="search_btn">
                       <Button className="btn-transparent">

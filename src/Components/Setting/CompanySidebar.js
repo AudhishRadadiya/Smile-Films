@@ -1,12 +1,28 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  clearUpdateSelectedCompanyData,
+  setIsGetInitialValues,
+} from 'Store/Reducers/Settings/CompanySetting/CompanySlice';
 
 export default function CompanySidebar() {
   const location = useLocation();
+
   const navigate = useNavigate();
+
+  const dispatch = useDispatch();
+
   const [sidebarToggle, setSidebarToggle] = useState(false);
+
+  const { isGetInitialValues } = useSelector(({ company }) => company);
+
   const { userPermissions } = useSelector(({ auth }) => auth);
+
+  let UserPreferences = localStorage.getItem('UserPreferences');
+  if (UserPreferences) {
+    UserPreferences = JSON.parse(window?.atob(UserPreferences));
+  }
   const findPermission = key => {
     return userPermissions?.find(
       data => data?.key === key || data?.name === key,
@@ -43,7 +59,6 @@ export default function CompanySidebar() {
 
     return false;
   };
-
   return (
     <>
       <div
@@ -66,18 +81,69 @@ export default function CompanySidebar() {
           </div>
           <h4>Company Settings</h4>
           <ul>
+            {checkViewPermission('setting', 'company-profile') && (
+              <li>
+                <div
+                  onClick={() => {
+                    navigate(
+                      `/update-company-profile/${UserPreferences.employee.company_name}`,
+                    );
+
+                    dispatch(
+                      setIsGetInitialValues({
+                        ...isGetInitialValues,
+                        update: false,
+                      }),
+                    );
+                    dispatch(clearUpdateSelectedCompanyData());
+                  }}
+                  className={
+                    location.pathname?.includes('/update-company-profile')
+                      ? 'side_menu_item active'
+                      : 'side_menu_item'
+                  }
+                >
+                  Company Profile
+                </div>
+              </li>
+            )}
             {checkViewPermission('setting', 'company-list') && (
               <li>
                 <Link
                   to="/company-list"
                   className={
                     location.pathname === '/company-list' ||
-                    location.pathname === '/create-company'
+                    location.pathname === '/create-company' ||
+                    location.pathname?.includes('/update-company')
                       ? 'active'
                       : ''
                   }
                 >
                   Company List
+                </Link>
+              </li>
+            )}
+            {checkViewPermission('setting', 'company-permission') && (
+              <li>
+                <Link
+                  to="/company-permission"
+                  className={
+                    location.pathname === '/company-permission' ? 'active' : ''
+                  }
+                >
+                  Company & Permission
+                </Link>
+              </li>
+            )}
+            {checkViewPermission('setting', 'subscription') && (
+              <li>
+                <Link
+                  to="/subscription"
+                  className={
+                    location.pathname === '/subscription' ? 'active' : ''
+                  }
+                >
+                  Subscription
                 </Link>
               </li>
             )}
@@ -191,6 +257,18 @@ export default function CompanySidebar() {
                 </Link>
               </li>
             )}
+            {checkViewPermission('setting', 'subscription-status') && (
+              <li>
+                <Link
+                  to="/subscription-status"
+                  className={
+                    location.pathname === '/subscription-status' ? 'active' : ''
+                  }
+                >
+                  Subscription Status
+                </Link>
+              </li>
+            )}
           </ul>
           <h4>Account Master</h4>
           <ul>
@@ -216,7 +294,14 @@ export default function CompanySidebar() {
             )}
             {checkViewPermission('setting', 'change-year') && (
               <li>
-                <Link to="">Chang Year</Link>
+                <Link
+                  to="/change-year"
+                  className={
+                    location.pathname === '/change-year' ? 'active' : ''
+                  }
+                >
+                  Chang Year
+                </Link>
               </li>
             )}
           </ul>

@@ -1,58 +1,199 @@
-import React, { useState } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
+import moment from 'moment';
 import { Column } from 'primereact/column';
-import { DataTable } from 'primereact/datatable';
-import DowanloadIcon from '../../../Assets/Images/download-icon.svg';
-import Eyes from '../../../Assets/Images/eyes.svg';
-import CustomPaginator from 'Components/Common/CustomPaginator';
-import { Button, Col, Dropdown, Row } from 'react-bootstrap';
-import { Calendar } from 'primereact/calendar';
 import { Dialog } from 'primereact/dialog';
-export const employeeData = [
-  {
-    date: '01/07/2023',
-    transactions_type: 'Opening Balance',
-    credit_amount: '₹ 40,000',
-    debit_amount: '',
-    closing_amount: '₹ 40,000',
-  },
-  {
-    date: '31/07/2023',
-    transactions_type: 'Payment Received',
-    credit_amount: '',
-    debit_amount: '₹ 35,000',
-    closing_amount: '₹ 5000',
-  },
-  {
-    date: '27/08/2023',
-    transactions_type: 'B-pmt',
-    credit_amount: '₹ 5000',
-    debit_amount: '',
-    closing_amount: '₹ 10,000',
-  },
-  {
-    date: '30/08/2023',
-    transactions_type: 'B-pmt Payment Received ',
-    credit_amount: '₹ 1,00,000',
-    debit_amount: '',
-    closing_amount: '₹ 1,10,000',
-  },
-];
+import { useParams } from 'react-router-dom';
+import { Calendar } from 'primereact/calendar';
+import { DataTable } from 'primereact/datatable';
+import { Button, Col, Row } from 'react-bootstrap';
+import Eyes from '../../../Assets/Images/eyes.svg';
+import { useDispatch, useSelector } from 'react-redux';
+import CustomPaginator from 'Components/Common/CustomPaginator';
+import DowanloadIcon from '../../../Assets/Images/download-icon.svg';
+import {
+  getClientCompany,
+  getTransactionList,
+  setClientCompanyTransactionDate,
+  setCompanyTransactionCurrentPage,
+  setCompanyTransactionPageLimit,
+} from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
 
-export default function CompanyTransactions() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(30);
+const CompanyTransactions = () => {
+  const { id } = useParams();
+  const dispatch = useDispatch();
+
   const [previewModel, setPreviewModel] = useState(false);
 
+  const {
+    clientCompanyTransactionData,
+    companyTransactionPageLimit,
+    companyTransactionCurrentPage,
+    clientCompanyTransactionDate,
+    selectedClientCompanyData,
+    clientCompanyTransactionPreviewData,
+  } = useSelector(({ clientCompany }) => clientCompany);
+
+  const fetchRequiredData = useCallback(
+    (isPDF = false, isPreview = false) => {
+      const startDate =
+        clientCompanyTransactionDate?.length && clientCompanyTransactionDate[0]
+          ? moment(clientCompanyTransactionDate[0])?.format('YYYY-MM-DD')
+          : '';
+      const endDate =
+        clientCompanyTransactionDate?.length && clientCompanyTransactionDate[1]
+          ? moment(clientCompanyTransactionDate[1])?.format('YYYY-MM-DD')
+          : '';
+
+      dispatch(
+        getTransactionList({
+          start: companyTransactionCurrentPage,
+          limit: companyTransactionPageLimit,
+          search: '',
+          start_date: startDate,
+          end_date: endDate,
+          client_company_id: id,
+          pdf: isPDF,
+          preview: isPreview,
+        }),
+      );
+    },
+    [
+      clientCompanyTransactionDate,
+      companyTransactionCurrentPage,
+      companyTransactionPageLimit,
+      dispatch,
+      id,
+    ],
+  );
+
+  useEffect(() => {
+    fetchRequiredData();
+  }, []);
+
+  const fetchPreviewData = useCallback(async () => {
+    await fetchRequiredData(false, true);
+
+    dispatch(
+      getClientCompany({
+        client_company_id: id,
+      }),
+    );
+  }, [dispatch, fetchRequiredData, id]);
+
   const onPageChange = page => {
-    let pageIndex = currentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    setCurrentPage(pageIndex);
+    if (page !== companyTransactionCurrentPage) {
+      let pageIndex = companyTransactionCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+
+      dispatch(setCompanyTransactionCurrentPage(pageIndex));
+
+      const startDate =
+        clientCompanyTransactionDate?.length && clientCompanyTransactionDate[0]
+          ? moment(clientCompanyTransactionDate[0])?.format('YYYY-MM-DD')
+          : '';
+      const endDate =
+        clientCompanyTransactionDate?.length && clientCompanyTransactionDate[1]
+          ? moment(clientCompanyTransactionDate[1])?.format('YYYY-MM-DD')
+          : '';
+
+      dispatch(
+        getTransactionList({
+          start: pageIndex,
+          limit: companyTransactionPageLimit,
+          search: '',
+          start_date: startDate,
+          end_date: endDate,
+          client_company_id: id,
+        }),
+      );
+    }
   };
+
   const onPageRowsChange = page => {
-    setCurrentPage(page === 0 ? 0 : 1);
-    setPageLimit(page);
+    const updatedCurrentPageNumber = page === 0 ? 0 : 1;
+    dispatch(setCompanyTransactionCurrentPage(updatedCurrentPageNumber));
+    dispatch(setCompanyTransactionPageLimit(page));
+
+    const pageValue =
+      page === 0
+        ? clientCompanyTransactionData?.totalRows
+          ? clientCompanyTransactionData?.totalRows
+          : 0
+        : page;
+    const prevPageValue =
+      companyTransactionPageLimit === 0
+        ? clientCompanyTransactionData?.totalRows
+          ? clientCompanyTransactionData?.totalRows
+          : 0
+        : companyTransactionPageLimit;
+
+    if (
+      prevPageValue < clientCompanyTransactionData?.totalRows ||
+      pageValue < clientCompanyTransactionData?.totalRows
+    ) {
+      const startDate =
+        clientCompanyTransactionDate?.length && clientCompanyTransactionDate[0]
+          ? moment(clientCompanyTransactionDate[0])?.format('YYYY-MM-DD')
+          : '';
+      const endDate =
+        clientCompanyTransactionDate?.length && clientCompanyTransactionDate[1]
+          ? moment(clientCompanyTransactionDate[1])?.format('YYYY-MM-DD')
+          : '';
+
+      dispatch(
+        getTransactionList({
+          start: updatedCurrentPageNumber,
+          limit: page,
+          search: '',
+          start_date: startDate,
+          end_date: endDate,
+          client_company_id: id,
+        }),
+      );
+    }
+  };
+
+  const handleClientCompanyTransactionDate = useCallback(
+    e => {
+      dispatch(setClientCompanyTransactionDate(e.value));
+
+      if (e.value === null || e.value[1]) {
+        const startDate =
+          e.value?.length && e.value[0]
+            ? moment(e.value[0])?.format('YYYY-MM-DD')
+            : '';
+        const endDate =
+          e.value?.length && e.value[1]
+            ? moment(e.value[1])?.format('YYYY-MM-DD')
+            : '';
+
+        dispatch(
+          getTransactionList({
+            start: companyTransactionCurrentPage,
+            limit: companyTransactionPageLimit,
+            search: '',
+            start_date: startDate,
+            end_date: endDate,
+            client_company_id: id,
+          }),
+        );
+      }
+    },
+    [companyTransactionCurrentPage, companyTransactionPageLimit, dispatch, id],
+  );
+
+  const entryDateTemplate = rowData => {
+    const entryDate = rowData?.created_at
+      ? moment(rowData.created_at).format('DD-MM-YYYY')
+      : '';
+    return <span> {entryDate}</span>;
+  };
+
+  const amountTemplate = rowData => {
+    const entryDate = rowData?.total_amount ? `₹ ${rowData?.total_amount}` : '';
+    return <span> {entryDate}</span>;
   };
 
   return (
@@ -71,18 +212,26 @@ export default function CompanyTransactions() {
                   <li>
                     <div className="form_group date_select_wrapper text-end">
                       <Calendar
-                        id="Creat Date"
-                        placeholder="Select Date"
-                        showIcon
-                        dateFormat="dd-mm-yy"
-                        readOnlyInput
+                        id="CompanyTransactionDate"
+                        value={clientCompanyTransactionDate}
+                        placeholder="Select Date Range"
                         selectionMode="range"
+                        dateFormat="dd-mm-yy"
+                        showIcon
+                        readOnlyInput
+                        showButtonBar
+                        onChange={e => {
+                          handleClientCompanyTransactionDate(e);
+                        }}
                       />
                     </div>
                   </li>
                   <li>
                     <Button
-                      onClick={() => setPreviewModel(true)}
+                      onClick={() => {
+                        fetchPreviewData();
+                        setPreviewModel(true);
+                      }}
                       to="/create-employee"
                       className="btn_border_dark"
                     >
@@ -96,47 +245,32 @@ export default function CompanyTransactions() {
         </div>
         <div className="data_table_wrapper transaction_table_wrapper">
           <DataTable
-            value={employeeData}
+            value={clientCompanyTransactionData?.list}
             sortField="price"
             sortOrder={1}
             rows={10}
           >
-            <Column field="date" header="Date" sortable></Column>
-            <Column
-              field="transactions_type"
-              header="Transactions Type"
-              sortable
-            ></Column>
-            <Column
-              field="credit_amount"
-              header="Credit Amount"
-              sortable
-            ></Column>
-            <Column
-              field="debit_amount"
-              header="Debit Amount"
-              sortable
-            ></Column>
-            <Column
-              field="closing_amount"
-              header="Closing Amount"
-              sortable
-            ></Column>
+            <Column field="invoice_no" header="Invoice No" sortable></Column>
+            <Column field="created_at" header="Entry Date" sortable></Column>
+            <Column field="amount" header="Amount" sortable></Column>
           </DataTable>
           <CustomPaginator
-            dataList={employeeData}
-            pageLimit={pageLimit}
+            dataList={clientCompanyTransactionData?.list}
+            pageLimit={companyTransactionPageLimit}
             onPageChange={onPageChange}
             onPageRowsChange={onPageRowsChange}
-            currentPage={currentPage}
-            totalCount={employeeData?.length}
+            currentPage={companyTransactionCurrentPage}
+            totalCount={clientCompanyTransactionData?.totalRows}
           />
         </div>
       </div>
       <Dialog
         header={
           <h5 className="m-0 text-center">
-            Customer Statement for Rupesh Zalavadiya
+            Customer Statement for{' '}
+            {selectedClientCompanyData?.client_full_name
+              ? selectedClientCompanyData?.client_full_name
+              : ''}
           </h5>
         }
         visible={previewModel}
@@ -147,46 +281,76 @@ export default function CompanyTransactions() {
         <div className="customer_statement_wrap">
           <Row>
             <Col lg={6}>
-              <h3>Smile Filmes, Gujarat, India</h3>
-              <h3>kapil.codezee@gmail.com</h3>
+              <h3>
+                {selectedClientCompanyData?.company_name
+                  ? selectedClientCompanyData?.company_name
+                  : ''}
+              </h3>
+              <h3>
+                {selectedClientCompanyData?.email_id
+                  ? selectedClientCompanyData?.email_id
+                  : ''}
+              </h3>
             </Col>
             <Col lg={6}>
               <div className="text-end">
-                <h3>kapil.codezee@gmail.com</h3>
-                <h4 className="text_dark">01/08/2023 To 31/08/2023</h4>
+                <h3>
+                  {selectedClientCompanyData?.email_id
+                    ? selectedClientCompanyData?.email_id
+                    : ''}
+                </h3>
+                {/* <h4 className="text_dark">01/08/2023 To 31/08/2023</h4> */}
+                <h4 className="text_dark">
+                  {clientCompanyTransactionDate?.length
+                    ? `${
+                        clientCompanyTransactionDate[0]
+                          ? moment(clientCompanyTransactionDate[0])?.format(
+                              'DD-MM-YYYY',
+                            )
+                          : ''
+                      } To 
+                ${
+                  clientCompanyTransactionDate[1]
+                    ? moment(clientCompanyTransactionDate[1])?.format(
+                        'DD-MM-YYYY',
+                      )
+                    : ''
+                }`
+                    : ''}
+                </h4>
               </div>
             </Col>
             <Col lg={12} className="my20">
-              <h5>Rupesh Zalavadiya</h5>
-              <h5>Station road Surat, 395004 Gujarat, India</h5>
+              <h5>
+                {selectedClientCompanyData?.client_full_name
+                  ? selectedClientCompanyData?.client_full_name
+                  : ''}
+              </h5>
+              <h5>
+                {selectedClientCompanyData?.address
+                  ? selectedClientCompanyData?.address
+                  : ''}
+              </h5>
             </Col>
           </Row>
           <div className="data_table_wrapper max_height">
             <DataTable
-              value={employeeData}
+              value={clientCompanyTransactionPreviewData?.invoiceData || []}
               sortField="price"
               sortOrder={1}
               rows={10}
             >
-              <Column field="date" header="Date" sortable></Column>
+              <Column field="invoice_no" header="Invoice No" sortable></Column>
               <Column
-                field="transactions_type"
-                header="Transactions Type"
+                field="created_at"
+                header="Entry Date"
+                body={entryDateTemplate}
                 sortable
               ></Column>
               <Column
-                field="credit_amount"
-                header="Credit Amount"
-                sortable
-              ></Column>
-              <Column
-                field="debit_amount"
-                header="Debit Amount"
-                sortable
-              ></Column>
-              <Column
-                field="closing_amount"
-                header="Closing Amount"
+                field="amount"
+                header="Amount"
+                body={amountTemplate}
                 sortable
               ></Column>
             </DataTable>
@@ -195,28 +359,45 @@ export default function CompanyTransactions() {
             <Col lg={6}>
               <div className="balance_box p20 border radius6">
                 <ul>
-                  <li>
+                  {/* <li>
                     <label>Opening Balance</label>
                     <span>₹ 40,000</span>
-                  </li>
+                  </li> */}
                   <li>
                     <label>Credit Amount</label>
-                    <span>₹ 1,45,000</span>
+                    <span>
+                      {clientCompanyTransactionPreviewData?.sum_total_amount
+                        ? `₹ ${clientCompanyTransactionPreviewData?.sum_total_amount}`
+                        : 0}
+                    </span>
                   </li>
                   <li>
                     <label>Debit Amount</label>
-                    <span>₹ 35,000</span>
+                    <span>
+                      {clientCompanyTransactionPreviewData?.sum_total_amount
+                        ? `₹ ${clientCompanyTransactionPreviewData?.sum_total_amount}`
+                        : 0}
+                    </span>
                   </li>
                   <li>
                     <label>Closing Balance</label>
-                    <span>₹1, 10, 000</span>
+                    <span>
+                      {clientCompanyTransactionPreviewData?.sum_total_amount
+                        ? `₹ ${clientCompanyTransactionPreviewData?.sum_total_amount}`
+                        : 0}
+                    </span>
                   </li>
                 </ul>
               </div>
             </Col>
           </Row>
           <div className="text-end">
-            <Button className="btn_primary">
+            <Button
+              className="btn_primary"
+              onClick={() => {
+                fetchRequiredData(true, true);
+              }}
+            >
               <img src={DowanloadIcon} alt="DowanloadIcon" />
               Download
             </Button>
@@ -225,4 +406,5 @@ export default function CompanyTransactions() {
       </Dialog>
     </div>
   );
-}
+};
+export default memo(CompanyTransactions);

@@ -1,20 +1,22 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
 import PlusIcon from '../../../Assets/Images/plus.svg';
+import EditIcon from '../../../Assets/Images/edit.svg';
 import AddUserIcon from '../../../Assets/Images/add-user.svg';
-import CompleteIcon from '../../../Assets/Images/complete-green.svg';
 import ReactSelectSingle from '../../Common/ReactSelectSingle';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Tag } from 'primereact/tag';
 import { Checkbox } from 'primereact/checkbox';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  addInvoice,
   addStep,
   editOrder,
   getEditingFlow,
+  getItems,
   getStep,
   setEditingCompletedData,
   setEditingSelectedProgressIndex,
@@ -24,43 +26,123 @@ import Loader from 'Components/Common/Loader';
 import CommentDataCollection from './CommentDataCollection';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { toast } from 'react-toastify';
+import { convertIntoNumber } from 'Helper/CommonHelper';
+import { generateUnitForDataSize } from 'Helper/CommonList';
+import {
+  clearUpdateSelectedDataCollectionData,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
 
-export default function EditingCompleted() {
+const ProjectStatus = [
+  { label: 'Initial', value: 1 },
+  { label: 'Library Done', value: 2 },
+  { label: 'IN Progress', value: 3 },
+  { label: 'IN Checking', value: 4 },
+  { label: 'Exporting', value: 5 },
+  { label: 'Completed', value: 6 },
+];
+
+const getSeverityStatus = product => {
+  switch (product) {
+    case 'Initial':
+      return 'info';
+    case 'Library Done':
+      return 'orange';
+    case 'IN Progress':
+      return 'warning';
+    case 'IN Checking':
+      return 'danger';
+    case 'Completed':
+      return 'success';
+    case 'Exporting':
+      return 'primary';
+    default:
+      return null;
+  }
+};
+
+const EditingCompleted = () => {
+  const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { id } = useParams();
 
-  const [createGroupModel, setCreateGroupModel] = useState(false);
   const [showNext, setShowNext] = useState(false);
+  const [createGroupModel, setCreateGroupModel] = useState(false);
 
-  const ProjectStatus = [
-    { label: 'Initial', value: 1 },
-    { label: 'Library Done', value: 2 },
-    { label: 'IN Progress', value: 3 },
-    { label: 'IN Checking', value: 4 },
-    { label: 'Completed', value: 5 },
-    { label: 'Exporting', value: 6 },
-  ];
-
-  const { editingLoading, editingCompletedData, commentLoading, getStepData } =
-    useSelector(({ editing }) => editing);
+  const {
+    getStepData,
+    orderLoading,
+    itemsLoading,
+    editingLoading,
+    invoiceLoading,
+    commentLoading,
+    editingCompletedData,
+  } = useSelector(({ editing }) => editing);
+  const { isGetInintialValuesDataCollection } = useSelector(
+    ({ dataCollection }) => dataCollection,
+  );
 
   useEffect(() => {
-    dispatch(getEditingFlow({ order_id: id }))
-      .then(response => {
-        const responseData = response.payload;
-        if (getStepData?.is_rework === true) {
-          setShowNext(true);
+    dispatch(getItems({ order_id: id }))
+      .then(async response => {
+        const result = response.payload;
+
+        // If item data is not arrived
+        if (!result || result?.length === 0) {
+          toast.error(
+            'Your quotation is not approved so, please approve first',
+          );
+          dispatch(setEditingCompletedData({}));
+
+          const payload = {
+            order_id: id,
+            step: 1,
+          };
+
+          dispatch(addStep(payload))
+            .then(response => {
+              dispatch(getStep({ order_id: id }));
+              dispatch(setEditingSelectedProgressIndex(2));
+            })
+            .catch(errors => {
+              console.error('Add Status:', errors);
+            });
+
+          return;
         }
-        const updatedData = {
-          ...responseData,
-          is_rework: getStepData?.is_rework,
-        };
-        dispatch(setEditingCompletedData(updatedData));
+
+        return result;
+      })
+      .then(result => {
+        if (!result || result?.length === 0) {
+          dispatch(setEditingCompletedData({})); // If item data is not arrived
+          return;
+        }
+
+        dispatch(getEditingFlow({ order_id: id }))
+          .then(response => {
+            const responseData = response.payload;
+            if (getStepData?.is_rework === true) {
+              setShowNext(true);
+            }
+            const updatedData = {
+              ...responseData,
+              data_size: convertIntoNumber(responseData?.data_size),
+              is_rework: getStepData?.is_rework,
+            };
+            dispatch(setEditingCompletedData(updatedData));
+          })
+          .catch(error => {
+            console.error('Error fetching product data:', error);
+          });
       })
       .catch(error => {
-        console.error('Error fetching product data:', error);
+        console.error('Error fetching Items data:', error);
       });
+
+    return () => {
+      dispatch(setEditingCompletedData({}));
+    };
   }, [dispatch, id, getStepData]);
 
   const footerContent = (
@@ -78,24 +160,6 @@ export default function EditingCompleted() {
       <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
     );
   };
-  const getSeverityStatus = product => {
-    switch (product) {
-      case 'Initial':
-        return 'info';
-      case 'Library Done':
-        return 'orange';
-      case 'IN Progress':
-        return 'warning';
-      case 'IN Checking':
-        return 'danger';
-      case 'Completed':
-        return 'success';
-      case 'Exporting':
-        return 'primary';
-      default:
-        return null;
-    }
-  };
 
   const handleProjectStatusChange = e => {
     setFieldValue('order_status', e.value);
@@ -105,7 +169,25 @@ export default function EditingCompleted() {
     };
     dispatch(editOrder(payload))
       .then(response => {
-        dispatch(getEditingFlow({ order_id: id }));
+        const editingOrderResponse = response?.payload;
+        return { editingOrderResponse };
+      })
+      .then(({ editingOrderResponse }) => {
+        dispatch(getEditingFlow({ order_id: id })).then(res => {
+          const editingData = res?.payload;
+          if (
+            e?.value === 6 &&
+            editingOrderResponse?.data?.err === 0 &&
+            editingData?.is_billing === false
+          ) {
+            dispatch(
+              addInvoice({
+                order_id: id,
+                quotation_id: editingData?.quotation_id,
+              }),
+            );
+          }
+        });
       })
       .catch(error => {
         console.error('Error fetching order data:', error);
@@ -118,16 +200,36 @@ export default function EditingCompleted() {
         let payload = {
           order_id: id,
           final_work: values?.final_work,
+          is_rework_url: true,
         };
         dispatch(editOrder(payload))
           .then(response => {
             let payload = {
-              order_id: id,
               step: 6,
+              order_id: id,
+              is_rework_url: true,
             };
             dispatch(addStep(payload))
-              .then(response => {
-                dispatch(getEditingFlow({ order_id: id }));
+              .then(async response => {
+                const stepData = await dispatch(getStep({ order_id: id }));
+                const editingStepData = stepData?.payload;
+
+                dispatch(getEditingFlow({ order_id: id }))
+                  .then(res => {
+                    const exposingData = res.payload;
+                    if (editingStepData?.is_rework === true) {
+                      setShowNext(true);
+                    }
+                    const updatedData = {
+                      ...exposingData,
+                      data_size: convertIntoNumber(exposingData?.data_size),
+                      is_rework: editingStepData?.is_rework,
+                    };
+                    dispatch(setEditingCompletedData(updatedData));
+                  })
+                  .catch(error => {
+                    console.error('Error fetching Editing Flow:', error);
+                  });
               })
               .catch(errors => {
                 console.error('Add Status:', errors);
@@ -150,10 +252,19 @@ export default function EditingCompleted() {
       onSubmit: submitHandle,
     });
 
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${values?.editing_hour || 0}:${values?.editing_minute || 0}:${
+      values?.editing_second || 0
+    }`;
+  }, [values?.editing_hour, values?.editing_minute, values?.editing_second]);
+
   return (
     <div className="">
-      {(commentLoading || editingLoading) && <Loader />}
-
+      {(orderLoading ||
+        commentLoading ||
+        editingLoading ||
+        invoiceLoading ||
+        itemsLoading) && <Loader />}
       <div className="billing_details">
         <div className="mb25">
           <Row className="g-3 g-sm-4">
@@ -166,7 +277,31 @@ export default function EditingCompleted() {
                         <Button
                           className="btn_transparent"
                           onClick={() => {
-                            dispatch(setEditingSelectedProgressIndex(5));
+                            if (getStepData?.is_rework === true) {
+                              let payload = {
+                                step: 6,
+                                order_id: id,
+                                is_rework: false,
+                              };
+
+                              dispatch(addStep(payload))
+                                .then(response => {
+                                  dispatch(getStep({ order_id: id }))
+                                    .then(res => {
+                                      dispatch(
+                                        setEditingSelectedProgressIndex(6),
+                                      );
+                                    })
+                                    .catch(error => {
+                                      console.error('error');
+                                    });
+                                })
+                                .catch(error => {
+                                  console.error('error');
+                                });
+                            } else {
+                              dispatch(setEditingSelectedProgressIndex(5));
+                            }
                           }}
                         >
                           <img src={ArrowIcon} alt="ArrowIcon" />
@@ -195,8 +330,25 @@ export default function EditingCompleted() {
                 <Row className="g-3 g-sm-4">
                   <Col md={6}>
                     <div className="order-details-wrapper p10 border radius15 h-100">
-                      <div className="pb10 border-bottom">
+                      <div className="pb10 border-bottom d-flex justify-content-between">
                         <h6 className="m-0">Job</h6>
+                        <img
+                          src={EditIcon}
+                          className="cusor-pointer"
+                          alt=""
+                          onClick={() => {
+                            dispatch(
+                              setIsGetInintialValuesDataCollection({
+                                ...isGetInintialValuesDataCollection,
+                                update: false,
+                              }),
+                            );
+                            dispatch(clearUpdateSelectedDataCollectionData());
+                            navigate(
+                              `/update-data-collection/${id}?param=editing`,
+                            );
+                          }}
+                        />
                       </div>
                       <div className="details_box pt10">
                         <div className="details_box_inner">
@@ -208,11 +360,18 @@ export default function EditingCompleted() {
                             <span>Couple Name :</span>
                             <h5>{values?.couple_name}</h5>
                           </div>
+                          <div className="order-date">
+                            <span>Hours :</span>
+                            <h5>{showHoursWithMinutesAndSeconds}</h5>
+                          </div>
                         </div>
                         <div className="details_box_inner">
                           <div className="order-date">
                             <span>Data Size :</span>
-                            <h5>{values?.data_size} GB</h5>
+                            <h5>
+                              {values?.data_size}
+                              {generateUnitForDataSize(values?.data_size_type)}
+                            </h5>
                           </div>
                           <div className="order-date">
                             <span>Project Type :</span>
@@ -259,8 +418,8 @@ export default function EditingCompleted() {
               </div>
               <div className="completed_wrapper max_660">
                 <div className="complete_img text-center">
-                  <img src={CompleteIcon} alt="completeicon" />
-                  <h2>This Job is Completed</h2>
+                  {/* <img src={CompleteIcon} alt="completeicon" /> */}
+                  <h2>Current Status Of This Project</h2>
                 </div>
                 <div className="d-sm-flex align-items-center justify-content-center mb-3">
                   <h5 className="m-0 me-sm-2 mb-sm-0 mb-2">Project Status</h5>
@@ -275,6 +434,8 @@ export default function EditingCompleted() {
                       valueTemplate={statusItemTemplate}
                       placeholder="Project Status"
                       className="w-100"
+                      // disabled={!values?.is_rework_url}
+                      disabled={!values?.final_work?.trim()}
                     />
                   </div>
                 </div>
@@ -294,7 +455,11 @@ export default function EditingCompleted() {
                     </div>
                     <div className="delete_btn_wrap justify-content-center text-center">
                       <button className="btn_border_dark me-2">Cancel</button>
-                      <button className="btn_primary" onClick={handleSubmit}>
+                      <button
+                        className="btn_primary"
+                        onClick={handleSubmit}
+                        disabled={!values?.final_work?.trim()}
+                      >
                         Submit
                       </button>
                     </div>
@@ -307,6 +472,7 @@ export default function EditingCompleted() {
                         let payload = {
                           order_id: id,
                           is_rework: true,
+                          is_rework_url: false,
                         };
                         dispatch(addStep(payload))
                           .then(response => {
@@ -376,8 +542,7 @@ export default function EditingCompleted() {
           </div>
         </div>
       </Dialog>
-
-      {/* conformation popup */}
     </div>
   );
-}
+};
+export default memo(EditingCompleted);

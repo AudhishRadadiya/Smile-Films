@@ -41,9 +41,7 @@ let initialData = {
 
 export default function Devices({ hasAccess }) {
   const { is_create_access, is_delete_access, is_edit_access } = hasAccess;
-
   const dispatch = useDispatch();
-
   const {
     devicesList,
     devicesCurrentPage,
@@ -59,27 +57,34 @@ export default function Devices({ hasAccess }) {
   const [devicesModel, setDevicesModel] = useState(false);
   const [deviceDataValue, setDeviceDataValue] = useState(initialData);
 
+  const getDevicesListApi = useCallback(
+    (start = 1, limit = 10, search = '') => {
+      dispatch(
+        getDevicesList({
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+        }),
+      );
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
-    dispatch(
-      getDevicesList({
-        start: devicesCurrentPage,
-        limit: devicesPageLimit,
-        isActive: '',
-        search: devicesSearchParam,
-      }),
-    );
-  }, [dispatch, devicesCurrentPage, devicesPageLimit]);
+    getDevicesListApi(devicesCurrentPage, devicesPageLimit, devicesSearchParam);
+  }, []);
 
   useEffect(() => {
     if (isAddDevices || isUpdateDevices || isDeleteDevices) {
-      dispatch(
-        getDevicesList({
-          start: devicesCurrentPage,
-          limit: devicesPageLimit,
-          isActive: '',
-          search: devicesSearchParam,
-        }),
+      getDevicesListApi(
+        devicesCurrentPage,
+        devicesPageLimit,
+        devicesSearchParam,
       );
+      resetForm();
+      setDevicesModel(false);
+      setDeviceDataValue(initialData);
     }
     if (isUpdateDevices) {
       dispatch(setIsUpdateDevices(false));
@@ -90,58 +95,83 @@ export default function Devices({ hasAccess }) {
     if (isDeleteDevices) {
       dispatch(setIsDeleteDevices(false));
     }
-  }, [
-    isAddDevices,
-    isUpdateDevices,
-    isDeleteDevices,
-    dispatch,
-    devicesCurrentPage,
-    devicesPageLimit,
-    devicesSearchParam,
-  ]);
+  }, [dispatch, isAddDevices, isUpdateDevices, isDeleteDevices]);
 
   const actionBodyTemplate = row => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  dispatch(getDeviceData({ device_id: row?._id }))
-                    .then(response => {
-                      const responseData = response.payload?.data;
-                      setDeviceDataValue(responseData);
-                    })
-                    .catch(error => {
-                      console.error('Error fetching product data:', error);
-                    });
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle
+      //       id="dropdown-basic"
+      //       className="action_btn"
+      //       disabled={is_edit_access || is_delete_access ? false : true}
+      //     >
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       {is_edit_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             dispatch(getDeviceData({ device_id: row?._id }))
+      //               .then(response => {
+      //                 const responseData = response.payload?.data;
+      //                 setDeviceDataValue(responseData);
+      //               })
+      //               .catch(error => {
+      //                 console.error('Error fetching product data:', error);
+      //               });
 
-                  setDevicesModel(true);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
+      //             setDevicesModel(true);
+      //           }}
+      //         >
+      //           <img src={EditIcon} alt="EditIcon" /> Edit
+      //         </Dropdown.Item>
+      //       )}
+      //       {is_delete_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             setDeleteId(row?._id);
+      //             setDeletePopup(true);
+      //           }}
+      //         >
+      //           <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //         </Dropdown.Item>
+      //       )}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        {is_edit_access && (
+          <img
+            alt=""
+            src={EditIcon}
+            className="cursor_pointer"
+            onClick={() => {
+              dispatch(getDeviceData({ device_id: row?._id }))
+                .then(response => {
+                  const responseData = response.payload?.data;
+                  setDeviceDataValue(responseData);
+                })
+                .catch(error => {
+                  console.error('Error fetching product data:', error);
+                });
+
+              setDevicesModel(true);
+            }}
+          />
+        )}
+        {is_delete_access && (
+          <img
+            src={TrashIcon}
+            alt=""
+            className="cursor_pointer"
+            onClick={() => {
+              setDeleteId(row?._id);
+              setDeletePopup(true);
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -168,33 +198,47 @@ export default function Devices({ hasAccess }) {
   };
 
   const onPageChange = page => {
-    let pageIndex = devicesCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setDevicesCurrentPage(pageIndex));
+    if (page !== devicesCurrentPage) {
+      let pageIndex = devicesCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+      dispatch(setDevicesCurrentPage(pageIndex));
+      getDevicesListApi(pageIndex, devicesPageLimit, devicesSearchParam);
+    }
   };
 
   const onPageRowsChange = page => {
     dispatch(setDevicesCurrentPage(page === 0 ? 0 : 1));
     dispatch(setDevicesPageLimit(page));
+    const pageValue =
+      page === 0 ? (devicesList?.totalRows ? devicesList?.totalRows : 0) : page;
+    const prevPageValue =
+      devicesPageLimit === 0
+        ? devicesList?.totalRows
+          ? devicesList?.totalRows
+          : 0
+        : devicesPageLimit;
+    if (
+      prevPageValue < devicesList?.totalRows ||
+      pageValue < devicesList?.totalRows
+    ) {
+      getDevicesListApi(page === 0 ? 0 : 1, page, devicesSearchParam);
+    }
   };
 
-  const handleDelete = useCallback(
-    async => {
-      const deleteItemObj = {
-        device_id: deleteId,
-      };
-      if (deleteId) {
-        dispatch(deleteDevices(deleteItemObj));
-      }
-      setDeletePopup(false);
-    },
-    [dispatch, deleteId],
-  );
+  const handleDelete = useCallback(() => {
+    const deleteItemObj = {
+      device_id: deleteId,
+    };
+    if (deleteId) {
+      dispatch(deleteDevices(deleteItemObj));
+    }
+    setDeletePopup(false);
+  }, [dispatch, deleteId]);
 
   const submitHandle = useCallback(
-    async (values, { resetForm }) => {
+    values => {
       if (values?._id) {
         const payload = {
           device_name: values?.device_name,
@@ -205,8 +249,6 @@ export default function Devices({ hasAccess }) {
       } else {
         dispatch(addDevices(values));
       }
-      resetForm();
-      setDevicesModel(false);
     },
     [dispatch],
   );
@@ -228,6 +270,7 @@ export default function Devices({ hasAccess }) {
   const onCancel = useCallback(() => {
     resetForm();
     setDevicesModel(false);
+    setDeviceDataValue(initialData);
   }, [resetForm]);
 
   const footerContent = (
@@ -254,7 +297,7 @@ export default function Devices({ hasAccess }) {
           Cancel
         </Button>
         <Button className="btn_primary" onClick={handleSubmit} type="submit">
-          Save
+          {values?._id ? 'Update' : 'Save'}
         </Button>
       </div>
     </div>
@@ -262,14 +305,7 @@ export default function Devices({ hasAccess }) {
 
   const handleSearchInput = e => {
     dispatch(setDevicesCurrentPage(1));
-    dispatch(
-      getDevicesList({
-        start: 1,
-        limit: devicesPageLimit,
-        isActive: '',
-        search: e.target.value,
-      }),
-    );
+    getDevicesListApi(1, devicesPageLimit, e.target.value?.trim());
   };
 
   const debounceHandleSearchInput = React.useCallback(
@@ -361,13 +397,14 @@ export default function Devices({ hasAccess }) {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'device'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}
         setDeletePopup={setDeletePopup}
       />
       <Dialog
-        header="Devices"
+        header={values?._id ? 'Update Devices' : 'Create Devices'}
         visible={devicesModel}
         draggable={false}
         className="modal_Wrapper modal_small"
@@ -378,7 +415,9 @@ export default function Devices({ hasAccess }) {
           <Row>
             <Col xs={12}>
               <div className="form_group mb-3">
-                <label htmlFor="DeviceName">Device Name</label>
+                <label htmlFor="DeviceName">
+                  Device Name <span className="text-danger fs-6">*</span>
+                </label>
                 <InputText
                   id="DeviceName"
                   placeholder="Write Name"

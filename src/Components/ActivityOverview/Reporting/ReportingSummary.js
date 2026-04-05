@@ -1,12 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import NonProjectReporting from './NonProjectReporting';
 import ProjectReporting from './ProjectReporting';
+import { getEmployeeReportingList } from 'Store/Reducers/ActivityOverview/AdminReportingFlow/AdminReportingSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import Loader from 'Components/Common/Loader';
 
 export default function ReportingSummary() {
   const [reportingTab, setReportingTab] = useState('project_reporting');
+  const [totalRowsCount, setTotalRowsCount] = useState({
+    projectReporting: 0,
+    nonProjectReporting: 0,
+  });
+
+  const dispatch = useDispatch();
+  const { getEmployeeReportingListLoading } = useSelector(
+    ({ adminReporting }) => adminReporting,
+  );
+
+  useEffect(() => {
+    dispatch(
+      getEmployeeReportingList({ start: 1, limit: 10, missing: true }),
+    ).then(response => {
+      setTotalRowsCount(prevState => ({
+        ...prevState,
+        nonProjectReporting: response.payload.totalRows,
+      }));
+      dispatch(
+        getEmployeeReportingList({ start: 1, limit: 10, missing: false }),
+      ).then(response => {
+        setTotalRowsCount(prevState => ({
+          ...prevState,
+          projectReporting: response.payload.totalRows,
+        }));
+      });
+    });
+  }, [dispatch]);
+
   return (
     <div className="main_Wrapper">
+      {getEmployeeReportingListLoading && <Loader />}
       <div className="table_main_Wrapper">
         <div className="top_filter_wrap border-0">
           <h3 className="mb20">Reporting</h3>
@@ -24,7 +57,7 @@ export default function ReportingSummary() {
                       onClick={() => setReportingTab('project_reporting')}
                     >
                       <h5>Project Reporting</h5>
-                      <p>30</p>
+                      <p>{totalRowsCount.projectReporting || 0}</p>
                     </div>
                   </li>
                   <li>
@@ -37,7 +70,7 @@ export default function ReportingSummary() {
                       onClick={() => setReportingTab('non_project_reporting')}
                     >
                       <h5>Non Project Reporting</h5>
-                      <p>3</p>
+                      <p>{totalRowsCount.nonProjectReporting || 0}</p>
                     </div>
                   </li>
                 </ul>

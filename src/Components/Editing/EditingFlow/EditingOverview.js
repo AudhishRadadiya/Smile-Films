@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
@@ -7,16 +7,15 @@ import { Dialog } from 'primereact/dialog';
 import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
 import PlusIcon from '../../../Assets/Images/plus.svg';
 import AddUserIcon from '../../../Assets/Images/add-user.svg';
-import ReactSelectSingle from '../../Common/ReactSelectSingle';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Tag } from 'primereact/tag';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   addChecker,
   addStep,
-  editOrder,
   getEditingFlow,
   getItems,
+  getStep,
   listEmployee,
   removeEditorItem,
   setEditingOverviewData,
@@ -28,35 +27,127 @@ import moment from 'moment';
 import Loader from 'Components/Common/Loader';
 import { Dropdown } from 'primereact/dropdown';
 import Close from '../../../Assets/Images/close.svg';
+import EditIcon from '../../../Assets/Images/edit.svg';
 import UserIcon from '../../../Assets/Images/add-user.svg';
+import { convertIntoNumber } from 'Helper/CommonHelper';
+import { generateUnitForDataSize } from 'Helper/CommonList';
+import {
+  clearUpdateSelectedDataCollectionData,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
+import { toast } from 'react-toastify';
 
-export default function EditingOverview() {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+const color_code = [
+  'bg_lavender',
+  'bg_almond',
+  'bg_vanilla_ice',
+  'bg_pattens_blue',
+  'bg_bubbles',
+  'bg_karry',
+  'bg_solitude',
+  'bg_granny_apple',
+];
+
+const getSeverityValue = item => {
+  switch (item) {
+    case 1:
+      return 'Intial';
+    case 2:
+      return 'Library Done';
+    case 3:
+      return 'In Progress';
+    case 4:
+      return 'In Checking';
+    case 5:
+      return 'Exporting';
+    case 6:
+      return 'Completed';
+    default:
+      return null;
+  }
+};
+
+const getSeverity = product => {
+  switch (product.status) {
+    case 1:
+      return 'info';
+    case 2:
+      return 'orange';
+    case 3:
+      return 'warning';
+    case 4:
+      return 'danger';
+    case 5:
+      return 'primary';
+    case 6:
+      return 'success';
+
+    default:
+      return null;
+  }
+};
+
+const EditingOverview = () => {
   const { id } = useParams();
-  const [createGroupModel, setCreateGroupModel] = useState(false);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const [isShowNext, setIsShowNext] = useState(false);
+  const [expandedRows, setExpandedRows] = useState(null);
+  const [createGroupModel, setCreateGroupModel] = useState(false);
+
   const {
-    editingLoading,
-    editingOverviewData,
-    assignEmployeeList,
-    commentLoading,
-    orderLoading,
-    assignedEditorLoading,
-    checkerLoading,
-    employeeLoading,
     getStepData,
+    orderLoading,
     itemsLoading,
+    editingLoading,
+    checkerLoading,
+    commentLoading,
+    employeeLoading,
+    assignEmployeeList,
+    editingOverviewData,
+    assignedEditorLoading,
   } = useSelector(({ editing }) => editing);
+  const { isGetInintialValuesDataCollection } = useSelector(
+    ({ dataCollection }) => dataCollection,
+  );
 
   useEffect(() => {
     dispatch(getItems({ order_id: id }))
       .then(response => {
         const ItemData = response.payload;
 
+        // If item data is not arrived
+        if (!ItemData || ItemData?.length === 0) {
+          toast.error(
+            'Your quotation is not approved so, please approve first',
+          );
+
+          dispatch(setEditingOverviewData({}));
+
+          const payload = {
+            order_id: id,
+            step: 1,
+          };
+
+          dispatch(addStep(payload))
+            .then(response => {
+              dispatch(getStep({ order_id: id }));
+              dispatch(setEditingSelectedProgressIndex(2));
+            })
+            .catch(errors => {
+              console.error('Add Status:', errors);
+            });
+        }
+
         return { ItemData };
       })
       .then(({ ItemData }) => {
+        if (!ItemData || ItemData?.length === 0) {
+          dispatch(setEditingOverviewData({})); // If item data is not arrived
+          return;
+        }
+
         dispatch(getEditingFlow({ order_id: id }))
           .then(response => {
             const responseData = response.payload;
@@ -64,63 +155,93 @@ export default function EditingOverview() {
             return { ItemData, responseData };
           })
           .then(({ ItemData, responseData }) => {
-            dispatch(listEmployee())
+            dispatch(
+              listEmployee({
+                type: 1,
+              }),
+            )
               .then(response => {
                 const responseList = response.payload;
-                let updatedList = ItemData?.map(data => {
-                  let filteredEmployeeList = responseList?.filter(employee => {
-                    return data?.employeeData?.some(
-                      item => item.employee_id === employee._id,
-                    );
-                  });
-                  let filteredIds = data?.employeeData?.map(
-                    item => item.employee_id,
-                  );
+                let updatedList = [];
 
-                  let AssignedEmployeeList = responseList?.filter(employee => {
-                    return !filteredEmployeeList?.some(
-                      item => item._id === employee._id,
+                if (ItemData && ItemData?.length > 0) {
+                  updatedList = ItemData?.map(data => {
+                    let currentIndex = 0;
+
+                    const updatedEventList = data?.eventItems?.flatMap(item => [
+                      {
+                        ...item,
+                        item_index: currentIndex++,
+                        main_event: true,
+                      },
+                      ...(item?.event_items?.map(eventItem => ({
+                        item_index: currentIndex++,
+                        event_name: eventItem?.event_item_name,
+                        total_raw_hours: eventItem?.event_hour,
+                      })) || []),
+                    ]);
+
+                    let filteredEmployeeList = responseList?.filter(
+                      employee => {
+                        return data?.employeeData?.some(
+                          item => item.employee_id === employee._id,
+                        );
+                      },
                     );
-                  });
-                  let updatedCheckerList = data?.checkerData?.map(d => {
+                    let filteredIds = data?.employeeData?.map(
+                      item => item.employee_id,
+                    );
+
+                    let AssignedEmployeeList = responseList?.filter(
+                      employee => {
+                        return !filteredEmployeeList?.some(
+                          item => item._id === employee._id,
+                        );
+                      },
+                    );
+                    let updatedCheckerList = data?.checkerData?.map(d => {
+                      return {
+                        ...d,
+                        label: d?.employee_name,
+                        value: d?.employee_id,
+                      };
+                    });
+
                     return {
-                      ...d,
-                      label: d?.employee_name,
-                      value: d?.employee_id,
+                      ...data,
+                      eventItems: updatedEventList,
+                      due_date: data?.due_date
+                        ? moment(data?.due_date)?.format('DD-MM-YYYY')
+                        : '',
+                      employeeList:
+                        data?.employeeData?.length > 0
+                          ? AssignedEmployeeList
+                          : responseList,
+                      assignedEmployee:
+                        data?.employeeData?.length > 0 ? filteredIds : [],
+                      checkerList: updatedCheckerList,
+                      checker: data?.checker,
                     };
                   });
+                }
 
-                  return {
-                    ...data,
-                    due_date: data?.due_date
-                      ? moment(data?.due_date)?.format('DD-MM-YYYY')
-                      : '',
-                    employeeList:
-                      data?.employeeData?.length > 0
-                        ? AssignedEmployeeList
-                        : responseList,
-                    assignedEmployee:
-                      data?.employeeData?.length > 0 ? filteredIds : [],
-                    checkerList: updatedCheckerList,
-                    checker: data?.checker,
-                  };
-                });
                 const updated = {
                   ...responseData,
+                  data_size: convertIntoNumber(responseData?.data_size),
                   editingTable: updatedList,
                 };
-                const isAssignEmployee = responseData?.orderItems?.every(
-                  item => {
-                    return item?.employeeData?.length > 0;
-                  },
-                );
 
-                const isChecker = responseData?.orderItems?.every(item => {
+                const isAssignEmployee = ItemData?.every(item => {
+                  return item?.employeeData?.length > 0;
+                });
+
+                const isChecker = ItemData?.every(item => {
                   return item?.checker;
                 });
 
-                const isCompletedProject = responseData?.order_status >= 5;
-                if (isAssignEmployee && isChecker && isCompletedProject) {
+                // const isCompletedProject = responseData?.order_status === 6;
+
+                if (isAssignEmployee && isChecker) {
                   setIsShowNext(true);
                 } else {
                   setIsShowNext(false);
@@ -143,7 +264,12 @@ export default function EditingOverview() {
     // if (isAssignedEditor) {
     //   dispatch(setIsAssignedEditor(false));
     // }
+
+    return () => {
+      dispatch(setEditingOverviewData({}));
+    };
   }, [dispatch, id]);
+
   const handleCheckerChange = (e, data) => {
     const newEmployee = e.value;
     let payload = {
@@ -210,17 +336,17 @@ export default function EditingOverview() {
                 ...response,
                 editingTable: updatedList,
               };
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
 
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setIsShowNext(true);
               } else {
                 setIsShowNext(false);
@@ -309,16 +435,16 @@ export default function EditingOverview() {
                 ...response,
                 editingTable: updatedList,
               };
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setIsShowNext(true);
               } else {
                 setIsShowNext(false);
@@ -401,17 +527,17 @@ export default function EditingOverview() {
                 ...response,
                 editingTable: updatedList,
               };
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
 
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setIsShowNext(true);
               } else {
                 setIsShowNext(false);
@@ -495,16 +621,16 @@ export default function EditingOverview() {
                 ...response,
                 editingTable: updatedList,
               };
-              const isAssignEmployee = response?.orderItems?.every(item => {
+              const isAssignEmployee = ItemData?.every(item => {
                 return item?.employeeData?.length > 0;
               });
 
-              const isChecker = response?.orderItems?.every(item => {
+              const isChecker = ItemData?.every(item => {
                 return item?.checker;
               });
-              const isCompletedProject = response?.order_status >= 5;
+              // const isCompletedProject = response?.order_status >= 5;
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
+              if (isAssignEmployee && isChecker) {
                 setIsShowNext(true);
               } else {
                 setIsShowNext(false);
@@ -540,7 +666,8 @@ export default function EditingOverview() {
       </div>
     );
   };
-  const checkerBodyTemplet = data => {
+
+  const checkerBodyTemplate = data => {
     return (
       <ul className="assign-body-wrap edit-assign-body-wrap">
         {/* <li>
@@ -620,7 +747,7 @@ export default function EditingOverview() {
     );
   };
 
-  const assignedEmployeeBodyTemplet = data => {
+  const assignedEmployeeBodyTemplate = data => {
     return (
       <ul className="assign-body-wrap edit-assign-body-wrap">
         {data?.employeeData &&
@@ -683,30 +810,11 @@ export default function EditingOverview() {
     </div>
   );
 
-  const statusItemTemplate = option => {
-    return (
-      <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
-    );
-  };
-
-  const getSeverityValue = item => {
-    switch (item) {
-      case 1:
-        return 'Intial';
-      case 2:
-        return 'Library Done';
-      case 3:
-        return 'In Progress';
-      case 4:
-        return 'In Checking';
-      case 5:
-        return 'Completed';
-      case 6:
-        return 'Exporting';
-      default:
-        return null;
-    }
-  };
+  // const statusItemTemplate = option => {
+  //   return (
+  //     <Tag value={option?.label} severity={getSeverityStatus(option?.label)} />
+  //   );
+  // }
 
   const statusBodyTemplate = product => {
     return (
@@ -717,154 +825,166 @@ export default function EditingOverview() {
     );
   };
 
-  const getSeverity = product => {
-    switch (product.status) {
-      case 1:
-        return 'info';
-      case 2:
-        return 'orange';
-      case 3:
-        return 'warning';
-      case 4:
-        return 'danger';
-      case 5:
-        return 'success';
-      case 6:
-        return 'primary';
-
-      default:
-        return null;
-    }
+  const headerTemplate = data => {
+    return (
+      <div className="flex align-items-center gap-2">
+        <span className="font-bold">{data?.package_name}</span>
+      </div>
+    );
   };
 
-  const getSeverityStatus = product => {
-    switch (product) {
-      case 'Initial':
-        return 'info';
-      case 'Library Done':
-        return 'orange';
-      case 'IN Progress':
-        return 'warning';
-      case 'IN Checking':
-        return 'danger';
-      case 'Completed':
-        return 'success';
-      case 'Exporting':
-        return 'primary';
+  // const handleProjectStatusChange = e => {
+  //   setFieldValue('order_status', e.value);
+  //   let payload = {
+  //     order_id: id,
+  //     project_status: e.value,
+  //   };
+  //   dispatch(editOrder(payload))
+  //     .then(response => {
+  //       dispatch(getItems({ order_id: id }))
+  //         .then(response => {
+  //           const ItemData = response.payload;
 
-      default:
-        return null;
-    }
-  };
+  //           return { ItemData };
+  //         })
+  //         .then(({ ItemData }) => {
+  //           dispatch(getEditingFlow({ order_id: id })).then(responseData => {
+  //             const response = responseData.payload;
+  //             let updatedList = ItemData?.map(data => {
+  //               let filteredEmployeeList = assignEmployeeList?.filter(
+  //                 employee => {
+  //                   return data?.employeeData?.some(
+  //                     item => item.employee_id === employee._id,
+  //                   );
+  //                 },
+  //               );
+  //               let filteredIds = data?.employeeData.map(
+  //                 item => item.employee_id,
+  //               );
 
-  const ProjectStatus = [
-    { label: 'Initial', value: 1 },
-    { label: 'Library Done', value: 2 },
-    { label: 'IN Progress', value: 3 },
-    { label: 'IN Checking', value: 4 },
-    { label: 'Completed', value: 5 },
-    { label: 'Exporting', value: 6 },
-  ];
+  //               let AssignedEmployeeList = assignEmployeeList?.filter(
+  //                 employee => {
+  //                   return !filteredEmployeeList?.some(
+  //                     item => item._id === employee._id,
+  //                   );
+  //                 },
+  //               );
+  //               let updatedCheckerList = data?.checkerData?.map(d => {
+  //                 return {
+  //                   ...d,
+  //                   label: d?.employee_name,
+  //                   value: d?.employee_id,
+  //                 };
+  //               });
 
-  const handleProjectStatusChange = e => {
-    setFieldValue('order_status', e.value);
-    let payload = {
-      order_id: id,
-      project_status: e.value,
-    };
-    dispatch(editOrder(payload))
-      .then(response => {
-        dispatch(getItems({ order_id: id }))
-          .then(response => {
-            const ItemData = response.payload;
+  //               return {
+  //                 ...data,
+  //                 due_date: data?.due_date
+  //                   ? moment(data?.due_date)?.format('DD-MM-YYYY')
+  //                   : '',
+  //                 employeeList:
+  //                   data?.employeeData?.length > 0
+  //                     ? AssignedEmployeeList
+  //                     : assignEmployeeList,
+  //                 assignedEmployee:
+  //                   data?.employeeData?.length > 0 ? filteredIds : [],
 
-            return { ItemData };
-          })
-          .then(({ ItemData }) => {
-            dispatch(getEditingFlow({ order_id: id })).then(responseData => {
-              const response = responseData.payload;
-              let updatedList = ItemData?.map(data => {
-                let filteredEmployeeList = assignEmployeeList?.filter(
-                  employee => {
-                    return data?.employeeData?.some(
-                      item => item.employee_id === employee._id,
-                    );
-                  },
-                );
-                let filteredIds = data?.employeeData.map(
-                  item => item.employee_id,
-                );
+  //                 checkerList: updatedCheckerList,
+  //                 checker: data?.checker,
+  //               };
+  //             });
 
-                let AssignedEmployeeList = assignEmployeeList?.filter(
-                  employee => {
-                    return !filteredEmployeeList?.some(
-                      item => item._id === employee._id,
-                    );
-                  },
-                );
-                let updatedCheckerList = data?.checkerData?.map(d => {
-                  return {
-                    ...d,
-                    label: d?.employee_name,
-                    value: d?.employee_id,
-                  };
-                });
+  //             const updated = {
+  //               ...response,
+  //               editingTable: updatedList,
+  //             };
+  //             const isAssignEmployee = ItemData?.every(item => {
+  //               return item?.employeeData?.length > 0;
+  //             });
 
-                return {
-                  ...data,
-                  due_date: data?.due_date
-                    ? moment(data?.due_date)?.format('DD-MM-YYYY')
-                    : '',
-                  employeeList:
-                    data?.employeeData?.length > 0
-                      ? AssignedEmployeeList
-                      : assignEmployeeList,
-                  assignedEmployee:
-                    data?.employeeData?.length > 0 ? filteredIds : [],
+  //             const isChecker = ItemData?.every(item => {
+  //               return item?.checker;
+  //             });
+  //             const isCompletedProject = response?.order_status >= 5;
 
-                  checkerList: updatedCheckerList,
-                  checker: data?.checker,
-                };
-              });
-              const updated = {
-                ...response,
-                editingTable: updatedList,
-              };
-              const isAssignEmployee = response?.orderItems?.every(item => {
-                return item?.employeeData?.length > 0;
-              });
+  //             if (isAssignEmployee && isChecker && isCompletedProject) {
+  //               setIsShowNext(true);
+  //             } else {
+  //               setIsShowNext(false);
+  //             }
+  //             dispatch(setEditingOverviewData(updated));
+  //           });
+  //         })
 
-              const isChecker = response?.orderItems?.every(item => {
-                return item?.checker;
-              });
-              const isCompletedProject = response?.order_status >= 5;
+  //         .catch(error => {
+  //           console.error('Error fetching editing data:', error);
+  //         })
 
-              if (isAssignEmployee && isChecker && isCompletedProject) {
-                setIsShowNext(true);
-              } else {
-                setIsShowNext(false);
-              }
-              dispatch(setEditingOverviewData(updated));
-            });
-          })
+  //         .catch(error => {
+  //           console.error('Error fetching item data:', error);
+  //         });
+  //     })
+  //     .catch(error => {
+  //       console.error('Error fetching order status:', error);
+  //     });
+  // };
 
-          .catch(error => {
-            console.error('Error fetching editing data:', error);
-          })
-
-          .catch(error => {
-            console.error('Error fetching item data:', error);
-          });
-      })
-      .catch(error => {
-        console.error('Error fetching order status:', error);
-      });
-  };
-
-  const { values, setFieldValue } = useFormik({
+  const { values } = useFormik({
     enableReinitialize: true,
     initialValues: editingOverviewData,
   });
+
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${values?.editing_hour || 0}:${values?.editing_minute || 0}:${
+      values?.editing_second || 0
+    }`;
+  }, [values?.editing_hour, values?.editing_minute, values?.editing_second]);
+
+  const subEventDateTemplate = rowData => {
+    const eventDate = rowData.event_date
+      ? moment(rowData.event_date).format('DD-MM-YYYY')
+      : '';
+    return eventDate;
+  };
+
+  const rowExpansionTemplate = useCallback((data, i) => {
+    const bg_color = data => {
+      const colorIndex = data.item_index % color_code?.length;
+      const color = color_code[colorIndex];
+
+      return {
+        [color]: data.main_event,
+      };
+    };
+
+    return (
+      <div className="inner_table_wrap table_col_transparent" key={i}>
+        <DataTable value={data?.eventItems} rowClassName={bg_color}>
+          <Column field="event_name" header="Event Name" sortable></Column>
+          <Column
+            field="event_date"
+            header="Event Date"
+            sortable
+            body={subEventDateTemplate}
+          ></Column>
+          <Column
+            field="final_output_hours"
+            header="Final Output Hour"
+            sortable
+          ></Column>
+          <Column
+            field="total_raw_hours"
+            header="Total Raw Hours"
+            sortable
+          ></Column>
+        </DataTable>
+      </div>
+    );
+  }, []);
+
+  const allowExpansion = rowData => {
+    return rowData?.checkerData?.length;
+  };
 
   return (
     <div className="">
@@ -916,8 +1036,25 @@ export default function EditingOverview() {
                 <Row className="g-3 g-sm-4">
                   <Col md={6}>
                     <div className="order-details-wrapper p10 border radius15 h-100">
-                      <div className="pb10 border-bottom">
+                      <div className="pb10 border-bottom d-flex justify-content-between">
                         <h6 className="m-0">Job</h6>
+                        <img
+                          src={EditIcon}
+                          className="cusor-pointer"
+                          alt=""
+                          onClick={() => {
+                            dispatch(
+                              setIsGetInintialValuesDataCollection({
+                                ...isGetInintialValuesDataCollection,
+                                update: false,
+                              }),
+                            );
+                            dispatch(clearUpdateSelectedDataCollectionData());
+                            navigate(
+                              `/update-data-collection/${id}?param=editing`,
+                            );
+                          }}
+                        />
                       </div>
                       <div className="details_box pt10">
                         <div className="details_box_inner">
@@ -929,11 +1066,18 @@ export default function EditingOverview() {
                             <span>Couple Name :</span>
                             <h5>{values?.couple_name}</h5>
                           </div>
+                          <div className="order-date">
+                            <span>Hours :</span>
+                            <h5>{showHoursWithMinutesAndSeconds}</h5>
+                          </div>
                         </div>
                         <div className="details_box_inner">
                           <div className="order-date">
                             <span>Data Size :</span>
-                            <h5>{values?.data_size} GB</h5>
+                            <h5>
+                              {values?.data_size}
+                              {generateUnitForDataSize(values?.data_size_type)}
+                            </h5>
                           </div>
                           <div className="order-date">
                             <span>Project Type :</span>
@@ -979,12 +1123,12 @@ export default function EditingOverview() {
                 </Row>
               </div>
               <div className="table_main_Wrapper h-auto">
-                <div className="top_filter_wrap">
+                {/* <div className="top_filter_wrap">
                   <div className="d-flex align-items-center justify-content-end">
                     <h5 className="m-0 me-2">Project Status</h5>
                     <div className="form_group">
                       <ReactSelectSingle
-                        value={values?.order_status}
+                        value={values?.order_status || 1}
                         options={ProjectStatus}
                         itemTemplate={statusItemTemplate}
                         onChange={e => {
@@ -996,14 +1140,26 @@ export default function EditingOverview() {
                       />
                     </div>
                   </div>
-                </div>
+                </div> */}
                 <div className="data_table_wrapper max_height">
                   <DataTable
                     value={values?.editingTable}
-                    sortField="item_name"
+                    expandedRows={expandedRows}
+                    onRowToggle={e => setExpandedRows(e?.data)}
+                    rowGroupMode="subheader"
+                    groupRowsBy="package_name"
+                    sortMode="single"
+                    sortField="package_name"
                     sortOrder={1}
-                    rows={10}
+                    scrollable
+                    rowGroupHeaderTemplate={headerTemplate}
+                    rowExpansionTemplate={data => rowExpansionTemplate(data)}
                   >
+                    <Column
+                      className="expander_toggle"
+                      expander={allowExpansion}
+                      style={{ width: '3rem' }}
+                    />
                     <Column
                       field="item_name"
                       header="Item Name"
@@ -1013,13 +1169,13 @@ export default function EditingOverview() {
                       field="checker"
                       header="Checker"
                       sortable
-                      body={checkerBodyTemplet}
+                      body={checkerBodyTemplate}
                     ></Column>
                     <Column
                       field="assigned_editors"
                       header="Assigned Employee"
                       sortable
-                      body={assignedEmployeeBodyTemplet}
+                      body={assignedEmployeeBodyTemplate}
                     ></Column>
                     <Column
                       field="due_date"
@@ -1059,6 +1215,7 @@ export default function EditingOverview() {
                 };
                 dispatch(addStep(payload))
                   .then(response => {
+                    dispatch(getStep({ order_id: id }));
                     dispatch(setEditingSelectedProgressIndex(6));
                   })
                   .catch(errors => {
@@ -1099,8 +1256,7 @@ export default function EditingOverview() {
           </div>
         </div>
       </Dialog>
-
-      {/* conformation popup */}
     </div>
   );
-}
+};
+export default memo(EditingOverview);

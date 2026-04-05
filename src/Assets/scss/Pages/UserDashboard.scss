@@ -27,6 +27,27 @@
   }
 }
 
+.user_dash_slider {
+  .delete_project_wrapper {
+    .delete_project_inner {
+      .client_delet_project {
+        .client_delet_left {
+          .slider_wrapper {
+            padding-right: 50px;
+            .carousel-caption {
+              .slider_inner_wrap {
+                h4 {
+                  color: $textDark;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 .festival_box {
   position: relative;
   background-image: url(../../Images/festival-bg.jpg);
@@ -103,6 +124,7 @@
     flex-wrap: wrap;
     border-left: 1px solid $borderColor;
     padding-left: 60px;
+    align-items: center;
     .chart_left_wrap {
       width: 50%;
     }
@@ -120,6 +142,14 @@
   width: 50%;
   padding-right: 30px;
   margin-right: 30px;
+  height: 160px;
+  overflow: auto;
+  h4 {
+    position: sticky;
+    top: 0;
+    left: 0;
+    background: #fff;
+  }
   ul {
     li {
       display: flex;
@@ -151,7 +181,7 @@
       th {
         background-color: transparent;
         vertical-align: middle;
-        padding: 0 10px 10px;
+        padding: 0 10px 0;
         white-space: nowrap;
       }
     }
@@ -248,6 +278,20 @@
     max-height: 500px;
     overflow: auto;
   }
+}
+.assigned_tooltip_user {
+  .assigned_user {
+    img {
+      width: 23px;
+      height: 23px;
+      border-radius: 50%;
+    }
+  }
+}
+
+.package_title {
+  font-size: 12px;
+  padding-bottom: 5px;
 }
 
 .announcement_wrap {

@@ -1,55 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Col, Row } from 'react-bootstrap';
-import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
-import { Dialog } from 'primereact/dialog';
-import { Column } from 'primereact/column';
-import { Link, useParams } from 'react-router-dom';
-import { ColumnGroup } from 'primereact/columngroup';
-import ShowIcon from '../../../Assets/Images/show-icon.svg';
-import LogoImg from '../../../Assets/Images/logo.svg';
-import PdfIcon from '../../../Assets/Images/pdf-icon.svg';
-import EditIcon from '../../../Assets/Images/edit.svg';
-import EmailIcon from '../../../Assets/Images/email-icon.svg';
-import ProjectQuotation from './ProjectQuotation';
-import { useDispatch, useSelector } from 'react-redux';
-import { getClientProjectOverviewData } from 'Store/Reducers/ClientFlow/Project/ClientProjectSlice';
 import Loader from 'Components/Common/Loader';
+import { Col, Row } from 'react-bootstrap';
+import { useSelector } from 'react-redux';
+import ProjectQuotation from './ProjectQuotation';
+import { memo } from 'react';
 
-export const QuotationViewData = [
-  {
-    item: 'Tradition-Photo',
-    qty: '1',
-    rate: '₹ 20,000',
-    amount: '₹ 20,000',
-  },
-  {
-    item: 'Tradition-Photo',
-    qty: '1',
-    rate: '₹ 20,000',
-    amount: '₹ 20,000',
-  },
-  {
-    item: 'Tradition-Photo',
-    qty: '1',
-    rate: '₹ 20,000',
-    amount: '₹ 20,000',
-  },
-];
-
-export default function ProjectOverview() {
-  const dispatch = useDispatch();
-  const { id } = useParams();
+const ProjectOverview = () => {
   const { clientProjectOverviewData, clientProjectOverviewLoading } =
     useSelector(({ clientProject }) => clientProject);
-
-  useEffect(() => {
-    dispatch(
-      getClientProjectOverviewData({
-        order_id: id,
-      }),
-    );
-  }, [dispatch, id]);
 
   return (
     <div className="overview_wrap p20 p15-sm">
@@ -103,12 +60,6 @@ export default function ProjectOverview() {
               <ul>
                 <li>
                   <h5 className="text_gray">Items</h5>
-                  {/* <ul>
-                    <li>Wedding Package</li>
-                    <li>- Highlights Video</li>
-                    <li>- Teaser</li>
-                    <li>- Tradition Video</li>
-                  </ul> */}
                   <ul>
                     {clientProjectOverviewData?.item_name?.map(
                       (itemName, index) => (
@@ -117,19 +68,20 @@ export default function ProjectOverview() {
                     )}
                   </ul>
                 </li>
-                {/* <li>
-                  <ul className="mt-4">
-                    <li>Pre-Wedding</li>
-                    <li>Teaser</li>
-                  </ul>
-                </li> */}
               </ul>
             </div>
             <div className="project_inner">
               <ul>
                 <li>
                   <h5 className="text_gray">Remark</h5>
-                  <h3>{clientProjectOverviewData?.remark}</h3>
+                  <h3
+                    className="editor_text_wrapper"
+                    dangerouslySetInnerHTML={{
+                      __html: clientProjectOverviewData?.remark,
+                    }}
+                  />
+
+                  {/* <h3>{clientProjectOverviewData?.remark}</h3> */}
                 </li>
               </ul>
             </div>
@@ -438,4 +390,5 @@ export default function ProjectOverview() {
       </Dialog> */}
     </div>
   );
-}
+};
+export default memo(ProjectOverview);

@@ -16,6 +16,7 @@ import PdfIcon from '../../Assets/Images/pdf-icon.svg';
 import EditIcon from '../../Assets/Images/edit.svg';
 import EmailIcon from '../../Assets/Images/email-icon.svg';
 import TrashIcon from '../../Assets/Images/trash.svg';
+import ReactSelectSingle from '../Common/ReactSelectSingle';
 import {
   addExposingStep,
   addInvoice,
@@ -24,25 +25,31 @@ import {
   getExposingDetails,
   getExposingQuotation,
   getExposingQuotationList,
+  getExposingStep,
   setExposingQuotationData,
   setExposingSelectedProgressIndex,
   setQuotationApprovedData,
 } from 'Store/Reducers/Exposing/ExposingFlow/ExposingSlice';
 import { useDispatch, useSelector } from 'react-redux';
-import { convertIntoNumber, totalCount } from 'Helper/CommonHelper';
+import {
+  checkWordLimit,
+  convertIntoNumber,
+  thousandSeparator,
+  totalCount,
+} from 'Helper/CommonHelper';
 import { getPackageList } from 'Store/Reducers/Settings/Master/PackageSlice';
 import { getProductList } from 'Store/Reducers/Settings/Master/ProductSlice';
 import { useFormik } from 'formik';
 import { exposingQuotationSchema } from 'Schema/Exposing/exposingSchema';
-import { getFormattedDate } from 'Helper/CommonList';
 import Loader from 'Components/Common/Loader';
 import { InputNumber } from 'primereact/inputnumber';
 import ReactQuill from 'react-quill';
 import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
 import { toast } from 'react-toastify';
 import moment from 'moment';
-
-const TAX = 18;
+import { getQuotationName } from 'Store/Reducers/Editing/EditingFlow/EditingSlice';
+import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
+import { getClientCompany } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
 
 export const QuotationViewData = [
   {
@@ -97,6 +104,17 @@ const ExposingQuotation = () => {
   const [visible, setVisible] = useState(false);
   const [deletePopup, setDeletePopup] = useState(false);
 
+  const { quotationNameLoading } = useSelector(({ editing }) => editing);
+  const { productList, productLoading } = useSelector(({ product }) => product);
+  const { clientCompanyLoading } = useSelector(
+    ({ clientCompany }) => clientCompany,
+  );
+  const { packageList, packageLoading } = useSelector(
+    ({ packages }) => packages,
+  );
+  const { currencyList, currencyLoading } = useSelector(
+    ({ currency }) => currency,
+  );
   const {
     exposingQuotationData,
     exposingDetailsData,
@@ -107,52 +125,100 @@ const ExposingQuotation = () => {
     exposingQuotationList,
     getExposingStepData,
   } = useSelector(({ exposing }) => exposing);
-  const { productList, productLoading } = useSelector(({ product }) => product);
-
-  const { packageList, packageLoading } = useSelector(
-    ({ packages }) => packages,
-  );
 
   useEffect(() => {
     if (!exposingQuotationData?.quotation_id) {
-      dispatch(getExposingDetails({ order_id: id }))
-        .then(response => {
-          const responseData = response.payload;
-          let updatedList = responseData?.orderItems?.map(d => {
-            let rate = d?.rate ? d?.rate : d?.default_rate,
-              qty = d?.quantity,
-              amount = rate * qty;
-            return {
-              ...d,
-              order_date: d?.order_date ? new Date(d?.order_date) : '',
-              quantity: qty,
-              rate: rate,
-              amount: amount,
-              order_iteam_id: d?._id,
-            };
-          });
-          const discount = values?.discount ? values?.discount : 0;
-          let totalAmount = 0,
-            taxAmount = 0,
-            subTotal = 0;
-          subTotal = totalCount(updatedList, 'amount');
-          taxAmount = (subTotal * TAX) / 100;
-          totalAmount = subTotal - discount + taxAmount;
-          const updated = {
-            ...responseData,
-            quotation_name: '',
-            exposing_order_table: updatedList,
-            terms_condition: '',
-            total_amount_collection: convertIntoNumber(subTotal),
-            discount: discount,
-            tax: convertIntoNumber(taxAmount),
-            total_amount: convertIntoNumber(totalAmount),
-          };
-
-          dispatch(setExposingQuotationData(updated));
+      dispatch(getQuotationName())
+        .then(res => {
+          const quotationName = res.payload;
+          return { quotationName };
         })
-        .catch(error => {
-          console.error('Error fetching employee data:', error);
+        .then(({ quotationName }) => {
+          dispatch(getExposingDetails({ order_id: id }))
+            .then(response => {
+              const responseData = response.payload;
+              return { responseData };
+            })
+            .then(async ({ responseData }) => {
+              const currencyData = await dispatch(
+                getCurrencyList({
+                  start: 0,
+                  limit: 0,
+                  isActive: true,
+                  search: '',
+                }),
+              );
+
+              const currencyDetails = currencyData?.payload?.data?.list;
+              const clientCurrency = currencyDetails?.find(
+                c => c?._id === responseData?.currency,
+              );
+              const defaultCurrency = currencyDetails?.find(
+                c => c?.currency_code === 'INR',
+              );
+
+              let updatedList = responseData?.exposing_order_table?.map(
+                item => {
+                  const rate = item?.rate ?? item?.default_rate;
+                  const amount = rate * item?.quantity;
+
+                  // const startDate = item?.order_start_date
+                  //   ? new Date(item?.order_start_date)
+                  //   : null;
+                  // const endDate = item?.order_end_date
+                  //   ? new Date(item?.order_end_date)
+                  //   : null;
+
+                  // const convertedIntoDateArray =
+                  //   startDate && endDate ? [startDate, endDate] : [];
+
+                  return {
+                    ...item,
+                    // order_date: convertedIntoDateArray,
+                    rate: rate,
+                    amount: amount,
+                    order_item_id: item?._id,
+                  };
+                },
+              );
+
+              const discount = values?.discount ? values?.discount : 0;
+              const taxPercentage = values?.tax_percentage
+                ? values?.tax_percentage
+                : 0;
+              let totalAmount = 0,
+                taxAmount = 0,
+                subTotal = 0;
+              subTotal = totalCount(updatedList, 'amount');
+              const amount =
+                convertIntoNumber(subTotal) - convertIntoNumber(discount);
+              taxAmount = (amount * taxPercentage) / 100;
+              totalAmount = amount + taxAmount;
+
+              const updated = {
+                ...responseData,
+                quotation_name: quotationName ? quotationName : '',
+                mobile_no: Array.isArray(responseData?.mobile_no)
+                  ? responseData?.mobile_no?.join(', ')
+                  : responseData?.mobile_no,
+                exposing_order_table: updatedList,
+                terms_condition: '',
+                total_amount_collection: convertIntoNumber(subTotal),
+                discount: discount,
+                tax: convertIntoNumber(taxAmount),
+                tax_percentage: taxPercentage,
+                total_amount: convertIntoNumber(totalAmount),
+                currency: clientCurrency?._id,
+                selected_currency: clientCurrency,
+                exchange_currency_rate: clientCurrency?.exchange_rate,
+                default_currency: defaultCurrency,
+              };
+
+              dispatch(setExposingQuotationData(updated));
+            })
+            .catch(error => {
+              console.error('Error fetching employee data:', error);
+            });
         });
     } else {
       setIsEdit(true);
@@ -164,6 +230,7 @@ const ExposingQuotation = () => {
         limit: 0,
         isActive: true,
         search: '',
+        type: 2,
       }),
     );
     dispatch(
@@ -172,56 +239,73 @@ const ExposingQuotation = () => {
         limit: 0,
         isActive: true,
         search: '',
+        type: 2,
       }),
     );
   }, [dispatch]);
 
-  const exposingItemOptionList = useMemo(() => {
-    const packageData = packageList?.list?.map(item => ({
-      ...item,
-      label: item?.package_name,
-      value: item?._id,
-      isPackage: true,
-    }));
-
-    const productData = productList?.list?.map(item => ({
-      ...item,
-      label: item?.item_name,
-      value: item?._id,
-      isPackage: false,
-    }));
-
-    let filteredPackageData = packageData?.filter(d =>
-      exposingDetailsData?.selected_exposing_order_item?.includes(d?._id),
-    );
-    let filteredProductData = productData?.filter(d =>
-      exposingDetailsData?.selected_exposing_order_item?.includes(d?._id),
-    );
-
-    let data = [];
-    if (filteredPackageData?.length > 0) {
-      data.push({
-        label: 'Package',
-        items: [...filteredPackageData],
+  const currencyOptionList = useMemo(() => {
+    let currencyData = [];
+    if (currencyList?.list?.length) {
+      currencyData = currencyList?.list?.map(item => {
+        return {
+          label: item?.currency_code,
+          value: item._id,
+        };
       });
     }
-    if (filteredProductData?.length > 0) {
-      data.push({ label: 'Product', items: [...filteredProductData] });
-    }
+    return currencyData;
+  }, [currencyList]);
 
-    return data;
-  }, [packageList, productList, exposingDetailsData]);
+  const exposingItemOptionList = useMemo(() => {
+    const packageData =
+      packageList?.list?.map(item => ({
+        ...item,
+        label: item?.package_name,
+        value: item?._id,
+        isPackage: true,
+      })) || [];
+
+    const productData =
+      productList?.list?.map(item => ({
+        ...item,
+        label: item?.item_name,
+        value: item?._id,
+        isPackage: false,
+      })) || [];
+
+    // let filteredPackageData = packageData?.filter(d =>
+    //   exposingDetailsData?.selected_exposing_order_item?.includes(d?._id),
+    // );
+    // let filteredProductData = productData?.filter(d =>
+    //   exposingDetailsData?.selected_exposing_order_item?.includes(d?._id),
+    // );
+
+    const quotationDetails = [
+      {
+        label: 'Package',
+        items: packageData,
+      },
+      { label: 'Product', items: productData },
+    ];
+
+    return quotationDetails;
+  }, [packageList, productList]);
 
   const QuotationfooterGroup = (
     <ColumnGroup>
       <Row>
         <Column footer="Total Amount" colSpan={3} />
         <Column
-          footer={
+          footer={`${
+            selectedExposingQuatationData?.currency_symbol
+              ? selectedExposingQuatationData?.currency_symbol
+              : ''
+          }${
             selectedExposingQuatationData?.sub_total
               ? selectedExposingQuatationData?.sub_total
               : 0
-          }
+          }`}
         />
       </Row>
     </ColumnGroup>
@@ -230,8 +314,23 @@ const ExposingQuotation = () => {
   const handleDiscountChange = (fieldName, fieldValue) => {
     const discount = fieldValue;
     const subTotal = totalCount(values?.exposing_order_table, 'amount');
-    const taxAmount = values?.tax;
-    const totalAmount = subTotal - discount + taxAmount;
+    const amount = convertIntoNumber(subTotal) - convertIntoNumber(discount);
+    const taxAmount = (amount * values?.tax_percentage) / 100;
+    const totalAmount = amount + taxAmount;
+    setFieldValue('tax', convertIntoNumber(taxAmount));
+    setFieldValue('total_amount', convertIntoNumber(totalAmount));
+    setFieldValue('total_amount_collection', convertIntoNumber(subTotal));
+    setFieldValue(fieldName, fieldValue);
+  };
+
+  const handleTaxPercentageChange = (fieldName, fieldValue) => {
+    const taxPercentage = fieldValue;
+    const subTotal = totalCount(values?.exposing_order_table, 'amount');
+    const discount = values?.discount;
+    const amount = convertIntoNumber(subTotal) - convertIntoNumber(discount);
+    const taxAmount = (amount * taxPercentage) / 100;
+    const totalAmount = amount + taxAmount;
+    setFieldValue('tax', convertIntoNumber(taxAmount));
     setFieldValue('total_amount', convertIntoNumber(totalAmount));
     setFieldValue('total_amount_collection', convertIntoNumber(subTotal));
     setFieldValue(fieldName, fieldValue);
@@ -245,147 +344,290 @@ const ExposingQuotation = () => {
     );
   };
 
-  const handleMarkAsApprovedChange = () => {
+  const handleMarkAsApprovedChange = useCallback(() => {
     let payload = {
       quotation_id: selectedExposingQuatationData?._id,
       status: 2,
     };
     dispatch(editQuotation(payload))
       .then(response => {
-        dispatch(
-          setQuotationApprovedData({
-            quotation_id: selectedExposingQuatationData?._id,
-          }),
-        );
-        dispatch(setExposingSelectedProgressIndex(3));
+        if (!!response.payload) {
+          dispatch(
+            setQuotationApprovedData({
+              quotation_id: selectedExposingQuatationData?._id,
+            }),
+          );
+
+          if (getExposingStepData?.step < 2) {
+            let payload = {
+              order_id: id,
+              step: 2,
+            };
+            dispatch(addExposingStep(payload))
+              .then(response => {
+                dispatch(getExposingStep({ order_id: id }));
+                dispatch(setExposingSelectedProgressIndex(3));
+              })
+              .catch(errors => {
+                console.error('Add Status:', errors);
+              });
+          } else {
+            dispatch(setExposingSelectedProgressIndex(3));
+          }
+
+          // dispatch(setExposingSelectedProgressIndex(3));
+        }
       })
       .catch(error => {
         console.error('Error fetching while quotation:', error);
       });
-  };
+  }, [id, dispatch, getExposingStepData, selectedExposingQuatationData]);
+
+  const fetchRequiredData = useCallback(
+    async formData => {
+      dispatch(getExposingQuotationList({ order_id: id, approval: false }));
+      const quotationData = await dispatch(getQuotationName());
+      const clientCompanyData = await dispatch(
+        getClientCompany({
+          client_company_id: formData?.client_company_id,
+        }),
+      );
+
+      const clientCompanyDetails = clientCompanyData?.payload?.data;
+      const clientCurrency = currencyList?.list?.find(
+        c => c?._id === clientCompanyDetails?.currency_id,
+      );
+
+      const updated = {
+        ...exposingQuotationData,
+        ...selectedExposingQuatationData,
+        exposing_order_table: [],
+        exposingOrderList: [],
+        quotation_id: selectedExposingQuatationData?._id,
+        quotation_name: quotationData.payload ? quotationData.payload : '',
+        terms_condition: '',
+        total_amount_collection: 0,
+        discount: 0,
+        tax: 0,
+        total_amount: 0,
+        tax_percentage: 18,
+        selected_exposing_order_item: [],
+        currency: clientCurrency?._id,
+        selected_currency: clientCurrency,
+        exchange_currency_rate: clientCurrency?.exchange_rate,
+      };
+
+      return updated;
+    },
+    [
+      id,
+      dispatch,
+      currencyList,
+      exposingQuotationData,
+      selectedExposingQuatationData,
+    ],
+  );
 
   const submitHandle = useCallback(
     async (values, { resetForm }) => {
+      const currentCurrencyRate = values?.exchange_currency_rate;
+
       const isRate = values?.exposing_order_table?.some(item => {
         return !item?.rate || item?.rate === 0;
       });
 
       const isDueDate = values?.exposing_order_table?.some(item => {
-        return !item?.order_date;
+        return !item?.order_date?.length === 2;
       });
 
       const isQty = values?.exposing_order_table?.some(item => {
         return !item?.quantity || item?.quantity === 0;
       });
 
-      if (!isRate && !isQty && !isDueDate) {
-        let updatedList = values?.exposing_order_table?.map(d => {
+      if (!currentCurrencyRate) {
+        toast.error('Currency rate is required');
+      } else if (isDueDate) {
+        toast.error('Event Date in Quotation Details is Required');
+      } else if (isQty) {
+        toast.error('Quantity in Quotation Details is Required');
+      } else if (isRate) {
+        toast.error('Rate in Quotation Details is Required');
+      } else {
+        const currentCurrencyData = values?.selected_currency;
+
+        const updatedList = values?.exposing_order_table?.map(d => {
+          const calculatedRate = d?.rate * currentCurrencyRate;
+
+          const startDate =
+            d?.order_date?.length && d?.order_date[0]
+              ? moment(d?.order_date[0])?.format('YYYY-MM-DD')
+              : '';
+          const endDate =
+            d?.order_date?.length && d?.order_date[1]
+              ? moment(d?.order_date[1])?.format('YYYY-MM-DD')
+              : '';
+
+          const findObj = values?.quotation_detail?.find(
+            item => item?.item_id === d?.item_id,
+          );
+
           return {
             item_id: d?.item_id,
             item_name: d?.item_name,
-            order_date: moment(new Date(d?.order_date))?.format('YYYY-MM-DD'),
+            order_start_date: startDate,
+            order_end_date: endDate,
             description: d?.description,
             quantity: d?.quantity,
-            rate: d?.rate,
-            amount: d?.amount,
+            rate: convertIntoNumber(calculatedRate),
+            amount: convertIntoNumber(d?.quantity * calculatedRate),
+            ...(isEdit && { quotation_details_id: findObj?._id }),
           };
         });
 
-        let payload = {
+        const payload = {
           order_id: id,
           quotation_name: values?.quotation_name ? values?.quotation_name : '',
           terms_condition: values?.terms_condition
             ? values?.terms_condition
             : '',
           sub_total: values?.total_amount_collection
-            ? values?.total_amount_collection
+            ? convertIntoNumber(
+                values?.total_amount_collection * currentCurrencyRate,
+              )
             : 0,
-          discount: values?.discount ? values?.discount : 0,
-          tax: values?.tax ? values?.tax : 0,
-          total_amount: values?.total_amount ? values?.total_amount : 0,
+          discount: values?.discount
+            ? convertIntoNumber(values?.discount * currentCurrencyRate)
+            : 0,
+          tax: values?.tax
+            ? convertIntoNumber(values?.tax * currentCurrencyRate)
+            : 0,
+          tax_percentage: values?.tax_percentage
+            ? convertIntoNumber(values?.tax_percentage)
+            : 0,
+          total_amount: values?.total_amount
+            ? convertIntoNumber(values?.total_amount * currentCurrencyRate)
+            : 0,
+          currency: values?.currency,
+          conversation_rate: currentCurrencyRate,
+          currency_symbol: currentCurrencyData?.currency_symbol,
           quotation_details: updatedList,
           ...(isEdit && { quotation_id: values?.quotation_id }),
         };
 
         if (isEdit) {
           dispatch(editQuotation(payload))
-            .then(response => {
-              dispatch(
-                getExposingQuotationList({ order_id: id, approval: false }),
-              )
-                .then(responseData => {
-                  resetForm();
-                  const updated = {
-                    ...exposingQuotationData,
-                    ...selectedExposingQuatationData,
-                    exposing_order_table: [],
-                    exposingOrderList: [],
-                    quotation_id: selectedExposingQuatationData?._id,
-                    quotation_name: '',
-                    terms_condition: '',
-                    total_amount_collection: 0,
-                    discount: 0,
-                    tax: 0,
-                    total_amount: 0,
-                    selected_exposing_order_item: [],
-                  };
-                  dispatch(setExposingQuotationData(updated));
-                })
-                .catch(error => {
-                  console.error('Error fetching quotation list:', error);
-                });
+            .then(async response => {
+              resetForm();
+              setIsEdit(false);
+              const updatedExposingQuotationData = await fetchRequiredData(
+                values,
+              );
+
+              if (selectedExposingQuatationData?.status === 2) {
+                dispatch(setExposingQuotationData({}));
+                dispatch(setExposingSelectedProgressIndex(3));
+              } else {
+                dispatch(
+                  setExposingQuotationData(updatedExposingQuotationData),
+                );
+              }
+
+              // dispatch(getQuotationName())
+              //   .then(res => {
+              //     const quotationName = res.payload;
+              //     return { quotationName };
+              //   })
+              //   .then(({ quotationName }) => {
+              //     dispatch(
+              //       getExposingQuotationList({ order_id: id, approval: false }),
+              //     )
+              //       .then(responseData => {
+              //         resetForm();
+              //         const updated = {
+              //           ...exposingQuotationData,
+              //           ...selectedExposingQuatationData,
+              //           exposing_order_table: [],
+              //           exposingOrderList: [],
+              //           quotation_id: selectedExposingQuatationData?._id,
+              //           quotation_name: quotationName ? quotationName : '',
+              //           terms_condition: '',
+              //           total_amount_collection: 0,
+              //           discount: 0,
+              //           tax: 0,
+              //           total_amount: 0,
+              //           tax_percentage: 18,
+              //           selected_exposing_order_item: [],
+              //         };
+              //         dispatch(setExposingQuotationData(updated));
+              //         setIsEdit(false);
+              //       })
+              //       .catch(error => {
+              //         console.error('Error fetching quotation list:', error);
+              //       });
+              //   });
             })
             .catch(error => {
               console.error('Error fetching while edit quotation:', error);
             });
         } else {
           dispatch(exposingAddQuotation(payload))
-            .then(response => {
-              dispatch(
-                getExposingQuotationList({ order_id: id, approval: false }),
-              )
-                .then(responseData => {
-                  resetForm();
-                  const updated = {
-                    ...exposingQuotationData,
-                    ...selectedExposingQuatationData,
-                    exposing_order_table: [],
-                    exposingOrderList: [],
-                    quotation_id: selectedExposingQuatationData?._id,
-                    quotation_name: '',
-                    terms_condition: '',
-                    total_amount_collection: 0,
-                    discount: 0,
-                    tax: 0,
-                    total_amount: 0,
-                    selected_exposing_order_item: [],
-                  };
-                  dispatch(setExposingQuotationData(updated));
-                })
-                .catch(error => {
-                  console.error('Error fetching quotation list:', error);
-                });
+            .then(async response => {
+              resetForm();
+              const updatedExposingQuotationData = await fetchRequiredData(
+                values,
+              );
+              dispatch(setExposingQuotationData(updatedExposingQuotationData));
+
+              // dispatch(getQuotationName())
+              //   .then(res => {
+              //     const quotationName = res.payload;
+              //     return { quotationName };
+              //   })
+              //   .then(({ quotationName }) => {
+              //     dispatch(
+              //       getExposingQuotationList({ order_id: id, approval: false }),
+              //     )
+              //       .then(responseData => {
+              //         resetForm();
+              //         const updated = {
+              //           ...exposingQuotationData,
+              //           ...selectedExposingQuatationData,
+              //           exposing_order_table: [],
+              //           exposingOrderList: [],
+              //           quotation_id: selectedExposingQuatationData?._id,
+              //           quotation_name: quotationName ? quotationName : '',
+              //           terms_condition: '',
+              //           total_amount_collection: 0,
+              //           discount: 0,
+              //           tax: 0,
+              //           tax_percentage: 18,
+              //           total_amount: 0,
+              //           selected_exposing_order_item: [],
+              //         };
+              //         dispatch(setExposingQuotationData(updated));
+              //       })
+              //       .catch(error => {
+              //         console.error('Error fetching quotation list:', error);
+              //       });
+              //   });
             })
             .catch(error => {
               console.error('Error fetching while add quotation:', error);
             });
         }
-      } else {
-        toast.error('Quotation Details Are Required');
       }
     },
-    [isEdit, dispatch, exposingQuotationData, selectedExposingQuatationData],
+    [id, isEdit, dispatch, fetchRequiredData, selectedExposingQuatationData],
   );
 
   const {
     values,
     errors,
     touched,
-    setFieldValue,
     handleBlur,
     handleChange,
     handleSubmit,
-    resetForm,
+    setFieldValue,
   } = useFormik({
     enableReinitialize: true,
     initialValues: exposingQuotationData,
@@ -409,7 +651,18 @@ const ExposingQuotation = () => {
     <ColumnGroup>
       <Row>
         <Column className="" footer="Total Amount" colSpan={6} />
-        <Column footer={values?.total_amount_collection} colSpan={2} />
+        <Column
+          footer={`${
+            values?.selected_currency
+              ? values?.selected_currency?.currency_symbol
+              : ''
+          } ${
+            values?.total_amount_collection
+              ? values?.total_amount_collection
+              : 0
+          }`}
+          colSpan={2}
+        />
       </Row>
     </ColumnGroup>
   );
@@ -451,8 +704,9 @@ const ExposingQuotation = () => {
     }
     const discount = values?.discount ? values?.discount : 0;
     subTotal = totalCount(editingList, 'amount');
-    taxAmount = (subTotal * TAX) / 100;
-    totalAmount = subTotal - discount + taxAmount;
+    const amount = convertIntoNumber(subTotal) - convertIntoNumber(discount);
+    taxAmount = (amount * values?.tax_percentage) / 100;
+    totalAmount = amount + taxAmount;
 
     setFieldValue('total_amount', convertIntoNumber(totalAmount));
     setFieldValue('tax', convertIntoNumber(taxAmount));
@@ -472,20 +726,36 @@ const ExposingQuotation = () => {
   const dueDateBodyTemplate = data => {
     return (
       <div className="">
-        <div className="form_group mb-3">
+        <div className="form_group">
           <div className="date_select">
             <Calendar
+              name="order_date"
+              placeholder="Select Date Range"
+              value={data?.order_date ? data?.order_date : []}
+              showIcon
+              showButtonBar
+              selectionMode="range"
+              dateFormat="dd-mm-yy"
+              readOnlyInput
+              onChange={e => {
+                // const utcDate = e.value ? new Date(e.value) : '';
+                handleexposing_order_tableChange(data, e.target.name, e.value);
+              }}
+            />
+
+            {/* <Calendar
               placeholder="Select Date"
               dateFormat="dd-mm-yy"
               value={data?.order_date ? data?.order_date : ''}
               name="order_date"
               readOnlyInput
               onChange={e => {
-                const utcDate = new Date(e.value);
+                const utcDate = e.value ? new Date(e.value) : '';
                 handleexposing_order_tableChange(data, e.target.name, utcDate);
               }}
               showIcon
-            />
+              showButtonBar
+            /> */}
           </div>
         </div>
       </div>
@@ -503,12 +773,18 @@ const ExposingQuotation = () => {
           useGrouping={false}
           value={data?.quantity ? data?.quantity : ''}
           onChange={e => {
-            handleexposing_order_tableChange(
-              data,
-              e.originalEvent.target.name,
-              e.value,
-            );
+            // if (/^\d{1,10}$/.test(e.value)) {
+            if (!e.value || checkWordLimit(e.value, 10)) {
+              handleexposing_order_tableChange(
+                data,
+                e.originalEvent.target.name,
+                e.value ? e.value : '',
+              );
+            }
           }}
+          maxLength="10"
+          minFractionDigits={0}
+          maxFractionDigits={2}
         />
       </div>
     );
@@ -516,7 +792,12 @@ const ExposingQuotation = () => {
 
   const rateBodyTemplate = data => {
     return (
-      <div className="form_group d-flex">
+      <div className="form_group d-flex align-items-center justify-content-around">
+        <span>
+          {values?.selected_currency
+            ? values?.selected_currency?.currency_symbol
+            : ''}
+        </span>
         <InputNumber
           id="Rate"
           placeholder="Rate"
@@ -525,14 +806,56 @@ const ExposingQuotation = () => {
           useGrouping={false}
           maxFractionDigits={2}
           value={data?.rate ? data?.rate : ''}
+          maxLength="10"
           onChange={e => {
-            handleexposing_order_tableChange(
-              data,
-              e.originalEvent.target.name,
-              e.value,
-            );
+            if (!e.value || checkWordLimit(e.value, 10)) {
+              handleexposing_order_tableChange(
+                data,
+                e.originalEvent.target.name,
+                e.value ? e.value : '',
+              );
+            }
           }}
         />
+      </div>
+    );
+  };
+
+  const amountTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span className="me-1">
+          {values?.selected_currency
+            ? values?.selected_currency?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.amount}</span>
+      </div>
+    );
+  };
+
+  const viewQuotationRateTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span>
+          {selectedExposingQuatationData?.currency_symbol
+            ? selectedExposingQuatationData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.rate}</span>
+      </div>
+    );
+  };
+
+  const viewQuotationAmountTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span>
+          {selectedExposingQuatationData?.currency_symbol
+            ? selectedExposingQuatationData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.amount}</span>
       </div>
     );
   };
@@ -541,14 +864,18 @@ const ExposingQuotation = () => {
     let dummyList = values?.exposing_order_table
       ? values?.exposing_order_table?.filter(d => d?.item_id !== item?.item_id)
       : [];
-    const discount = values?.discount ? values?.discount : 0;
+    const discount = dummyList?.length ? values?.discount : 0;
+    const taxPercentage = dummyList?.length ? values?.tax_percentage : 18;
     const subTotal = totalCount(dummyList, 'amount');
-    const taxAmount = (subTotal * TAX) / 100;
-    const totalAmount = subTotal - discount + taxAmount;
+    const amount = convertIntoNumber(subTotal) - convertIntoNumber(discount);
+    const taxAmount = (amount * taxPercentage) / 100;
+    const totalAmount = amount + taxAmount;
     setFieldValue('tax', taxAmount);
-    setFieldValue('total_amount', totalAmount);
+    setFieldValue('discount', discount);
     setFieldValue('total_amount_collection', subTotal);
     setFieldValue('exposing_order_table', dummyList);
+    setFieldValue('total_amount', totalAmount);
+    setFieldValue('tax_percentage', taxPercentage);
     let itemData = values?.selected_exposing_order_item
       ? values?.selected_exposing_order_item?.filter(d => d !== item?.item_id)
       : [];
@@ -568,7 +895,7 @@ const ExposingQuotation = () => {
     );
   };
 
-  const handleitemList = (fieldName, fieldValue, e) => {
+  const handleItemList = (fieldName, fieldValue, e) => {
     const data = e?.selectedOption;
 
     let exposingOrderList = [];
@@ -581,22 +908,24 @@ const ExposingQuotation = () => {
           item_id: data?._id,
           item_name: data?.package_name,
           quantity: '',
-          order_date: data?.order_date,
+          // order_date: data?.order_date,
+          order_date: [],
           description: data?.remark,
           rate: '',
           amount: '',
-          order_iteam_id: '',
+          order_item_id: '',
         };
       } else {
         newObj = {
           item_id: data?._id,
           item_name: data?.item_name,
           quantity: '',
-          order_date: data?.order_date,
+          // order_date: data?.order_date,
+          order_date: [],
           description: data?.item_description,
           rate: '',
           amount: '',
-          order_iteam_id: '',
+          order_item_id: '',
         };
       }
 
@@ -609,8 +938,9 @@ const ExposingQuotation = () => {
         : [];
       const discount = values?.discount ? values?.discount : 0;
       const subTotal = totalCount(exposingOrderList, 'amount');
-      const taxAmount = (subTotal * TAX) / 100;
-      const totalAmount = subTotal - discount + taxAmount;
+      const amount = convertIntoNumber(subTotal) - convertIntoNumber(discount);
+      const taxAmount = (amount * values?.tax_percentage) / 100;
+      const totalAmount = amount + taxAmount;
       setFieldValue('tax', taxAmount);
       setFieldValue('total_amount', totalAmount);
       setFieldValue('total_amount_collection', subTotal);
@@ -632,14 +962,17 @@ const ExposingQuotation = () => {
   }, []);
 
   return (
-    <div className="main_Wrapper">
-      {(exposingLoading ||
-        exposingStepLoading ||
-        exposingQuotationLoading ||
+    <>
+      {(packageLoading ||
         productLoading ||
-        packageLoading) && <Loader />}
+        exposingLoading ||
+        currencyLoading ||
+        exposingStepLoading ||
+        clientCompanyLoading ||
+        exposingQuotationLoading ||
+        quotationNameLoading) && <Loader />}
 
-      <div className="processing_main bg-white radius15 border">
+      <div className="processing_main">
         {/* <div className="billing_heading">
           <div className="processing_bar_wrapper">
             <div className="verifide_wrap">
@@ -687,7 +1020,9 @@ const ExposingQuotation = () => {
                         >
                           <img src={ArrowIcon} alt="ArrowIcon" />
                         </Button>
-                        <h2 className="m-0 ms-2 fw_500">Quotation</h2>
+                        <h2 className="m-0 ms-2 fw_500">
+                          {isEdit ? 'Edit Quotation' : 'Add Quotation'}
+                        </h2>
                       </div>
                     </div>
                   </Col>
@@ -700,7 +1035,11 @@ const ExposingQuotation = () => {
                         </li>
                         <li>
                           <h6>Create Date</h6>
-                          <h4>{create_date ? create_date : ''}</h4>
+                          <h4>
+                            {create_date
+                              ? moment(create_date)?.format('DD-MM-YYYY')
+                              : ''}
+                          </h4>
                         </li>
                       </ul>
                     </div>
@@ -720,10 +1059,14 @@ const ExposingQuotation = () => {
                             <span>Dates :</span>
                             <h5>
                               {start_date
-                                ? start_date +
-                                  (end_date ? ' To ' + end_date : '')
+                                ? moment(start_date)?.format('DD-MM-YYYY') +
+                                  (end_date
+                                    ? ' To ' +
+                                      moment(end_date)?.format('DD-MM-YYYY')
+                                    : '')
                                 : end_date
-                                ? ' To ' + end_date
+                                ? ' To ' +
+                                  moment(end_date)?.format('DD-MM-YYYY')
                                 : ''}
                             </h5>
                           </div>
@@ -782,7 +1125,12 @@ const ExposingQuotation = () => {
                               <div className="quotation_name">
                                 <h5>{data?.quotation_name}</h5>
                                 <h5 className="fw_400 m-0">
-                                  {data?.total_amount}
+                                  {data?.currency_symbol
+                                    ? data?.currency_symbol
+                                    : ''}{' '}
+                                  {data?.total_amount
+                                    ? convertIntoNumber(data?.total_amount)
+                                    : ''}
                                 </h5>
                               </div>
                             </Col>
@@ -854,21 +1202,23 @@ const ExposingQuotation = () => {
             </Col>
           </Row>
           <div className="order_items">
-            <h3>Quotation Details</h3>
+            <h3>
+              Quotation Details <span className="text-danger fs-6">*</span>
+            </h3>
             <Row className="justify-content-between">
               <Col xxl={2} xl={4} lg={5}>
                 <div class="form_group">
                   <MultiSelect
                     filter
                     value={
-                      values?.selected_exposing_order_item
+                      exposingItemOptionList?.length
                         ? values?.selected_exposing_order_item
                         : []
                     }
                     name="selected_exposing_order_item"
                     options={exposingItemOptionList}
                     onChange={e => {
-                      handleitemList(e.target.name, e.value, e);
+                      handleItemList(e.target.name, e.value, e);
                     }}
                     optionLabel="label"
                     optionGroupLabel="label"
@@ -888,22 +1238,26 @@ const ExposingQuotation = () => {
               </Col>
               <Col xl={4} lg={6}>
                 <div className="">
-                  <div className="form_group d-sm-flex align-items-center">
+                  <div className="form_group d-sm-flex align-items-center justify-content-end">
                     <label className="me-3 mb-0 fw_500 text-nowrap mb-sm-0 mb-2">
-                      Name the Quotation
+                      Name the Quotation{' '}
+                      <span className="text-danger fs-6">*</span>
                     </label>
-                    <InputText
-                      placeholder="Write here"
-                      className="input_wrap"
-                      name="quotation_name"
-                      value={
-                        values?.quotation_name ? values?.quotation_name : ''
-                      }
-                      onChange={handleChange}
-                    />
-                    {touched?.quotation_name && errors?.quotation_name && (
-                      <p className="text-danger">{errors?.quotation_name}</p>
-                    )}
+                    <div>
+                      <InputText
+                        placeholder="Quotation Name"
+                        className="input_wrap"
+                        name="quotation_name"
+                        value={
+                          values?.quotation_name ? values?.quotation_name : ''
+                        }
+                        onChange={handleChange}
+                        disabled
+                      />
+                      {touched?.quotation_name && errors?.quotation_name && (
+                        <p className="text-danger">{errors?.quotation_name}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Col>
@@ -944,11 +1298,15 @@ const ExposingQuotation = () => {
                 sortable
                 body={rateBodyTemplate}
               ></Column>
-              <Column field="amount" header="Amount" sortable></Column>
+              <Column
+                field="amount"
+                header="Amount"
+                sortable
+                body={amountTemplate}
+              ></Column>
               <Column
                 field="action"
                 header="Action"
-                sortable
                 body={actionBodyTemplate}
               ></Column>
             </DataTable>
@@ -958,7 +1316,7 @@ const ExposingQuotation = () => {
               <Col xl={5} lg={6}>
                 <div className="amount-condition-wrapper">
                   <div className="condition-content">
-                    <h4 className="mb-2">Term & Condition</h4>
+                    <h4 className="mb-2">Terms & Condition</h4>
 
                     <ReactQuill
                       theme="snow"
@@ -982,7 +1340,12 @@ const ExposingQuotation = () => {
                         <h5>Sub Total</h5>
                       </div>
                       <div className="subtotal-input">
-                        <h5>{values?.total_amount_collection}</h5>
+                        <h5>
+                          {values?.selected_currency
+                            ? values?.selected_currency?.currency_symbol
+                            : ''}{' '}
+                          {values?.total_amount_collection}
+                        </h5>
                         {touched?.total_amount_collection &&
                           errors?.total_amount_collection && (
                             <p className="text-danger">
@@ -995,48 +1358,166 @@ const ExposingQuotation = () => {
                       <div className="subtotal-title">
                         <h5>Discount ( - )</h5>
                       </div>
-                      <div className="subtotal-input">
+                      <div className="d-flex align-items-center subtotal-input gap-1">
+                        <div>
+                          {values?.selected_currency
+                            ? values?.selected_currency?.currency_symbol
+                            : ''}
+                        </div>
                         <InputNumber
-                          placeholder="₹ 00.00"
+                          placeholder="Discount"
                           name="discount"
                           className="w-100"
                           maxFractionDigits={2}
                           useGrouping={false}
                           value={values?.discount ? values?.discount : ''}
+                          maxLength="10"
                           onChange={e => {
-                            handleDiscountChange(
-                              e.originalEvent.target.name,
-                              e.value,
-                            );
+                            if (!e.value || checkWordLimit(e.value, 10)) {
+                              handleDiscountChange(
+                                e.originalEvent.target.name,
+                                e.value ? e.value : '',
+                              );
+                            }
                           }}
                         />
                       </div>
                     </div>
 
                     <div className="sub-total-wrapper">
-                      <div className="subtotal-title">
-                        <h5>Tax(18 %)</h5>
+                      <div className="tax-input">
+                        <h5>Tax</h5>
+                        <div className="subtotal-input">
+                          <InputNumber
+                            placeholder="Tax Percentage"
+                            name="tax_percentage"
+                            value={values?.tax_percentage}
+                            onChange={e => {
+                              if (!e?.value || checkWordLimit(e?.value, 3)) {
+                                handleTaxPercentageChange(
+                                  e.originalEvent.target.name,
+                                  e.value,
+                                );
+                              }
+                            }}
+                            min={0}
+                            max={100}
+                            maxLength={3}
+                            useGrouping={false}
+                            maxFractionDigits={2}
+                          />
+                        </div>
                       </div>
-                      <div className="subtotal-input">
+                      <div className="d-flex align-items-center subtotal-input gap-1">
+                        <div>
+                          {values?.selected_currency
+                            ? values?.selected_currency?.currency_symbol
+                            : ''}
+                        </div>
                         <InputText
                           placeholder="₹ 00.00"
                           value={values?.tax ? values?.tax : 0}
                           name="tax"
+                          disabled
                         />
                       </div>
                     </div>
                     <div className="sub-total-wrapper total-amount">
                       <div className="subtotal-title">
-                        <h5 className="fw_700">Total Amount</h5>
+                        <div className="subtotal-currency">
+                          <h5 className="fw_700">Total Amount</h5>
+                          <div className="form_group">
+                            <ReactSelectSingle
+                              filter
+                              className="currency_dropdown"
+                              id="currency"
+                              name="currency"
+                              placeholder="Select Currency"
+                              value={values?.currency || ''}
+                              options={currencyOptionList}
+                              onBlur={handleBlur}
+                              onChange={e => {
+                                const findObj = currencyList?.list?.find(
+                                  item => {
+                                    return item._id === e.target.value;
+                                  },
+                                );
+
+                                setFieldValue('currency', e.target.value);
+                                if (findObj) {
+                                  setFieldValue(
+                                    'exchange_currency_rate',
+                                    findObj.exchange_rate,
+                                  );
+                                  setFieldValue('selected_currency', findObj);
+                                }
+                              }}
+                            />
+                            {touched?.currency && errors?.currency && (
+                              <p className="text-danger">{errors?.currency}</p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <div className="subtotal-input">
                         <h5 className="fw_700">
+                          {values?.selected_currency
+                            ? values?.selected_currency?.currency_symbol
+                            : ''}{' '}
                           {values?.total_amount ? values?.total_amount : '0'}
                         </h5>
                         {touched?.total_amount && errors?.total_amount && (
                           <p className="text-danger">{errors?.total_amount}</p>
                         )}
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 ms-3">
+                  Conversion :{' '}
+                  <span className="fw-bold">
+                    {thousandSeparator(
+                      values?.total_amount *
+                        // values?.selected_currency?.exchange_rate,
+                        values?.exchange_currency_rate,
+                    )}
+                  </span>
+                </div>
+
+                <div className="amount-condition-wrapper border radius15 mt-3">
+                  <div className="d-flex justify-content-around condition-content p5">
+                    <div>
+                      {`${1} ${
+                        values?.selected_currency?.currency_code
+                          ? values?.selected_currency?.currency_code
+                          : ''
+                      }`}
+                    </div>
+                    <div>=</div>
+                    <div>
+                      <InputNumber
+                        id="ExchangeRate"
+                        placeholder="exchange rate"
+                        name="exchange_currency_rate"
+                        className="w_100 currency_input"
+                        useGrouping={false}
+                        value={values?.exchange_currency_rate}
+                        onChange={e => {
+                          if (!e.value || checkWordLimit(e.value, 8)) {
+                            setFieldValue('exchange_currency_rate', e.value);
+                          }
+                        }}
+                        maxLength="8"
+                        min={0}
+                        minFractionDigits={0}
+                        maxFractionDigits={2}
+                      />
+                      {`${
+                        values?.default_currency?.currency_code
+                          ? values?.default_currency?.currency_code
+                          : ''
+                      }`}
                     </div>
                   </div>
                 </div>
@@ -1047,7 +1528,7 @@ const ExposingQuotation = () => {
             <Button
               onClick={() => {
                 dispatch(setExposingQuotationData({}));
-                navigate('/editing');
+                navigate('/exposing');
               }}
               className="btn_border_dark"
             >
@@ -1058,7 +1539,7 @@ const ExposingQuotation = () => {
               type="submit"
               className="btn_primary ms-2"
             >
-              Save
+              {isEdit ? 'Update' : 'Save'}
             </Button>
             {exposingQuotationList?.quotation_status && (
               <Button
@@ -1072,6 +1553,7 @@ const ExposingQuotation = () => {
                     dispatch(addExposingStep(payload))
                       .then(response => {
                         dispatch(setExposingSelectedProgressIndex(3));
+                        dispatch(getExposingStep({ order_id: id }));
                       })
                       .catch(errors => {
                         console.error('Add Status:', errors);
@@ -1094,25 +1576,27 @@ const ExposingQuotation = () => {
         header={
           <div className="quotation_wrapper">
             <div className="dialog_logo">
-              <img
-                src={selectedExposingQuatationData?.company_logo}
-                alt="company logo"
-              />
+              <img src={selectedExposingQuatationData?.company_logo} alt="" />
             </div>
             {selectedExposingQuatationData?.status === 2 && (
               <button
                 className="btn_border_dark"
                 onClick={() => {
-                  dispatch(
-                    addInvoice({
-                      order_id: id,
-                      quotation_id: selectedExposingQuatationData?._id,
-                    }),
-                  );
-                  setVisible(false);
+                  if (!selectedExposingQuatationData?.bill_converted) {
+                    dispatch(
+                      addInvoice({
+                        order_id: id,
+                        quotation_id: selectedExposingQuatationData?._id,
+                      }),
+                    );
+                    setVisible(false);
+                  }
                 }}
+                disabled={selectedExposingQuatationData?.bill_converted}
               >
-                Convert to Bill
+                {selectedExposingQuatationData?.bill_converted
+                  ? 'Converted'
+                  : 'Convert to Bill'}
               </button>
             )}
           </div>
@@ -1161,7 +1645,23 @@ const ExposingQuotation = () => {
                 <div className="user_bank_details bank_details_light">
                   <h5>
                     Order Date{' '}
-                    <span>{selectedExposingQuatationData?.created_at}</span>
+                    <span>
+                      {moment(
+                        selectedExposingQuatationData?.created_at,
+                      )?.format('DD-MM-YYYY')}
+                    </span>
+                  </h5>
+                </div>
+                <div className="user_bank_details bank_details_light">
+                  <h5>
+                    Company Name{' '}
+                    <span>{selectedExposingQuatationData?.client_company}</span>
+                  </h5>
+                </div>
+                <div className="user_bank_details bank_details_light">
+                  <h5>
+                    Couple Name{' '}
+                    <span>{selectedExposingQuatationData?.couple_name}</span>
                   </h5>
                 </div>
               </Col>
@@ -1177,8 +1677,18 @@ const ExposingQuotation = () => {
             >
               <Column field="item_name" header="Item" sortable></Column>
               <Column field="quantity" header="Qty" sortable></Column>
-              <Column field="rate" header="Rate" sortable></Column>
-              <Column field="amount" header="Amount" sortable></Column>
+              <Column
+                field="rate"
+                header="Rate"
+                sortable
+                body={viewQuotationRateTemplate}
+              ></Column>
+              <Column
+                field="amount"
+                header="Amount"
+                sortable
+                body={viewQuotationAmountTemplate}
+              ></Column>
             </DataTable>
           </div>
           <div className="quotation-wrapper amount_condition mt20">
@@ -1186,7 +1696,7 @@ const ExposingQuotation = () => {
               <Col lg={6}>
                 <div className="amount-condition-wrapper">
                   <div className="pb10">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div
                     className="condition-content"
@@ -1205,6 +1715,7 @@ const ExposingQuotation = () => {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text-end">
+                          {selectedExposingQuatationData?.currency_symbol}
                           {selectedExposingQuatationData?.sub_total
                             ? selectedExposingQuatationData?.sub_total
                             : 0}
@@ -1217,6 +1728,7 @@ const ExposingQuotation = () => {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
+                          {selectedExposingQuatationData?.currency_symbol}
                           {selectedExposingQuatationData?.discount
                             ? selectedExposingQuatationData?.discount
                             : 0}
@@ -1233,10 +1745,17 @@ const ExposingQuotation = () => {
                     </div> */}
                     <div className="sub-total-wrapper">
                       <div className="subtotal-title">
-                        <h5>Tax</h5>
+                        <h5>
+                          Tax(
+                          {selectedExposingQuatationData?.tax_percentage
+                            ? selectedExposingQuatationData?.tax_percentage
+                            : ''}
+                          %)
+                        </h5>
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
+                          {selectedExposingQuatationData?.currency_symbol}
                           {selectedExposingQuatationData?.tax
                             ? selectedExposingQuatationData?.tax
                             : 0}
@@ -1249,6 +1768,7 @@ const ExposingQuotation = () => {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="fw_700 text-end">
+                          {selectedExposingQuatationData?.currency_symbol}
                           {selectedExposingQuatationData?.total_amount
                             ? selectedExposingQuatationData?.total_amount
                             : 0}
@@ -1261,61 +1781,82 @@ const ExposingQuotation = () => {
             </Row>
           </div>
           <div className="delete_btn_wrap">
-            <button
-              className="btn_border_dark"
-              onClick={() => {
-                const itemList = [];
+            {!selectedExposingQuatationData?.bill_converted && (
+              <button
+                className="btn_border_dark"
+                onClick={() => {
+                  const itemList = [];
+                  let totalAmount = 0,
+                    taxAmount = 0,
+                    subTotal = 0;
 
-                let updatedList =
-                  selectedExposingQuatationData?.quotation_detail?.map(d => {
-                    itemList.push(d?.item_id);
-                    return {
-                      ...d,
-                      // due_date: d?.due_date ? new Date(d.due_date) : '',
-                      order_iteam_id: d?._id,
-                    };
-                  });
+                  let updatedList =
+                    selectedExposingQuatationData?.quotation_detail?.map(d => {
+                      itemList.push(d?.item_id);
+                      return {
+                        ...d,
+                        // due_date: d?.due_date ? new Date(d.due_date) : '',
+                        order_item_id: d?._id,
+                      };
+                    });
 
-                const discount = selectedExposingQuatationData?.discount
-                  ? selectedExposingQuatationData?.discount
-                  : 0;
-                let totalAmount = 0,
-                  taxAmount = 0,
-                  subTotal = 0;
-                subTotal = totalCount(updatedList, 'amount');
-                taxAmount = (subTotal * TAX) / 100;
-                totalAmount = subTotal - discount + taxAmount;
-                let { order_date, ...rest } = selectedExposingQuatationData;
-                // const {
-                //   selected_exposing_order_item,
-                //   orderItems,
-                //   ...restExposingQuotationData
-                // } = exposingQuotationData;
-                const updated = {
-                  ...exposingQuotationData,
-                  rest,
-                  exposing_order_table: updatedList,
-                  // orderItems: updatedList,
-                  total_amount_collection: convertIntoNumber(subTotal),
-                  discount: discount,
-                  tax: convertIntoNumber(taxAmount),
-                  total_amount: convertIntoNumber(totalAmount),
-                  exposingOrderList: itemList,
-                  quotation_id: selectedExposingQuatationData?._id,
-                  quotation_name: selectedExposingQuatationData?.quotation_name,
-                  terms_condition:
-                    selectedExposingQuatationData?.terms_condition,
-                  selected_exposing_order_item: itemList,
-                };
+                  const discount = selectedExposingQuatationData?.discount
+                    ? selectedExposingQuatationData?.discount
+                    : 0;
+                  const taxPercentage =
+                    selectedExposingQuatationData?.tax_percentage
+                      ? selectedExposingQuatationData?.tax_percentage
+                      : 0;
 
-                dispatch(setExposingQuotationData(updated));
-                setVisible(false);
-                setIsEdit(true);
-              }}
-            >
-              <img src={EditIcon} alt="editicon" /> Edit Quotation
-            </button>
-            <button
+                  subTotal = totalCount(updatedList, 'amount');
+                  const amount =
+                    convertIntoNumber(subTotal) - convertIntoNumber(discount);
+                  taxAmount =
+                    (amount * selectedExposingQuatationData?.tax_percentage) /
+                    100;
+                  totalAmount = amount + taxAmount;
+                  let { order_date, ...rest } = selectedExposingQuatationData;
+                  // const {
+                  //   selected_exposing_order_item,
+                  //   orderItems,
+                  //   ...restExposingQuotationData
+                  // } = exposingQuotationData;
+
+                  const clientCurrency = currencyList?.list?.find(
+                    c => c?._id === rest?.currency,
+                  );
+
+                  const updated = {
+                    ...exposingQuotationData,
+                    ...rest,
+                    exposing_order_table: updatedList,
+                    // orderItems: updatedList,
+                    total_amount_collection: convertIntoNumber(subTotal),
+                    discount: discount,
+                    tax: convertIntoNumber(taxAmount),
+                    tax_percentage: convertIntoNumber(taxPercentage),
+                    total_amount: convertIntoNumber(totalAmount),
+                    exposingOrderList: itemList,
+                    quotation_id: selectedExposingQuatationData?._id,
+                    quotation_name:
+                      selectedExposingQuatationData?.quotation_name,
+                    terms_condition:
+                      selectedExposingQuatationData?.terms_condition,
+                    selected_exposing_order_item: itemList,
+                    currency: clientCurrency?._id,
+                    selected_currency: clientCurrency,
+                    exchange_currency_rate: clientCurrency?.exchange_rate,
+                  };
+
+                  dispatch(setExposingQuotationData(updated));
+                  setVisible(false);
+                  setIsEdit(true);
+                }}
+              >
+                <img src={EditIcon} alt="editicon" /> Edit Quotation
+              </button>
+            )}
+            {/* <button
               className="btn_border_dark"
               onClick={() => {
                 dispatch(
@@ -1330,7 +1871,7 @@ const ExposingQuotation = () => {
               // onClick={() => setVisible(false)}
             >
               <img src={EmailIcon} alt="EmailIcon" /> Send Email
-            </button>
+            </button> */}
             <button
               className="btn_border_dark"
               onClick={() => {
@@ -1350,9 +1891,7 @@ const ExposingQuotation = () => {
             {selectedExposingQuatationData?.status === 1 && (
               <button
                 className="btn_primary"
-                onClick={() => {
-                  handleMarkAsApprovedChange();
-                }}
+                onClick={handleMarkAsApprovedChange}
               >
                 Mark as Approved
               </button>
@@ -1370,7 +1909,7 @@ const ExposingQuotation = () => {
         handleDelete={handleDelete}
         setDeletePopup={setDeletePopup}
       />
-    </div>
+    </>
   );
 };
 export default memo(ExposingQuotation);

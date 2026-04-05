@@ -1,4 +1,11 @@
 .comment_box_wrap {
+  &.checker_height_small {
+    .comment_box_inner {
+      > ul {
+        height: 218px;
+      }
+    }
+  }
   .comment_box_inner {
     > ul {
       position: relative;
@@ -32,6 +39,10 @@
             object-fit: cover;
             border-radius: 50%;
           }
+        }
+        .comment_dummy_icon img {
+          border: 1px solid #ddd;
+          object-fit: scale-down;
         }
         .comment_right {
           width: calc(100% - 50px);

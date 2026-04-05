@@ -1,28 +1,30 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Col, Dropdown, Row } from 'react-bootstrap';
-import { InputText } from 'primereact/inputtext';
-import { Button } from 'primereact/button';
-import PlusIcon from '../../../Assets/Images/plus.svg';
-import { Link } from 'react-router-dom';
-import { DataTable } from 'primereact/datatable';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import _ from 'lodash';
+import { useFormik } from 'formik';
+import { Tag } from 'primereact/tag';
+import { Type } from 'Helper/CommonList';
+import { Dialog } from 'primereact/dialog';
 import { Column } from 'primereact/column';
+import { Button } from 'primereact/button';
+import Loader from 'Components/Common/Loader';
+import { useNavigate } from 'react-router-dom';
 import CompanySidebar from '../CompanySidebar';
-import CustomPaginator from 'Components/Common/CustomPaginator';
-import ActionBtn from '../../../Assets/Images/action.svg';
+import { Checkbox } from 'primereact/checkbox';
+import { InputText } from 'primereact/inputtext';
+import { DataTable } from 'primereact/datatable';
+import { RadioButton } from 'primereact/radiobutton';
+import { Col, Row } from 'react-bootstrap';
+import { InputNumber } from 'primereact/inputnumber';
+import { generateUniqueId } from 'Helper/CommonHelper';
+import { useDispatch, useSelector } from 'react-redux';
+import PlusIcon from '../../../Assets/Images/plus.svg';
 import EditIcon from '../../../Assets/Images/edit.svg';
+import { InputTextarea } from 'primereact/inputtextarea';
 import TrashIcon from '../../../Assets/Images/trash.svg';
 import ReactSelectSingle from '../../Common/ReactSelectSingle';
+import CustomPaginator from 'Components/Common/CustomPaginator';
 import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
-import { Tag } from 'primereact/tag';
-import { Dialog } from 'primereact/dialog';
-import { Checkbox } from 'primereact/checkbox';
-import { RadioButton } from 'primereact/radiobutton';
-import { Calendar } from 'primereact/calendar';
-import { useFormik } from 'formik';
-import { clientComapnySchema } from 'Schema/Setting/clientComapnySchema';
-import Loader from 'Components/Common/Loader';
-import _ from 'lodash';
-import { useDispatch, useSelector } from 'react-redux';
+import { clientCompanySchema } from 'Schema/Setting/clientComapnySchema';
 import {
   addClientCompany,
   deleteClientCompany,
@@ -34,23 +36,66 @@ import {
   setIsDeleteClientCompany,
   setIsUpdateClientCompany,
   setClientCompanySearchParam,
+  setSelectCountry,
+  setSelectState,
 } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
+import { getCityList } from 'Store/Reducers/Settings/Master/CitySlice';
+import {
+  getStateList,
+  setStateList,
+} from 'Store/Reducers/Settings/Master/StateSlice';
+import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
 import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
 import { getReferenceList } from 'Store/Reducers/Settings/Master/ReferenceSlice';
-import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
-import { getStateList } from 'Store/Reducers/Settings/Master/StateSlice';
-import { getCityList } from 'Store/Reducers/Settings/Master/CitySlice';
-import { InputNumber } from 'primereact/inputnumber';
-import { getFormattedDate } from 'Helper/CommonHelper';
-import { Type } from 'Helper/CommonList';
-import { InputTextarea } from 'primereact/inputtextarea';
 import { getDropdownGroupList } from 'Store/Reducers/Settings/AccountMaster/GroupSlice';
+
+const clientCompanyInitialData = {
+  company_name: '',
+  client_full_name: '',
+  email_id: '',
+  mobile_no: [
+    {
+      mobile_no: '',
+      unique_id: generateUniqueId(),
+    },
+  ],
+  address: '',
+  group_name: '',
+  country: '',
+  state: '',
+  city: '',
+  pin_code: '',
+  reference: '',
+  type: '',
+  currency: '',
+  opening_balance_type: 1,
+  opening_balance: '',
+  credits_limits: '',
+  pay_due_day: '',
+  id: '',
+  isActive: true,
+};
+
+const getSeverity = product => {
+  switch (product.isActive) {
+    case true:
+      return 'active';
+    case false:
+      return 'inactive';
+    default:
+      return null;
+  }
+};
 
 export default function ClientCompany({ hasAccess }) {
   const { is_create_access, is_delete_access, is_edit_access } = hasAccess;
+
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const {
+    selectState,
+    selectCountry,
     clientCompanyList,
     clientCompanyCurrentPage,
     clientCompanyPageLimit,
@@ -60,14 +105,17 @@ export default function ClientCompany({ hasAccess }) {
     clientCompanySearchParam,
     clientCompanyLoading,
   } = useSelector(({ clientCompany }) => clientCompany);
-  const { countryLoading } = useSelector(({ country }) => country);
-  const { stateLoading } = useSelector(({ state }) => state);
-  const { cityLoading } = useSelector(({ city }) => city);
-  const { currencyLoading } = useSelector(({ currency }) => currency);
-  const { referenceLoading } = useSelector(({ references }) => references);
-  const [deletePopup, setDeletePopup] = useState(false);
+  const { groupLoading } = useSelector(({ group }) => group);
+
   const [deleteId, setDeleteId] = useState('');
+  const [deletePopup, setDeletePopup] = useState(false);
+
+  const { stateLoading } = useSelector(({ state }) => state);
+  const { countryLoading } = useSelector(({ country }) => country);
+  const [editData, setEditData] = useState(clientCompanyInitialData);
+  const { currencyLoading } = useSelector(({ currency }) => currency);
   const [createCompanyModal, setCreateCompanyModal] = useState(false);
+  const { referenceLoading } = useSelector(({ references }) => references);
   const [dropdownOptionList, setDropdownOptionList] = useState({
     countryList: [],
     referenceOptionList: [],
@@ -75,57 +123,76 @@ export default function ClientCompany({ hasAccess }) {
     stateList: [],
     cityList: [],
     dropdownGroupList: [],
-
     // typeList: [],
     // companyList: [{ label: 'XYZ', value: '658be8bf970fab716b2348cd' }],
     // companyList: [],
   });
+  const { cityLoading } = useSelector(({ city }) => city);
+  const { countryList } = useSelector(({ country }) => country);
+  const { stateList } = useSelector(({ state }) => state);
 
-  const [editData, setEditData] = useState({});
+  const getClientCompanyListApi = useCallback(
+    (start = 1, limit = 10, search = '', country_id = '', state_id = '') => {
+      dispatch(
+        getClientCompanyList({
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+          type: 3,
+          country_id: country_id,
+          state_id: state_id,
+        }),
+      );
+    },
+    [dispatch],
+  );
 
-  const clientCompanyData = {
-    company_name: editData?.company_name || '',
-    client_full_name: editData?.client_full_name || '',
-    email_id: editData?.email_id || '',
-    mobile_no: editData?.mobile_no || '',
-    address: editData?.address || '',
-    // company: editData?.company || '',
-    country: editData?.country || '',
-    state: editData?.state || '',
-    city: editData?.city || '',
-    pin_code: editData?.pin_code || '',
-    reference: editData?.reference || '',
-    type: editData?.type || '',
-    currency: editData?.currency || '',
-    opening_balance_type: editData?.opening_balance_type || 1,
-    opening_balance: editData?.opening_balance || '',
-    credits_limits: editData?.credits_limits || '',
-    pay_due_date:
-      (editData?.pay_due_date && new Date(editData?.pay_due_date)) || '',
-    id: editData?._id || '',
-    isActive: editData?.isActive || true,
-  };
-  useEffect(() => {
-    dispatch(
-      getClientCompanyList({
-        start: clientCompanyCurrentPage,
-        limit: clientCompanyPageLimit,
-        isActive: '',
-        search: clientCompanySearchParam,
+  const getCountryListApi = useCallback(async () => {
+    return dispatch(
+      getCountryList({
+        start: 0,
+        limit: 0,
+        isActive: true,
       }),
     );
-  }, [dispatch, clientCompanyCurrentPage, clientCompanyPageLimit]);
+  }, [dispatch]);
+
+  const getStateListApi = useCallback(
+    (countryId = '', start = 0, limit = 0, search = '') => {
+      return dispatch(
+        getStateList({
+          country_id: countryId,
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    getClientCompanyListApi(
+      clientCompanyCurrentPage,
+      clientCompanyPageLimit,
+      clientCompanySearchParam,
+      selectState,
+      selectCountry,
+    );
+    getCountryListApi();
+  }, []);
 
   useEffect(() => {
     if (isAddClientCompany || isUpdateClientCompany || isDeleteClientCompany) {
-      dispatch(
-        getClientCompanyList({
-          start: clientCompanyCurrentPage,
-          limit: clientCompanyPageLimit,
-          isActive: '',
-          search: clientCompanySearchParam,
-        }),
+      getClientCompanyListApi(
+        clientCompanyCurrentPage,
+        clientCompanyPageLimit,
+        clientCompanySearchParam,
       );
+      setEditData(clientCompanyInitialData);
+      setCreateCompanyModal(false);
     }
     if (isUpdateClientCompany) {
       dispatch(setIsUpdateClientCompany(false));
@@ -137,89 +204,46 @@ export default function ClientCompany({ hasAccess }) {
       dispatch(setIsDeleteClientCompany(false));
     }
   }, [
+    dispatch,
     isAddClientCompany,
     isUpdateClientCompany,
     isDeleteClientCompany,
-    dispatch,
-    clientCompanyCurrentPage,
-    clientCompanyPageLimit,
-    clientCompanySearchParam,
   ]);
 
-  // const getRequiredList = () => {
-  //   dispatch(
-  //     getCurrencyList({
-  //       start: 0,
-  //       limit: 0,
-  //       isActive: true,
-  //       search: '',
-  //     }),
-  //   )
-
-  //   dispatch(
-  //     getReferenceList({
-  //       start: 0,
-  //       limit: 0,
-  //       isActive: true,
-  //       search: '',
-  //     }),
-  //   );
-
-  //   dispatch(
-  //     getCountryList({
-  //       start: 0,
-  //       limit: 0,
-  //       isActive: true,
-  //       search: '',
-  //     }),
-  //   );
-  // };
-
-  const getRequiredList = () => {
-    dispatch(
-      getCountryList({
-        start: 0,
-        limit: 0,
-        isActive: true,
-        search: '',
-      }),
-    )
-      .then(responseData => {
-        const countyData = responseData?.payload;
-        return { countyData };
-      })
-      .then(({ countyData }) => {
-        dispatch(
-          getDropdownGroupList({
-            start: 0,
-            limit: 0,
-            isActive: true,
-            search: '',
-          }),
-        ).then(response => {
-          const groupData = response.payload?.data?.map(item => ({
-            label: item?.group_name,
-            value: item?._id,
-          }));
-          // let data = [
-          //   { label: 'Package', items: [...countyDataOption] },
-          //   { label: 'Product', items: [...productData] },
-          // ];
-          const groupOptionList = [{ label: 'Name', items: groupData }];
-          setDropdownOptionList({
-            ...dropdownOptionList,
-
-            dropdownGroupList: groupOptionList,
-          });
-        });
-      })
-      .catch(error => {
-        console.error('Error fetching group data:', error);
-      })
-      .catch(error => {
-        console.error('Error fetching country data:', error);
+  const countryOptions = useMemo(() => {
+    let countryData = [];
+    if (countryList?.list?.length > 0) {
+      countryData = countryList.list.map(item => {
+        return {
+          label: item.country,
+          value: item._id,
+        };
       });
+    }
 
+    return [{ label: 'All', value: '' }, ...countryData];
+  }, [countryList]);
+
+  const stateOptions = useMemo(() => {
+    let stateData = [];
+
+    if (stateList?.list?.length > 0) {
+      stateData = stateList.list.map(item => {
+        return {
+          label: item.state,
+          value: item._id,
+        };
+      });
+    }
+
+    const modified = !!stateData?.length
+      ? [{ label: 'All', value: '' }, ...stateData]
+      : stateData;
+
+    return modified;
+  }, [stateList]);
+
+  const getRequiredList = async editedClientData => {
     dispatch(
       getCurrencyList({
         start: 0,
@@ -269,7 +293,7 @@ export default function ClientCompany({ hasAccess }) {
               })
               .then(({ currencyData, referenceData, countryData }) => {
                 dispatch(
-                  getStateList({
+                  getDropdownGroupList({
                     start: 0,
                     limit: 0,
                     isActive: true,
@@ -277,57 +301,76 @@ export default function ClientCompany({ hasAccess }) {
                   }),
                 )
                   .then(response => {
-                    const stateData = response.payload?.data?.list?.map(
-                      item => {
-                        return { label: item?.state, value: item?._id };
-                      },
-                    );
+                    const groupData = response.payload?.map(item => ({
+                      label: item?.group_name,
+                      value: item?._id,
+                    }));
 
                     return {
                       currencyData,
                       referenceData,
                       countryData,
-                      stateData,
+                      groupData,
                     };
                   })
                   .then(
-                    ({
+                    async ({
                       currencyData,
                       referenceData,
                       countryData,
-                      stateData,
+                      groupData,
                     }) => {
-                      dispatch(
-                        getCityList({
-                          start: 0,
-                          limit: 0,
-                          isActive: true,
-                          search: '',
-                        }),
-                      )
-                        .then(response => {
-                          const cityData = response.payload?.data?.list?.map(
-                            item => {
-                              return { label: item?.city, value: item?._id };
-                            },
-                          );
+                      let stateData = [];
+                      let cityData = [];
 
-                          setDropdownOptionList(prevState => ({
-                            ...prevState,
-                            cityList: cityData,
-                            countryList: countryData,
-                            stateList: stateData,
-                            referenceOptionList: referenceData,
-                            currencyList: currencyData,
-                          }));
-                        })
-                        .catch(error => {
-                          console.error('Error fetching city data:', error);
-                        });
+                      if (editedClientData?.country) {
+                        const isSuccessState = await dispatch(
+                          getStateList({
+                            country_id: editedClientData?.country,
+                            start: 0,
+                            limit: 0,
+                            isActive: true,
+                          }),
+                        );
+
+                        const isSuccessCity = await dispatch(
+                          getCityList({
+                            country_id: editedClientData?.country,
+                            state_id: editedClientData?.state,
+                            start: 0,
+                            limit: 0,
+                            isActive: true,
+                          }),
+                        );
+
+                        stateData = isSuccessState.payload?.data?.list?.map(
+                          item => ({
+                            label: item?.state,
+                            value: item?._id,
+                          }),
+                        );
+
+                        cityData = isSuccessCity.payload?.data?.list?.map(
+                          item => ({
+                            label: item?.city,
+                            value: item?._id,
+                          }),
+                        );
+                      }
+
+                      setDropdownOptionList(prevState => ({
+                        ...prevState,
+                        cityList: cityData,
+                        stateList: stateData,
+                        countryList: countryData,
+                        currencyList: currencyData,
+                        dropdownGroupList: groupData,
+                        referenceOptionList: referenceData,
+                      }));
                     },
                   )
                   .catch(error => {
-                    console.error('Error fetching state data:', error);
+                    console.error('Error fetching group data:', error);
                   });
               })
               .catch(error => {
@@ -343,30 +386,47 @@ export default function ClientCompany({ hasAccess }) {
       });
   };
 
-  // useEffect(() => {
-  //   if (
-  //     countryList?.list?.length > 0 &&
-  //     referenceList?.list?.length > 0 &&
-  //     currencyList?.list?.length > 0
-  //   ) {
-  //     const countyData = countryList?.list?.map(item => {
-  //       return { label: item?.country, value: item?._id };
-  //     });
-  //     const referenceData = referenceList?.list?.map(item => {
-  //       return { label: item?.reference_name, value: item?._id };
-  //     });
-  //     const currencyData = currencyList?.list?.map(item => {
-  //       return { label: item?.currency_name, value: item?._id };
-  //     });
+  const submitHandle = useCallback(
+    (values, { resetForm }) => {
+      const { id, ...rest } = values;
 
-  //     setDropdownOptionList({
-  //       ...dropdownOptionList,
-  //       countryList: countyData,
-  //       referenceOptionList: referenceData,
-  //       currencyList: currencyData,
-  //     });
-  //   }
-  // }, [countryList, referenceList, currencyList]);
+      const updatedMobileNumbers = values?.mobile_no?.map(mobileNumber => {
+        return mobileNumber?.mobile_no;
+      });
+
+      const payload = {
+        ...rest,
+        ...(id && { client_company_id: values?.id }),
+        mobile_no: updatedMobileNumbers,
+        email_id: values?.email_id?.trim(),
+      };
+
+      if (id) {
+        dispatch(editClientCompany(payload));
+      } else {
+        dispatch(addClientCompany(payload));
+      }
+      resetForm();
+      setEditData(clientCompanyInitialData);
+    },
+    [dispatch],
+  );
+
+  const {
+    values,
+    errors,
+    touched,
+    resetForm,
+    handleBlur,
+    handleChange,
+    handleSubmit,
+    setFieldValue,
+  } = useFormik({
+    enableReinitialize: true,
+    initialValues: editData,
+    validationSchema: clientCompanySchema,
+    onSubmit: submitHandle,
+  });
 
   const loadStateData = useCallback(
     async e => {
@@ -391,43 +451,6 @@ export default function ClientCompany({ hasAccess }) {
     },
     [dispatch, dropdownOptionList],
   );
-
-  const submitHandle = useCallback(
-    async values => {
-      const { id, ...rest } = values;
-      if (values?.id) {
-        const payload = {
-          ...rest,
-          pay_due_date: getFormattedDate(rest?.pay_due_date),
-          client_company_id: values?.id,
-        };
-        dispatch(editClientCompany(payload));
-      } else {
-        const payload = {
-          ...rest,
-          pay_due_date: getFormattedDate(rest?.pay_due_date),
-        };
-        dispatch(addClientCompany(payload));
-      }
-      setCreateCompanyModal(false);
-    },
-    [dispatch],
-  );
-  const {
-    values,
-    errors,
-    touched,
-    resetForm,
-    setFieldValue,
-    handleBlur,
-    handleChange,
-    handleSubmit,
-  } = useFormik({
-    enableReinitialize: true,
-    initialValues: clientCompanyData,
-    validationSchema: clientComapnySchema,
-    onSubmit: submitHandle,
-  });
 
   const loadCityData = useCallback(
     async e => {
@@ -457,39 +480,93 @@ export default function ClientCompany({ hasAccess }) {
 
   const actionBodyTemplate = row => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  getRequiredList();
-                  setEditData(row);
-                  setCreateCompanyModal(true);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle
+      //       id="dropdown-basic"
+      //       className="action_btn"
+      //       disabled={is_edit_access || is_delete_access ? false : true}
+      //     >
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       {is_edit_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             const updatedMobileNumbers = row?.mobile_no?.map(
+      //               mobileNumber => {
+      //                 return {
+      //                   mobile_no: mobileNumber,
+      //                   unique_id: generateUniqueId(),
+      //                 };
+      //               },
+      //             );
+
+      //             const editedData = {
+      //               ...clientCompanyInitialData,
+      //               ...row,
+      //               id: row?._id,
+      //               mobile_no: updatedMobileNumbers,
+      //             };
+      //             getRequiredList(editedData);
+      //             setEditData(editedData);
+      //             setCreateCompanyModal(true);
+      //           }}
+      //         >
+      //           <img src={EditIcon} alt="EditIcon" /> Edit
+      //         </Dropdown.Item>
+      //       )}
+      //       {is_delete_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             setDeleteId(row?._id);
+      //             setDeletePopup(true);
+      //           }}
+      //         >
+      //           <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //         </Dropdown.Item>
+      //       )}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        {is_edit_access && (
+          <img
+            alt=""
+            src={EditIcon}
+            className="cursor_pointer"
+            onClick={() => {
+              const updatedMobileNumbers = row?.mobile_no?.map(mobileNumber => {
+                return {
+                  mobile_no: mobileNumber,
+                  unique_id: generateUniqueId(),
+                };
+              });
+
+              const editedData = {
+                ...clientCompanyInitialData,
+                ...row,
+                id: row?._id,
+                mobile_no: updatedMobileNumbers,
+              };
+              getRequiredList(editedData);
+              setEditData(editedData);
+              setCreateCompanyModal(true);
+            }}
+          />
+        )}
+        {is_delete_access && (
+          <img
+            src={TrashIcon}
+            alt=""
+            className="cursor_pointer"
+            onClick={() => {
+              setDeleteId(row?._id);
+              setDeletePopup(true);
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -503,17 +580,14 @@ export default function ClientCompany({ hasAccess }) {
     );
   };
 
-  const getSeverity = product => {
-    switch (product.isActive) {
-      case true:
-        return 'active';
-
-      case false:
-        return 'inactive';
-
-      default:
-        return null;
-    }
+  const currentClientBalanceBodyTemplate = rowData => {
+    return (
+      <span>
+        {`${Math.abs(rowData?.current_balance) || 0} ${
+          rowData?.current_balance > 0 ? 'CR' : 'DB'
+        }`}
+      </span>
+    );
   };
 
   const groupLableTemplate = option => {
@@ -526,10 +600,18 @@ export default function ClientCompany({ hasAccess }) {
 
   const companyNameBodyTemplate = data => {
     return (
-      <Link to="/company-profile" className="hover_text">
+      <div
+        className="hover_text"
+        onClick={() => navigate(`/company-profile/${data?._id}`)}
+      >
         {data?.company_name}
-      </Link>
+      </div>
     );
+  };
+
+  const mobileNoTemplate = rowData => {
+    const mobileNumber = rowData?.mobile_no?.join(', ');
+    return <span>{mobileNumber}</span>;
   };
 
   const addressBodyTemplate = data => {
@@ -537,16 +619,45 @@ export default function ClientCompany({ hasAccess }) {
   };
 
   const onPageChange = page => {
-    let pageIndex = clientCompanyCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setClientCompanyCurrentPage(pageIndex));
+    if (page !== clientCompanyCurrentPage) {
+      let pageIndex = clientCompanyCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+      dispatch(setClientCompanyCurrentPage(pageIndex));
+      getClientCompanyListApi(
+        pageIndex,
+        clientCompanyPageLimit,
+        clientCompanySearchParam,
+      );
+    }
   };
 
   const onPageRowsChange = page => {
     dispatch(setClientCompanyCurrentPage(page === 0 ? 0 : 1));
     dispatch(setClientCompanyPageLimit(page));
+    const pageValue =
+      page === 0
+        ? clientCompanyList?.totalRows
+          ? clientCompanyList?.totalRows
+          : 0
+        : page;
+    const prevPageValue =
+      clientCompanyPageLimit === 0
+        ? clientCompanyList?.totalRows
+          ? clientCompanyList?.totalRows
+          : 0
+        : clientCompanyPageLimit;
+    if (
+      prevPageValue < clientCompanyList?.totalRows ||
+      pageValue < clientCompanyList?.totalRows
+    ) {
+      getClientCompanyListApi(
+        page === 0 ? 0 : 1,
+        page,
+        clientCompanySearchParam,
+      );
+    }
   };
 
   const handleDelete = useCallback(() => {
@@ -560,6 +671,7 @@ export default function ClientCompany({ hasAccess }) {
   }, [dispatch, deleteId]);
 
   const onCancel = useCallback(() => {
+    setEditData(clientCompanyInitialData);
     resetForm();
     setCreateCompanyModal(false);
   }, [resetForm]);
@@ -587,8 +699,8 @@ export default function ClientCompany({ hasAccess }) {
         <Button className="btn_border_dark" onClick={onCancel}>
           Cancel
         </Button>
-        <Button className="btn_primary" onClick={handleSubmit}>
-          Save
+        <Button type="submit" className="btn_primary" onClick={handleSubmit}>
+          {editData?.id ? 'Update' : 'Save'}
         </Button>
       </div>
     </div>
@@ -596,14 +708,7 @@ export default function ClientCompany({ hasAccess }) {
 
   const handleSearchInput = e => {
     dispatch(setClientCompanyCurrentPage(1));
-    dispatch(
-      getClientCompanyList({
-        start: 1,
-        limit: clientCompanyPageLimit,
-        isActive: '',
-        search: e.target.value,
-      }),
-    );
+    getClientCompanyListApi(1, clientCompanyPageLimit, e.target.value?.trim());
   };
 
   const debounceHandleSearchInput = useCallback(
@@ -611,15 +716,70 @@ export default function ClientCompany({ hasAccess }) {
     [],
   );
 
+  const handleSelectCountry = useCallback(
+    data => {
+      dispatch(setSelectState(''));
+      dispatch(setSelectCountry(data));
+      const country = data ? data : '';
+
+      if (data) {
+        getStateListApi(data);
+      } else {
+        dispatch(
+          setStateList({
+            ...stateList,
+            list: [],
+          }),
+        );
+      }
+
+      getClientCompanyListApi(
+        clientCompanyCurrentPage,
+        clientCompanyPageLimit,
+        clientCompanySearchParam,
+        country,
+        '',
+      );
+    },
+    [
+      dispatch,
+      stateList,
+      clientCompanyPageLimit,
+      clientCompanyCurrentPage,
+      clientCompanySearchParam,
+    ],
+  );
+
+  const handleSelectState = useCallback(
+    data => {
+      dispatch(setSelectState(data));
+
+      getClientCompanyListApi(
+        clientCompanyCurrentPage,
+        clientCompanyPageLimit,
+        clientCompanySearchParam,
+        selectCountry,
+        data === 'All' ? '' : data,
+      );
+    },
+    [
+      dispatch,
+      selectCountry,
+      clientCompanyPageLimit,
+      clientCompanyCurrentPage,
+      clientCompanySearchParam,
+    ],
+  );
+
   return (
     <div className="main_Wrapper">
-      {(clientCompanyLoading ||
-        countryLoading ||
+      {(cityLoading ||
+        groupLoading ||
         stateLoading ||
-        cityLoading ||
+        countryLoading ||
         currencyLoading ||
-        referenceLoading) && <Loader />}
-
+        referenceLoading ||
+        clientCompanyLoading) && <Loader />}
       <div className="setting_main_wrap">
         <CompanySidebar />
         <div className="setting_right_wrap">
@@ -635,11 +795,32 @@ export default function ClientCompany({ hasAccess }) {
                   <div className="right_filter_wrapper">
                     <ul>
                       <li>
+                        <ReactSelectSingle
+                          filter
+                          value={selectCountry}
+                          options={countryOptions}
+                          onBlur={handleBlur}
+                          onChange={e => handleSelectCountry(e.value)}
+                          placeholder="Select Country"
+                        />
+                      </li>
+                      <li>
+                        <ReactSelectSingle
+                          filter
+                          value={selectState}
+                          options={stateOptions}
+                          onBlur={handleBlur}
+                          onChange={e => handleSelectState(e.value)}
+                          placeholder="Select State"
+                        />
+                      </li>
+
+                      <li>
                         <div className="form_group">
                           <InputText
                             id="search"
-                            placeholder="Search"
                             type="search"
+                            placeholder="Search"
                             className="input_wrap small search_wrap"
                             value={clientCompanySearchParam}
                             onChange={e => {
@@ -655,8 +836,16 @@ export default function ClientCompany({ hasAccess }) {
                         <li>
                           <Button
                             onClick={() => {
-                              setEditData({});
-                              getRequiredList();
+                              setEditData({
+                                ...clientCompanyInitialData,
+                                mobile_no: [
+                                  {
+                                    mobile_no: '',
+                                    unique_id: generateUniqueId(),
+                                  },
+                                ],
+                              });
+                              getRequiredList(clientCompanyInitialData);
                               setCreateCompanyModal(true);
                             }}
                             className="btn_primary"
@@ -689,14 +878,19 @@ export default function ClientCompany({ hasAccess }) {
                   sortable
                 ></Column>
                 <Column field="email_id" header="Email" sortable></Column>
-                <Column field="mobile_no" header="Phone No" sortable></Column>
+                <Column
+                  field="mobile_no"
+                  header="Phone No"
+                  sortable
+                  body={mobileNoTemplate}
+                ></Column>
                 <Column
                   field="address"
                   header="Address"
                   body={addressBodyTemplate}
                   sortable
                 ></Column>
-                <Column
+                {/* <Column
                   field="receivables"
                   header="Receivables"
                   sortable
@@ -705,6 +899,12 @@ export default function ClientCompany({ hasAccess }) {
                   field="unused_credits"
                   header="Unused Credits"
                   sortable
+                ></Column> */}
+                <Column
+                  field="current_balance"
+                  header="Current Client Balance"
+                  sortable
+                  body={currentClientBalanceBodyTemplate}
                 ></Column>
                 <Column
                   field="isActive"
@@ -731,6 +931,7 @@ export default function ClientCompany({ hasAccess }) {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'client company'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}
@@ -738,7 +939,9 @@ export default function ClientCompany({ hasAccess }) {
       />
 
       <Dialog
-        header="Create Client Company"
+        header={
+          editData?.id ? 'Update Client Company' : 'Create Client Company'
+        }
         visible={createCompanyModal}
         draggable={false}
         className="modal_Wrapper modal_medium"
@@ -750,7 +953,9 @@ export default function ClientCompany({ hasAccess }) {
             <Row>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="company_name">Company</label>
+                  <label htmlFor="company_name">
+                    Company <span className="text-danger fs-6">*</span>
+                  </label>
                   <InputText
                     id="company_name"
                     placeholder="Write Company"
@@ -767,7 +972,9 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="client_full_name">Client Full Name</label>
+                  <label htmlFor="client_full_name">
+                    Client Full Name <span className="text-danger fs-6">*</span>
+                  </label>
                   <InputText
                     id="client_full_name"
                     placeholder="Write Name"
@@ -784,7 +991,9 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="email_id">Email Address</label>
+                  <label htmlFor="email_id">
+                    Email Address <span className="text-danger fs-6">*</span>
+                  </label>
                   <InputText
                     id="email_id"
                     placeholder="Write email address"
@@ -794,41 +1003,88 @@ export default function ClientCompany({ hasAccess }) {
                     onBlur={handleBlur}
                     onChange={handleChange}
                   />
-
                   {touched?.email_id && errors?.email_id && (
                     <p className="text-danger">{errors?.email_id}</p>
                   )}
                 </div>
               </Col>
-              <Col sm={6}>
-                <div className="form_group mb-3">
-                  <label htmlFor="mobile_no">Phone Number</label>
-                  <InputText
-                    id="mobile_no"
-                    placeholder="Write number"
-                    className="input_wrap"
-                    name="mobile_no"
-                    value={values?.mobile_no || ''}
-                    onBlur={handleBlur}
-                    onChange={handleChange}
-                  />
-                  {touched?.mobile_no && errors?.mobile_no && (
-                    <p className="text-danger">{errors?.mobile_no}</p>
-                  )}
-                </div>
-              </Col>
+              {values?.mobile_no?.length > 0 &&
+                values?.mobile_no?.map((item, index) => {
+                  return (
+                    <Col sm={6}>
+                      <div className="form_group mb-3">
+                        <div className="d-flex justify-content-between">
+                          <div>
+                            <span>Phone Number {index + 1} </span>
+                            <span className="text-danger fs-6">*</span>
+                          </div>
+                          <div>
+                            {index === 0 && values?.mobile_no?.length < 3 && (
+                              <Button
+                                className="btn_transparent text_primary btn_right add_btn"
+                                onClick={e => {
+                                  e.preventDefault();
+                                  if (values?.mobile_no?.length < 3) {
+                                    setFieldValue('mobile_no', [
+                                      ...values?.mobile_no,
+                                      {
+                                        unique_id: generateUniqueId(),
+                                        mobile_no: '',
+                                      },
+                                    ]);
+                                  }
+                                }}
+                              >
+                                ADD
+                                <img src={PlusIcon} alt="PlusIcon" />
+                              </Button>
+                            )}
+                            {index > 0 && (
+                              <Button
+                                className="btn_transparent add_btn"
+                                onClick={() => {
+                                  const updatedData = values?.mobile_no?.filter(
+                                    value =>
+                                      value?.unique_id !== item?.unique_id,
+                                  );
+                                  setFieldValue('mobile_no', updatedData);
+                                }}
+                              >
+                                <img src={TrashIcon} alt="TrashIcon" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <InputText
+                          placeholder="Write number"
+                          className="input_wrap"
+                          name={`mobile_no[${index}].mobile_no`}
+                          value={item?.mobile_no || ''}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                        />
+                        {errors?.mobile_no?.length &&
+                          touched?.mobile_no?.length &&
+                          touched?.mobile_no[index]?.mobile_no &&
+                          errors?.mobile_no[index]?.mobile_no && (
+                            <p className="text-danger">
+                              {errors?.mobile_no[index]?.mobile_no}
+                            </p>
+                          )}
+                      </div>
+                    </Col>
+                  );
+                })}
               <Col sm={6}>
                 <div className="form_group mb-3">
                   <label htmlFor="address">Address</label>
-
                   <InputTextarea
-                    id="address"
                     rows={1}
-                    placeholder="Write address"
-                    className="input_wrap"
+                    id="address"
                     name="address"
+                    className="input_wrap"
+                    placeholder="Write address"
                     value={values?.address || ''}
-                    onBlur={handleBlur}
                     onChange={handleChange}
                   />
                   {touched?.address && errors?.address && (
@@ -838,41 +1094,53 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label>Group Name</label>
+                  <label htmlFor="group_name">
+                    Group Name <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
-                    value={values?.group_name}
-                    options={dropdownOptionList?.dropdownGroupList}
+                    id="group_name"
                     name="group_name"
-                    onChange={e => setFieldValue('group_name', e.value)}
-                    optionLabel="label"
-                    optionGroupLabel="label"
                     placeholder="Group Name"
-                    optionGroupChildren="items"
+                    value={values?.group_name}
+                    options={dropdownOptionList?.dropdownGroupList || []}
+                    onBlur={handleBlur}
+                    onChange={e => setFieldValue('group_name', e.value)}
                     optionGroupTemplate={groupLableTemplate}
-                    className="w-100"
+                    // optionLabel="label"
+                    // optionGroupLabel="label"
+                    // optionGroupChildren="items"
+                    // className="w-100"
                   />
-                  {touched?.group_name &&
-                    errors?.group_name &&
-                    !values?.group_name && (
-                      <p className="text-danger">{errors?.group_name}</p>
-                    )}
+                  {touched?.group_name && errors?.group_name && (
+                    <p className="text-danger">{errors?.group_name}</p>
+                  )}
                 </div>
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="country">Country</label>
+                  <label htmlFor="country">
+                    Country <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
                     id="country"
-                    options={dropdownOptionList?.countryList}
-                    value={values?.country || ''}
                     name="country"
+                    placeholder="Select Country"
+                    value={values?.country || ''}
+                    options={dropdownOptionList?.countryList}
+                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('country', e.value);
+                      setFieldValue('state', '');
+                      setFieldValue('city', '');
+                      setDropdownOptionList({
+                        ...dropdownOptionList,
+                        stateList: [],
+                        cityList: [],
+                      });
                       loadStateData(e.value);
                     }}
-                    placeholder="Select Country"
                   />
                   {touched?.country && errors?.country && (
                     <p className="text-danger">{errors?.country}</p>
@@ -881,13 +1149,16 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="state">State</label>
+                  <label htmlFor="state">
+                    State <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
                     id="state"
-                    options={dropdownOptionList?.stateList}
-                    value={values?.state || ''}
                     name="state"
+                    value={values?.state || ''}
+                    options={dropdownOptionList?.stateList}
+                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('state', e.value);
                       loadCityData(e.value);
@@ -901,13 +1172,16 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="city">City</label>
+                  <label htmlFor="city">
+                    City <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
                     id="city"
-                    options={dropdownOptionList?.cityList}
-                    value={values?.city || ''}
                     name="city"
+                    value={values?.city || ''}
+                    options={dropdownOptionList?.cityList}
+                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('city', e.value);
                     }}
@@ -923,9 +1197,9 @@ export default function ClientCompany({ hasAccess }) {
                   <label htmlFor="pin_code">Pin code</label>
                   <InputNumber
                     id="pin_code"
+                    name="pin_code"
                     placeholder="Write Pin code"
                     useGrouping={false}
-                    name="pin_code"
                     value={values?.pin_code || ''}
                     onBlur={handleBlur}
                     onChange={e => {
@@ -939,13 +1213,16 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="reference">Reference</label>
+                  <label htmlFor="reference">
+                    Reference <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
                     id="reference"
-                    options={dropdownOptionList?.referenceOptionList}
-                    value={values?.reference || ''}
                     name="reference"
+                    value={values?.reference || ''}
+                    options={dropdownOptionList?.referenceOptionList}
+                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('reference', e.value);
                     }}
@@ -958,29 +1235,38 @@ export default function ClientCompany({ hasAccess }) {
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="type">Type</label>
+                  <label htmlFor="type">
+                    Type <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
                     id="type"
+                    name="type"
                     options={Type}
                     value={values?.type || ''}
-                    name="type"
+                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('type', e.value);
                     }}
                     placeholder="Select Type"
                   />
+                  {touched?.type && errors?.type && (
+                    <p className="text-danger">{errors?.type}</p>
+                  )}
                 </div>
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="currency">Currency</label>
+                  <label htmlFor="currency">
+                    Currency <span className="text-danger fs-6">*</span>
+                  </label>
                   <ReactSelectSingle
                     filter
                     id="currency"
-                    options={dropdownOptionList?.currencyList}
-                    value={values?.currency || ''}
                     name="currency"
+                    value={values?.currency || ''}
+                    options={dropdownOptionList?.currencyList}
+                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('currency', e.value);
                     }}
@@ -1026,24 +1312,29 @@ export default function ClientCompany({ hasAccess }) {
                   </div>
                   <InputNumber
                     id="opening_balance"
-                    placeholder="Write opening Balance"
                     name="opening_balance"
-                    useGrouping={false}
+                    placeholder="opening Balance"
                     value={values?.opening_balance || ''}
-                    onBlur={handleBlur}
                     onChange={e => {
                       setFieldValue('opening_balance', e.value);
                     }}
+                    min={0}
+                    onBlur={handleBlur}
+                    useGrouping={false}
+                    maxFractionDigits={2}
                   />
+                  {touched?.opening_balance && errors?.opening_balance && (
+                    <p className="text-danger">{errors?.opening_balance}</p>
+                  )}
                 </div>
               </Col>
               <Col sm={6}>
                 <div className="form_group mb-3">
-                  <label htmlFor="credits_limits">Credits Limits</label>
+                  <label htmlFor="credits_limits">Credit Limit</label>
                   <InputNumber
                     id="credits_limits"
-                    placeholder="Write Credits Limits"
                     name="credits_limits"
+                    placeholder="Credit Limit"
                     useGrouping={false}
                     value={values?.credits_limits || ''}
                     onBlur={handleBlur}
@@ -1051,14 +1342,28 @@ export default function ClientCompany({ hasAccess }) {
                       setFieldValue('credits_limits', e.value);
                     }}
                   />
+                  {touched?.credits_limits && errors?.credits_limits && (
+                    <p className="text-danger">{errors?.credits_limits}</p>
+                  )}
                 </div>
               </Col>
               <Col sm={6}>
                 <div className="form_group date_select_wrapper mb-3">
-                  <label htmlFor="pay_due_date">Pay Due Date</label>
-                  <Calendar
+                  <label htmlFor="pay_due_day">Pay Due Days</label>
+                  <InputNumber
+                    id="pay_due_day"
+                    name="pay_due_day"
+                    placeholder="Pay Due Day"
+                    useGrouping={false}
+                    value={values?.pay_due_day || ''}
+                    onBlur={handleBlur}
+                    onChange={e => {
+                      setFieldValue('pay_due_day', e.value);
+                    }}
+                  />
+                  {/* <Calendar
                     id="pay_due_date"
-                    placeholder="Write Credits Limits"
+                    placeholder="Pay Due Day"
                     showIcon
                     dateFormat="dd-mm-yy"
                     readOnlyInput
@@ -1066,7 +1371,7 @@ export default function ClientCompany({ hasAccess }) {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     showButtonBar
-                  />
+                  /> */}
                 </div>
               </Col>
             </Row>

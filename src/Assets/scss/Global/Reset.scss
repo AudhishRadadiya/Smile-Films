@@ -26,6 +26,7 @@ $borderblue: #373aa5;
 $Chatbg: #f3f5fb;
 $bggreen: #1c8f3c;
 $textRed: #c62828;
+$textLightGray: #999999;
 
 body {
   font-family: 'Poppins', sans-serif;
@@ -109,6 +110,9 @@ a:hover {
 }
 .text_red {
   color: $textRed;
+}
+.text_light_gray {
+  color: $textLightGray;
 }
 
 .white_space_nowrap {
@@ -364,6 +368,22 @@ h6 {
 }
 
 @media (max-width: 991px) {
+  h1 {
+    font-size: 22px;
+    line-height: 32px;
+  }
+  .main_Wrapper
+    .chat_main_wrapper
+    .chat_details
+    .live_chat_wrapper
+    .live_chat_inner.live_chat_welcome_txt
+    ul
+    li
+    .welcome_txt
+    img {
+    margin-bottom: 24px;
+    width: 145px;
+  }
 }
 
 @media (max-width: 480px) {

@@ -6,23 +6,26 @@ import {
   setIsAddComment,
 } from 'Store/Reducers/Editing/EditingFlow/EditingSlice';
 import { Editor } from 'primereact/editor';
-import React, { useCallback, useEffect } from 'react';
+import React, { memo, useCallback, useEffect } from 'react';
 import { Col } from 'react-bootstrap';
 import { Button } from 'primereact/button';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import { commentSchema } from 'Schema/Editing/editingSchema';
-import { convertDate } from 'Helper/CommonHelper';
+import { convertDate, fetchingDateFromComment } from 'Helper/CommonHelper';
 import ReactQuill from 'react-quill';
 import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
+import UserIcon from '../../../Assets/Images/add-user.svg';
 
-export default function CommentDataCollection() {
-  const dispatch = useDispatch();
+const CommentDataCollection = () => {
   const { id } = useParams();
+  const dispatch = useDispatch();
+
   const { commentData, isAddComment, commentList, orderNoteList } = useSelector(
     ({ editing }) => editing,
   );
+
   useEffect(() => {
     dispatch(getCommentList({ order_id: id }));
     dispatch(getOrderNote({ order_id: id }));
@@ -38,16 +41,21 @@ export default function CommentDataCollection() {
   }, [isAddComment, dispatch, id]);
 
   const submitHandle = useCallback(
-    values => {
-      const payload = {
-        ...values,
-        order_id: id,
-      };
-      dispatch(addComment(payload));
-      resetForm();
-      dispatch(clearCommentList());
+    async (values, { resetForm }) => {
+      const fetchedCommentData = fetchingDateFromComment(values?.comment);
+      if (fetchedCommentData) {
+        const payload = {
+          ...values,
+          order_id: id,
+        };
+        const res = await dispatch(addComment(payload));
+        if (res?.payload) {
+          resetForm();
+          dispatch(clearCommentList());
+        }
+      }
     },
-    [dispatch],
+    [id, dispatch],
   );
 
   const { values, errors, touched, handleSubmit, resetForm, setFieldValue } =
@@ -82,14 +90,26 @@ export default function CommentDataCollection() {
             industry.
           </p> */}
 
+          <div
+            className="editor_text_wrapper mb15"
+            dangerouslySetInnerHTML={{ __html: orderNoteList?.order_note }}
+          />
+
           <ul>
             {commentList &&
               commentList?.length > 0 &&
               commentList?.map((data, i) => {
                 return (
                   <li key={i}>
-                    <div className="comment_img">
-                      <img src={data?.user_image} alt="UserImg" />
+                    <div
+                      className={`comment_img ${
+                        !data?.user_image ? 'comment_dummy_icon' : ''
+                      }`}
+                    >
+                      <img
+                        src={data?.user_image ? data?.user_image : UserIcon}
+                        alt=""
+                      />
                     </div>
                     <div className="comment_right">
                       <h5>
@@ -142,15 +162,18 @@ export default function CommentDataCollection() {
               value={values?.comment}
               onChange={content => setFieldValue('comment', content)}
             />
+          </div>
+          <p>
             {touched?.comment && errors?.comment && (
               <p className="text-danger">{errors?.comment}</p>
             )}
-          </div>
-          <Button className="btn_primary" onClick={handleSubmit}>
+          </p>
+          <Button type="submit" className="btn_primary" onClick={handleSubmit}>
             Comment
           </Button>
         </div>
       </div>
     </Col>
   );
-}
+};
+export default memo(CommentDataCollection);

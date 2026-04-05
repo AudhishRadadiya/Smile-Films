@@ -29,6 +29,9 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
+    @media (max-width: 380px) {
+      gap: 5px;
+    }
 
     li {
       padding: 0;
@@ -155,13 +158,21 @@
   .row {
     align-items: center;
   }
+  .tax-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    & .subtotal-input {
+      width: 30%;
+    }
+  }
   .subtotal-input {
     width: 50%;
     @media (max-width: 580px) {
       width: 100%;
     }
     input {
-      border: 1px solid $borderColor;
+      border: 1px solid $primary;
       padding: 10px;
       border-radius: 6px;
       width: 100%;
@@ -172,6 +183,13 @@
   }
   .subtotal-title {
     width: 50%;
+
+    .subtotal-currency {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
     @media (max-width: 580px) {
       width: 100%;
     }
@@ -325,6 +343,7 @@
   img {
     width: 140px;
     height: 60px;
+    object-fit: contain;
   }
 }
 
@@ -389,6 +408,12 @@
     @media (max-width: 767px) {
       margin: 0;
     }
+  }
+
+  .opening_balance_type {
+    color: $textGray;
+    font-weight: 400;
+    margin: 15px 0 0;
   }
 }
 

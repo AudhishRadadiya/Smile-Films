@@ -20,8 +20,10 @@ export default function ChangePassWord({
 
   const submitHandle = useCallback(
     async values => {
-      dispatch(changepassword(values));
-      setChangePasswordModal(false);
+      dispatch(changepassword(values)).then(res => {
+        const response = res?.payload;
+        if (response?.data?.err === 0) setChangePasswordModal(false);
+      });
     },
     [dispatch],
   );

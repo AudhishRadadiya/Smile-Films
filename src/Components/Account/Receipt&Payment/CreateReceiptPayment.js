@@ -95,7 +95,7 @@ export default function RecordReceiptAndPayment() {
 
   return (
     <div className="main_Wrapper">
-      <div className="bg-white radius15 border">
+      <div className="bg-white radius15 border h-100">
         <div className="billing_heading">
           <Row className="align-items-center gy-3">
             <Col sm={6}>
@@ -103,7 +103,7 @@ export default function RecordReceiptAndPayment() {
                 <h3 class="m-0">Record Receipt / Payment</h3>
               </div>
             </Col>
-            <Col sm={6}>
+            {/* <Col sm={6}>
               <ul className="billing-btn justify-content-sm-end">
                 <li>
                   <Link
@@ -122,7 +122,7 @@ export default function RecordReceiptAndPayment() {
                   </Link>
                 </li>
               </ul>
-            </Col>
+            </Col> */}
           </Row>
         </div>
         <div className="p20 p10-sm border-bottom">
@@ -312,6 +312,20 @@ export default function RecordReceiptAndPayment() {
             <Column field="amount_paid" header="Amount Paid" sortable></Column>
           </DataTable>
         </div>
+      </div>
+      <div className="title_right_wrapper">
+        <ul className="justify-content-end">
+          <li>
+            <Link to="/receipt-payment" className="btn_border_dark filter_btn">
+              Exit Page
+            </Link>
+          </li>
+          <li>
+            <Link to="/receipt-payment" className="btn_primary filter_btn">
+              Save
+            </Link>
+          </li>
+        </ul>
       </div>
     </div>
   );

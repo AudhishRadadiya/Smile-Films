@@ -5,9 +5,12 @@ import { setIsGetInitialValues } from 'Store/Reducers/Settings/CompanySetting/Co
 
 export default function AddCompany() {
   const dispatch = useDispatch();
+
   const { companyData, isGetInitialValues, addSelectedCompanyData } =
     useSelector(({ company }) => company);
+
   const [initialData, setInitialData] = useState({});
+
   useEffect(() => {
     if (isGetInitialValues?.add === true) {
       setInitialData(addSelectedCompanyData);

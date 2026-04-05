@@ -16,6 +16,7 @@ import { getCompanyForForgot } from 'Helper/AuthTokenHelper';
 export default function EmailVarification() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const currentYear = new Date().getFullYear();
 
   const { otpLoading } = useSelector(({ verifyEmail }) => verifyEmail);
   const dataForOTP = getCompanyForForgot();
@@ -116,7 +117,7 @@ export default function EmailVarification() {
                     className="fw_600 btn_transparent text_dark"
                     onClick={() => {
                       if (dataForOTP) {
-                        dispatch(forgotPassword({ user_email: dataForOTP }));
+                        dispatch(forgotPassword(dataForOTP));
                       }
                     }}
                   >
@@ -126,7 +127,9 @@ export default function EmailVarification() {
               </div>
             </div>
             <div className="copyright text-center mt-3">
-              <p className="m-0">@Copyright 2023 smilefilms</p>
+              <p className="m-0">
+                @Copyright {currentYear && currentYear} smilefilms
+              </p>
             </div>
           </div>
         </div>

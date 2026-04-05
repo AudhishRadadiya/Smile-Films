@@ -11,11 +11,15 @@ import DataCollectionDetail from './DataCollectionDetail';
 export default function EditInquiry() {
   const { id } = useParams();
   const dispatch = useDispatch();
+
+  const [initialData, setInitialData] = useState({});
+
   const {
+    dataCollectionData,
     isGetInintialValuesDataCollection,
     updateSelectedDataCollectionData,
   } = useSelector(({ dataCollection }) => dataCollection);
-  const [initialData, setInitialData] = useState({});
+
   useEffect(() => {
     if (id) {
       if (isGetInintialValuesDataCollection?.update === true) {
@@ -31,7 +35,10 @@ export default function EditInquiry() {
         dispatch(getDataCollection({ order_id: id }))
           .then(response => {
             const responseData = response.payload;
-            setInitialData(responseData);
+            setInitialData({
+              ...dataCollectionData,
+              ...responseData,
+            });
             dispatch(setUpdateSelectedDataCollectionData(responseData));
           })
           .catch(error => {

@@ -62,27 +62,38 @@ export default function Currency({ hasAccess }) {
   const [devicesModel, setDevicesModel] = useState(false);
   const [currencyDataValue, setCurrencyDataValue] = useState(initalData);
 
+  const getCurrencyListApi = useCallback(
+    (start = 1, limit = 10, search = '') => {
+      dispatch(
+        getCurrencyList({
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+        }),
+      );
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
-    dispatch(
-      getCurrencyList({
-        start: currencyCurrentPage,
-        limit: currencyPageLimit,
-        isActive: '',
-        search: currencySearchParam,
-      }),
+    getCurrencyListApi(
+      currencyCurrentPage,
+      currencyPageLimit,
+      currencySearchParam,
     );
-  }, [dispatch, currencyCurrentPage, currencyPageLimit]);
+  }, []);
 
   useEffect(() => {
     if (isAddCurrency || isUpdateCurrency || isDeleteCurrency) {
-      dispatch(
-        getCurrencyList({
-          start: currencyCurrentPage,
-          limit: currencyPageLimit,
-          isActive: '',
-          search: currencySearchParam,
-        }),
+      getCurrencyListApi(
+        currencyCurrentPage,
+        currencyPageLimit,
+        currencySearchParam,
       );
+      resetForm();
+      setDevicesModel(false);
+      setCurrencyDataValue(initalData);
     }
     if (isUpdateCurrency) {
       dispatch(setIsUpdateCurrency(false));
@@ -93,61 +104,53 @@ export default function Currency({ hasAccess }) {
     if (isDeleteCurrency) {
       dispatch(setIsDeleteCurrency(false));
     }
-  }, [
-    isAddCurrency,
-    isUpdateCurrency,
-    isDeleteCurrency,
-    dispatch,
-    currencyCurrentPage,
-    currencyPageLimit,
-    currencySearchParam,
-  ]);
+  }, [dispatch, isAddCurrency, isUpdateCurrency, isDeleteCurrency]);
 
-  const actionBodyTemplate = row => {
-    return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  dispatch(getCurrencyData({ currency_id: row?._id }))
-                    .then(response => {
-                      const responseData = response.payload?.data;
-                      setCurrencyDataValue(responseData);
-                    })
-                    .catch(error => {
-                      console.error('Error fetching currency data:', error);
-                    });
+  // const actionBodyTemplate = row => {
+  //   return (
+  //     <div className="dropdown_action_wrap">
+  //       <Dropdown className="dropdown_common position-static">
+  //         <Dropdown.Toggle
+  //           id="dropdown-basic"
+  //           className="action_btn"
+  //           disabled={is_edit_access || is_delete_access ? false : true}
+  //         >
+  //           <img src={ActionBtn} alt="" />
+  //         </Dropdown.Toggle>
+  //         <Dropdown.Menu>
+  //           {is_edit_access && (
+  //             <Dropdown.Item
+  //               onClick={() => {
+  //                 dispatch(getCurrencyData({ currency_id: row?._id }))
+  //                   .then(response => {
+  //                     const responseData = response.payload?.data;
+  //                     setCurrencyDataValue(responseData);
+  //                   })
+  //                   .catch(error => {
+  //                     console.error('Error fetching currency data:', error);
+  //                   });
 
-                  setDevicesModel(true);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
-      </div>
-    );
-  };
+  //                 setDevicesModel(true);
+  //               }}
+  //             >
+  //               <img src={EditIcon} alt="EditIcon" /> Edit
+  //             </Dropdown.Item>
+  //           )}
+  //           {is_delete_access && (
+  //             <Dropdown.Item
+  //               onClick={() => {
+  //                 setDeleteId(row?._id);
+  //                 setDeletePopup(true);
+  //               }}
+  //             >
+  //               <img src={TrashIcon} alt="TrashIcon" /> Delete
+  //             </Dropdown.Item>
+  //           )}
+  //         </Dropdown.Menu>
+  //       </Dropdown>
+  //     </div>
+  //   );
+  // };
 
   const statusBodyTemplate = product => {
     return (
@@ -170,34 +173,70 @@ export default function Currency({ hasAccess }) {
     }
   };
 
-  const onPageChange = page => {
-    let pageIndex = currencyCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setCurrencyCurrentPage(pageIndex));
-  };
-
-  const onPageRowsChange = page => {
-    dispatch(setCurrencyCurrentPage(page === 0 ? 0 : 1));
-    dispatch(setCurrencyPageLimit(page));
-  };
-
-  const handleDelete = useCallback(
-    async => {
-      const deleteItemObj = {
-        currency_id: deleteId,
-      };
-      if (deleteId) {
-        dispatch(deleteCurrency(deleteItemObj));
+  const onPageChange = useCallback(
+    page => {
+      if (page !== currencyCurrentPage) {
+        let pageIndex = currencyCurrentPage;
+        if (page?.page === 'Prev') pageIndex--;
+        else if (page?.page === 'Next') pageIndex++;
+        else pageIndex = page;
+        dispatch(setCurrencyCurrentPage(pageIndex));
+        getCurrencyListApi(pageIndex, currencyPageLimit, currencySearchParam);
       }
-      setDeletePopup(false);
     },
-    [dispatch, deleteId],
+    [
+      dispatch,
+      currencyPageLimit,
+      getCurrencyListApi,
+      currencyCurrentPage,
+      currencySearchParam,
+    ],
   );
 
+  const onPageRowsChange = useCallback(
+    page => {
+      dispatch(setCurrencyCurrentPage(page === 0 ? 0 : 1));
+      dispatch(setCurrencyPageLimit(page));
+      const pageValue =
+        page === 0
+          ? currencyList?.totalRows
+            ? currencyList?.totalRows
+            : 0
+          : page;
+      const prevPageValue =
+        currencyPageLimit === 0
+          ? currencyList?.totalRows
+            ? currencyList?.totalRows
+            : 0
+          : currencyPageLimit;
+      if (
+        prevPageValue < currencyList?.totalRows ||
+        pageValue < currencyList?.totalRows
+      ) {
+        getCurrencyListApi(page === 0 ? 0 : 1, page, currencySearchParam);
+      }
+    },
+    [
+      dispatch,
+      currencyPageLimit,
+      getCurrencyListApi,
+      currencySearchParam,
+      currencyList?.totalRows,
+    ],
+  );
+
+  const handleDelete = useCallback(() => {
+    const deleteItemObj = {
+      currency_id: deleteId,
+    };
+    if (deleteId) {
+      dispatch(deleteCurrency(deleteItemObj));
+    }
+    setDeletePopup(false);
+  }, [dispatch, deleteId]);
+
   const submitHandle = useCallback(
-    async (values, { resetForm }) => {
+    values => {
       if (values?._id) {
         const payload = {
           currency_id: values?._id,
@@ -210,8 +249,6 @@ export default function Currency({ hasAccess }) {
       } else {
         dispatch(addCurrency(values));
       }
-      resetForm();
-      setDevicesModel(false);
     },
     [dispatch],
   );
@@ -234,6 +271,7 @@ export default function Currency({ hasAccess }) {
   const onCancel = useCallback(() => {
     resetForm();
     setDevicesModel(false);
+    setCurrencyDataValue(initalData);
   }, [resetForm]);
 
   const footerContent = (
@@ -260,7 +298,7 @@ export default function Currency({ hasAccess }) {
           Cancel
         </Button>
         <Button className="btn_primary" onClick={handleSubmit}>
-          Save
+          {values?._id ? 'Update' : 'Save'}
         </Button>
       </div>
     </div>
@@ -268,14 +306,7 @@ export default function Currency({ hasAccess }) {
 
   const handleSearchInput = e => {
     dispatch(setCurrencyCurrentPage(1));
-    dispatch(
-      getCurrencyList({
-        start: 1,
-        limit: currencyPageLimit,
-        isActive: '',
-        search: e.target.value,
-      }),
-    );
+    getCurrencyListApi(1, currencyPageLimit, e.target.value?.trim());
   };
 
   const debounceHandleSearchInput = useCallback(
@@ -315,7 +346,7 @@ export default function Currency({ hasAccess }) {
                           />
                         </div>
                       </li>
-                      {is_create_access === true && (
+                      {/* {is_create_access === true && (
                         <li>
                           <Button
                             onClick={() => {
@@ -327,7 +358,7 @@ export default function Currency({ hasAccess }) {
                             <img src={PlusIcon} alt="" /> Add Currency
                           </Button>
                         </li>
-                      )}
+                      )} */}
                     </ul>
                   </div>
                 </Col>
@@ -362,12 +393,12 @@ export default function Currency({ hasAccess }) {
                   body={statusBodyTemplate}
                   style={{ width: '10%' }}
                 ></Column>
-                <Column
+                {/* <Column
                   field="action"
                   header="Action"
                   body={actionBodyTemplate}
                   style={{ width: '8%' }}
-                ></Column>
+                ></Column> */}
               </DataTable>
               <CustomPaginator
                 dataList={currencyList?.list}
@@ -382,13 +413,14 @@ export default function Currency({ hasAccess }) {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'currency'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}
         setDeletePopup={setDeletePopup}
       />
       <Dialog
-        header="Currency"
+        header={values?._id ? 'Update Currency' : 'Create Currency'}
         visible={devicesModel}
         draggable={false}
         className="modal_Wrapper modal_small"
@@ -399,10 +431,12 @@ export default function Currency({ hasAccess }) {
           <Row>
             <Col xs={12}>
               <div className="form_group mb-3">
-                <label htmlFor="Name">Name</label>
+                <label htmlFor="Name">
+                  Currency Name <span className="text-danger fs-6">*</span>
+                </label>
                 <InputText
                   id="Name"
-                  placeholder="Name"
+                  placeholder="Currency Name"
                   className="input_wrap"
                   value={values?.currency_name || ''}
                   name="currency_name"
@@ -417,10 +451,12 @@ export default function Currency({ hasAccess }) {
             </Col>
             <Col xs={12}>
               <div className="form_group mb-3">
-                <label htmlFor="Code">Code</label>
+                <label htmlFor="Code">
+                  Currency Code <span className="text-danger fs-6">*</span>
+                </label>
                 <InputText
                   id="Code"
-                  placeholder="Code"
+                  placeholder="Currency Code"
                   className="input_wrap"
                   value={values?.currency_code || ''}
                   name="currency_code"
@@ -435,7 +471,9 @@ export default function Currency({ hasAccess }) {
             </Col>
             <Col xs={12}>
               <div className="form_group mb-3">
-                <label htmlFor="ExchangeRate">Exchange Rate</label>
+                <label htmlFor="ExchangeRate">
+                  Exchange Rate <span className="text-danger fs-6">*</span>
+                </label>
                 <InputNumber
                   id="ExchangeRate"
                   placeholder="Exchange Rate"

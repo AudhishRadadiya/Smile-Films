@@ -21,7 +21,9 @@ import { Button } from 'primereact/button';
 import { toast } from 'react-toastify';
 import moment from 'moment';
 import { getAuthToken } from 'Helper/AuthTokenHelper';
+import TrashIcon from '../../Assets/Images/trash.svg';
 import { editClientCompany } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
+import { checkPermissionForLandingPage } from 'Helper/CommonHelper';
 
 export default function MyProfile() {
   const dispatch = useDispatch();
@@ -57,17 +59,30 @@ export default function MyProfile() {
           .then(response => {
             let payload = { ...currentUser, values };
             dispatch(setCurrentUser(payload));
-            const userData = getAuthToken();
+            let userData = getAuthToken();
             if (userData) {
-              userData.employee.image = values?.image;
-              userData.employee.first_name = values?.first_name;
-              userData.employee.last_name = values?.last_name;
+              // userData.employee.image = values?.image;
+              // userData.employee.first_name = values?.first_name;
+              // userData.employee.last_name = values?.last_name;
+              userData = {
+                ...userData,
+                employee: {
+                  ...userData?.employee,
+                  image: values?.image,
+                  last_name: values?.last_name,
+                  first_name: values?.first_name,
+                },
+              };
+
               localStorage.setItem(
                 'UserPreferences',
                 window.btoa(JSON.stringify(userData)),
               );
             }
-            navigate('/home');
+
+            const checkedPermissionData =
+              checkPermissionForLandingPage(userData);
+            navigate(checkedPermissionData?.path);
           })
           .catch(error => {
             console.error('Error fetching while update profile:', error);
@@ -92,24 +107,36 @@ export default function MyProfile() {
           .then(response => {
             let payload = { ...currentUser, values };
             dispatch(setCurrentUser(payload));
-            const userData = getAuthToken();
+            let userData = getAuthToken();
             if (userData) {
-              userData.employee.image = values?.image;
-              userData.employee.first_name = values?.first_name;
-              userData.employee.last_name = values?.last_name;
+              // userData.employee.image = values?.image;
+              // userData.employee.first_name = values?.first_name;
+              // userData.employee.last_name = values?.last_name;
+              userData = {
+                ...userData,
+                employee: {
+                  ...userData?.employee,
+                  image: values?.image,
+                  last_name: values?.last_name,
+                  first_name: values?.first_name,
+                },
+              };
+
               localStorage.setItem(
                 'UserPreferences',
                 window.btoa(JSON.stringify(userData)),
               );
             }
-            navigate('/home');
+            const checkedPermissionData =
+              checkPermissionForLandingPage(userData);
+            navigate(checkedPermissionData?.path);
           })
           .catch(error => {
             console.error('Error fetching while update profile:', error);
           });
       }
     },
-    [dispatch],
+    [check_condition, currentUser, dispatch, navigate],
   );
 
   const {
@@ -179,7 +206,7 @@ export default function MyProfile() {
       <div className="overview_profile_wrap p20 border radius15 bg-white">
         <div className="profile_left">
           {/* <img src={ProfileImg} alt="ProfileImg" /> */}
-          <div className="profile_img_wrap">
+          <div className="profile_img_wrap position-relative">
             {values?.image ? (
               <img
                 src={values?.image || ProfileImg}
@@ -218,6 +245,19 @@ export default function MyProfile() {
                 <label htmlFor="UserUploadFile">
                   <img src={AddUpload} alt="AddUploadImage" />
                 </label>
+              </div>
+            )}
+            {values?.image && (
+              <div
+                className="profile_trash_icon"
+                onClick={() => {
+                  setFieldValue('image', '');
+                }}
+              >
+                <label className="ml-2">
+                  <img src={TrashIcon} alt="" />
+                </label>
+                <span>Remove Profile</span>
               </div>
             )}
           </div>

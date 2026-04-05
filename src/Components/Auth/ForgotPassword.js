@@ -22,7 +22,7 @@ const forgetPasswordData = {
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const currentYear = new Date().getFullYear;
+  const currentYear = new Date().getFullYear();
 
   const { forgotPassloading } = useSelector(
     ({ forgotPassword }) => forgotPassword,

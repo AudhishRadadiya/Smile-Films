@@ -170,7 +170,7 @@ export default function Quotation() {
 
   return (
     <div className="main_Wrapper">
-      <div className="processing_main bg-white radius15 border">
+      <div className="processing_main">
         <div className="billing_heading">
           <div className="processing_bar_wrapper">
             <div className="verifide_wrap">
@@ -391,7 +391,7 @@ export default function Quotation() {
               <Col lg={5} md={6}>
                 <div className="amount-condition-wrapper border radius15 mb-3 mb-md-0">
                   <div className="p20 p10-md border-bottom">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div className="condition-content p20 p15-sm">
                     <ul>
@@ -543,7 +543,7 @@ export default function Quotation() {
               <Col lg={6}>
                 <div className="amount-condition-wrapper">
                   <div className="pb10">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div className="condition-content">
                     <ul>

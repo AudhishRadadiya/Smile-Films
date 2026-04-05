@@ -83,22 +83,18 @@ export default function Announcement({ hasAccess }) {
     }
     if (isUpdateAnnouncement) {
       dispatch(setIsUpdateAnnouncement(false));
+      resetForm();
+      dispatch(clearSelectedAnnouncementData());
     }
     if (isAddAnnouncement) {
       dispatch(setIsAddAnnouncement(false));
+      resetForm();
+      dispatch(clearSelectedAnnouncementData());
     }
     if (isDeleteAnnouncement) {
       dispatch(setIsDeleteAnnouncement(false));
     }
-  }, [
-    isAddAnnouncement,
-    isUpdateAnnouncement,
-    isDeleteAnnouncement,
-    dispatch,
-    announcementCurrentPage,
-    announcementPageLimit,
-    announcementSearchParam,
-  ]);
+  }, [dispatch, isAddAnnouncement, isUpdateAnnouncement, isDeleteAnnouncement]);
 
   const handleDelete = useCallback(() => {
     const deleteItemObj = {
@@ -125,8 +121,6 @@ export default function Announcement({ hasAccess }) {
       } else {
         dispatch(addAnnouncement(payload));
       }
-      resetForm();
-      dispatch(clearSelectedAnnouncementData());
     },
     [dispatch],
   );
@@ -221,11 +215,15 @@ export default function Announcement({ hasAccess }) {
           <Col xxl={7} lg={6}>
             <div className="announcement_create border radius15 mb20">
               <div className="py15 px20 border-bottom">
-                <h3 className="m-0">Announcement Create</h3>
+                <h3 className="m-0">
+                  {values?._id ? 'Update Announcement' : 'Create Announcement'}
+                </h3>
               </div>
               <div className="announcement_create_titile p20 p15-xs border-bottom">
                 <div className="form_group mb-3">
-                  <label>Write Title</label>
+                  <label>
+                    Write Title <span className="text-danger fs-6">*</span>
+                  </label>
                   <InputText
                     id="WriteTitle"
                     placeholder="Write Title"
@@ -266,14 +264,11 @@ export default function Announcement({ hasAccess }) {
               </div>
               {is_create_access && (
                 <div className="announcement_create_footer p15">
-                  <Row className="g-3">
+                  <Row className="g-3 align-items-center">
                     <Col xl={5} sm={6}>
                       <div className="form_group date_select_wrapper d-flex flex-wrap align-items-center">
-                        <label
-                          htmlFor="HideAfter"
-                          className="me-2 text-nowrap mb-0"
-                        >
-                          Hide After
+                        <label htmlFor="HideAfter" className="me-2 text-nowrap">
+                          Hide After <span className="text-danger fs-6">*</span>
                         </label>
                         <Calendar
                           id="HideAfter"
@@ -305,7 +300,7 @@ export default function Announcement({ hasAccess }) {
                           Cancel
                         </Button>
                         <Button className="btn_primary" onClick={handleSubmit}>
-                          Post
+                          {values?._id ? 'Update Post' : 'Save Post'}
                         </Button>
                       </div>
                     </Col>
@@ -320,6 +315,7 @@ export default function Announcement({ hasAccess }) {
       </div>
 
       <ConfirmDeletePopup
+        moduleName={'Announcement'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}

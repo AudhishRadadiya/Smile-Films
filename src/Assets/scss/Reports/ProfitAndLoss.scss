@@ -1,0 +1,79 @@
+.table_profit_loss {
+  height: calc(100% - 75px);
+  display: flex;
+  flex-wrap: wrap;
+
+  @media (max-width: 1199px) {
+    height: calc(100% - 110px);
+  }
+
+  .profit-income-title {
+    background-color: #f8f8f8;
+    padding: 15px 20px;
+  }
+
+  .income_wrap {
+    padding-right: 0px;
+    border-right: 1px solid #e5ebf0;
+  }
+
+  .table-bottom {
+    border-top: 1px solid #e5ebf0;
+    padding: 15px 20px;
+  }
+}
+
+.profit_data {
+  border-top: 1px solid #e5ebf0;
+  border-bottom: 1px solid #e5ebf0;
+  padding: 15px 20px;
+}
+
+.account_table {
+  padding-bottom: 30px;
+
+  thead,
+  tbody {
+    tr {
+      th,
+      td {
+        padding: 5px 20px;
+        border: none;
+      }
+
+      th {
+        // border-top: 1px solid #e5ebf0;
+        // border-bottom: 1px solid #e5ebf0;
+        background-color: #f3f5fb;
+        color: #8e7bf6;
+        text-align: center;
+      }
+    }
+  }
+}
+
+@media (max-width: 819px) {
+  .table_profit_loss {
+    height: calc(100% - 155px);
+    overflow: auto;
+
+    .profit-income-title,
+    .table-bottom {
+      padding: 10px;
+    }
+  }
+
+  .profit_data {
+    margin: 25px 0;
+  }
+
+  .profit_data {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 500px) {
+  .table_profit_loss {
+    height: calc(100% - 210px);
+  }
+}

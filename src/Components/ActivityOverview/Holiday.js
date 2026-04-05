@@ -26,15 +26,13 @@ import TrashIcon from '../../Assets/Images/trash.svg';
 import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
 import { getFormattedDate } from 'Helper/CommonHelper';
 
-const yearList = [
-  { label: '2023', value: 2023 },
-  { label: '2024', value: 2024 },
-];
-
 export default function Holiday({ hasAccess }) {
   const { is_create_access, is_delete_access, is_edit_access } = hasAccess;
   const dispatch = useDispatch();
-  const [createHolidayModal, setCreateHolidayModal] = useState(false);
+
+  const startYear = 2024;
+  const currentYear = new Date().getFullYear();
+
   const {
     selectedHolidayData,
     year,
@@ -47,8 +45,11 @@ export default function Holiday({ hasAccess }) {
     isUpdateHoliday,
     isDeleteHoliday,
   } = useSelector(({ holiday }) => holiday);
-  const [deletePopup, setDeletePopup] = useState(false);
+
+  const [isEdit, setIsEdit] = useState(false);
   const [deleteId, setDeleteId] = useState('');
+  const [deletePopup, setDeletePopup] = useState(false);
+  const [createHolidayModal, setCreateHolidayModal] = useState(false);
 
   useEffect(() => {
     if (isAddHoliday || isUpdateHoliday || isDeleteHoliday) {
@@ -110,6 +111,7 @@ export default function Holiday({ hasAccess }) {
       resetForm();
       dispatch(clearSelectedHolidayData());
       setCreateHolidayModal(false);
+      setIsEdit(false);
     },
     [dispatch],
   );
@@ -133,6 +135,7 @@ export default function Holiday({ hasAccess }) {
     resetForm();
     setCreateHolidayModal(false);
     dispatch(clearSelectedHolidayData());
+    setIsEdit(false);
   }, [resetForm, dispatch]);
 
   const handleChangeYear = useCallback(
@@ -151,6 +154,13 @@ export default function Holiday({ hasAccess }) {
     [dispatch],
   );
 
+  const generateYearOptions = useCallback(() => {
+    return Array.from({ length: currentYear - startYear + 1 }, (_, index) => {
+      const year = startYear + index;
+      return { label: `${year}`, value: year };
+    });
+  }, [startYear, currentYear]);
+
   const footerContent = (
     <div className="footer_wrap d-flex justify-content-end align-items-center">
       <div className="footer_button">
@@ -158,7 +168,7 @@ export default function Holiday({ hasAccess }) {
           Cancel
         </Button>
         <Button className="btn_primary" onClick={handleSubmit}>
-          Save
+          {isEdit ? 'Update' : 'Save'}
         </Button>
       </div>
     </div>
@@ -175,7 +185,7 @@ export default function Holiday({ hasAccess }) {
               <ReactSelectSingle
                 filter
                 id="year"
-                options={yearList}
+                options={generateYearOptions()}
                 value={year}
                 onChange={e => {
                   handleChangeYear(e);
@@ -220,6 +230,7 @@ export default function Holiday({ hasAccess }) {
                               <Button
                                 className="btn_transparent me-2"
                                 onClick={() => {
+                                  setIsEdit(true);
                                   dispatch(
                                     getHoliday({
                                       holiday_id: item?._id,
@@ -256,7 +267,7 @@ export default function Holiday({ hasAccess }) {
       </div>
 
       <Dialog
-        header="Add Holiday"
+        header={isEdit ? 'Edit Holiday' : 'Add Holiday'}
         visible={createHolidayModal}
         draggable={false}
         className="modal_Wrapper modal_small"
@@ -267,6 +278,10 @@ export default function Holiday({ hasAccess }) {
           <Row className="g-4">
             <Col sm={6}>
               <div className="form_group date_select_wrapper">
+                <label>
+                  Date
+                  <span className="text-danger fs-6">*</span>
+                </label>
                 <Calendar
                   id="HolidayDate"
                   placeholder="Date"
@@ -286,6 +301,10 @@ export default function Holiday({ hasAccess }) {
             </Col>
             <Col sm={6}>
               <div className="form_group">
+                <label>
+                  Name
+                  <span className="text-danger fs-6">*</span>
+                </label>
                 <InputText
                   id="Holiday"
                   placeholder="Write Holiday Name"
@@ -305,6 +324,7 @@ export default function Holiday({ hasAccess }) {
         </div>
       </Dialog>
       <ConfirmDeletePopup
+        moduleName={'Holiday'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}

@@ -3,7 +3,7 @@ import { Dialog } from 'primereact/dialog';
 import { memo } from 'react';
 
 const ConfirmDeletePopup = memo(
-  ({ deletePopup, setDeletePopup, handleDelete }) => {
+  ({ moduleName, deletePopup, setDeletePopup, handleDelete }) => {
     return (
       <>
         <Dialog
@@ -15,7 +15,9 @@ const ConfirmDeletePopup = memo(
         >
           <div className="delete_wrapper py-4">
             <p className="text-center">
-              Are you sure you want to delete this item?
+              {`Are you sure, You want to delete this ${
+                moduleName ? moduleName : ''
+              }?`}
             </p>
           </div>
           <div className="d-flex justify-content-center">

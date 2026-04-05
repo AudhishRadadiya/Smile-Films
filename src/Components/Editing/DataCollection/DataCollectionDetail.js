@@ -1,31 +1,28 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import moment from 'moment';
+import { useFormik } from 'formik';
+import ReactQuill from 'react-quill';
+import { toast } from 'react-toastify';
 import { Col, Row } from 'react-bootstrap';
-import ReactSelectSingle from '../../Common/ReactSelectSingle';
-import { Editor } from 'primereact/editor';
-import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
-import PlusIcon from '../../../Assets/Images/plus.svg';
-import TrashIcon from '../../../Assets/Images/trash.svg';
-import { MultiSelect } from 'primereact/multiselect';
-import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { ColumnGroup } from 'primereact/columngroup';
+import { Calendar } from 'primereact/calendar';
+import { InputText } from 'primereact/inputtext';
+import { DataTable } from 'primereact/datatable';
+import { InputNumber } from 'primereact/inputnumber';
+import { MultiSelect } from 'primereact/multiselect';
+import { useDispatch, useSelector } from 'react-redux';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+
+import {
+  addStep,
+  getStep,
+} from 'Store/Reducers/Editing/EditingFlow/EditingSlice';
 import {
   getClientCompany,
   getClientCompanyList,
   setIsAddClientCompany,
 } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
-import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
-import { getReferenceList } from 'Store/Reducers/Settings/Master/ReferenceSlice';
-import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
-import { useDispatch, useSelector } from 'react-redux';
-import Loader from 'Components/Common/Loader';
-import { getProductList } from 'Store/Reducers/Settings/Master/ProductSlice';
-import { getPackageList } from 'Store/Reducers/Settings/Master/PackageSlice';
-import { getInquiryNo } from 'Store/Reducers/ActivityOverview/inquirySlice';
-import { useFormik } from 'formik';
-import moment from 'moment';
 import {
   addDataCollection,
   clearAddSelectedDataCollectionData,
@@ -35,57 +32,69 @@ import {
   setIsGetInintialValuesDataCollection,
   setUpdateSelectedDataCollectionData,
 } from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
-import CreateClientCompanyInInquiry from 'Components/ActivityOverview/CreateClientCompanyInInquiry';
-import { getProjectTypeList } from 'Store/Reducers/Settings/Master/ProjectTypeSlice';
-import { Calendar } from 'primereact/calendar';
-import { totalCount } from 'Helper/CommonHelper';
-import { dataCollectionSchema } from 'Schema/Editing/dataCollectionSchema';
-import ReactQuill from 'react-quill';
+import Loader from 'Components/Common/Loader';
+import PlusIcon from '../../../Assets/Images/plus.svg';
+import TrashIcon from '../../../Assets/Images/trash.svg';
+import ReactSelectSingle from '../../Common/ReactSelectSingle';
+import { checkWordLimit } from 'Helper/CommonHelper';
 import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
-import { InputNumber } from 'primereact/inputnumber';
-import { toast } from 'react-toastify';
+import { dataCollectionSchema } from 'Schema/Editing/dataCollectionSchema';
+import { getInquiryNo } from 'Store/Reducers/ActivityOverview/inquirySlice';
 import { getDevicesList } from 'Store/Reducers/Settings/Master/DevicesSlice';
+import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
+import { getProductList } from 'Store/Reducers/Settings/Master/ProductSlice';
+import { getPackageList } from 'Store/Reducers/Settings/Master/PackageSlice';
+import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
+import { getReferenceList } from 'Store/Reducers/Settings/Master/ReferenceSlice';
+import { getProjectTypeList } from 'Store/Reducers/Settings/Master/ProjectTypeSlice';
+import { getDropdownGroupList } from 'Store/Reducers/Settings/AccountMaster/GroupSlice';
+import CreateClientCompanyInInquiry from 'Components/ActivityOverview/CreateClientCompanyInInquiry';
 
-export const JornalEntryData = [
-  {
-    description:
-      'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-    due_date: '27/06/2023',
-    quantity: '1',
-    data_size: '280 GB',
-  },
+const dataSizeType = [
+  { label: 'MB', value: 1 },
+  { label: 'GB', value: 2 },
+  { label: 'TB', value: 3 },
 ];
 
 export default function DataCollectionDetail({ initialValues }) {
+  const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { pathname, search } = useLocation();
+  const locationPath = pathname?.split('/');
+  const updateData = id && locationPath[1] === 'update-data-collection';
+
+  const queryParams = new URLSearchParams(search);
+  const paramValue = queryParams.get('param');
+
   const [createCompanyModal, setCreateCompanyModal] = useState(false);
   const [
     dropdownDataCollectionOptionList,
     setDropdownDataCollectionOptionList,
   ] = useState({
-    editingItemOptionList: [],
-    clientCompanyOptionList: [],
-    projectTypeOptionList: [],
     DataCollectionList: [],
+    editingItemOptionList: [],
+    projectTypeOptionList: [],
+    clientCompanyOptionList: [],
   });
 
-  const { isAddClientCompany, clientCompanyLoading } = useSelector(
-    ({ clientCompany }) => clientCompany,
-  );
-  const { countryLoading } = useSelector(({ country }) => country);
-  const { currencyLoading } = useSelector(({ currency }) => currency);
-  const { referenceLoading } = useSelector(({ references }) => references);
-  const { packageLoading } = useSelector(({ packages }) => packages);
-  const { productLoading } = useSelector(({ product }) => product);
-  const { devicesLoading } = useSelector(({ devices }) => devices);
   const {
     dataCollectionLoading,
     addSelectedDataCollectionData,
     updateSelectedDataCollectionData,
     isGetInintialValuesDataCollection,
   } = useSelector(({ dataCollection }) => dataCollection);
+  const { countryLoading } = useSelector(({ country }) => country);
+  const { devicesLoading } = useSelector(({ devices }) => devices);
+  const { productLoading } = useSelector(({ product }) => product);
+  const { packageLoading } = useSelector(({ packages }) => packages);
+  const { currencyLoading } = useSelector(({ currency }) => currency);
+  const { referenceLoading } = useSelector(({ references }) => references);
+  const { getStepData, stepLoading } = useSelector(({ editing }) => editing);
+  const { projectTypeLoading } = useSelector(({ projectType }) => projectType);
+  const { isAddClientCompany, clientCompanyLoading } = useSelector(
+    ({ clientCompany }) => clientCompany,
+  );
 
   const companyHandleChange = (fieldName, fieldValue) => {
     const responseData = {};
@@ -107,7 +116,7 @@ export default function DataCollectionDetail({ initialValues }) {
       .catch(error => {
         console.error('Error fetching employee data:', error);
       });
-    if (id) {
+    if (updateData) {
       dispatch(
         setUpdateSelectedDataCollectionData({
           ...updateSelectedDataCollectionData,
@@ -129,7 +138,7 @@ export default function DataCollectionDetail({ initialValues }) {
   };
 
   useEffect(() => {
-    if (!id) {
+    if (!updateData) {
       dispatch(getInquiryNo())
         .then(response => {
           const responseData = response.payload;
@@ -214,11 +223,15 @@ export default function DataCollectionDetail({ initialValues }) {
           }),
         )
           .then(response => {
-            const projectTypeData = response.payload?.data?.list?.map(item => ({
-              ...item,
-              label: item?.project_type,
-              value: item?._id,
-            }));
+            let projectTypeData = [];
+
+            if (response.payload?.data?.list?.length) {
+              projectTypeData = response.payload?.data?.list?.map(item => ({
+                ...item,
+                label: item?.project_type,
+                value: item?._id,
+              }));
+            }
 
             return { companyData, projectTypeData };
           })
@@ -229,15 +242,20 @@ export default function DataCollectionDetail({ initialValues }) {
                 limit: 0,
                 isActive: true,
                 search: '',
+                type: 1,
               }),
             )
               .then(response => {
-                const packageData = response.payload?.data?.list?.map(item => ({
-                  ...item,
-                  label: item?.package_name,
-                  value: item?._id,
-                  isPackage: true,
-                }));
+                let packageData = [];
+
+                if (response.payload?.data?.list?.length) {
+                  packageData = response.payload?.data?.list?.map(item => ({
+                    ...item,
+                    label: item?.package_name,
+                    value: item?._id,
+                    isPackage: true,
+                  }));
+                }
 
                 return { companyData, projectTypeData, packageData };
               })
@@ -248,21 +266,36 @@ export default function DataCollectionDetail({ initialValues }) {
                     limit: 0,
                     isActive: true,
                     search: '',
+                    type: 1,
                   }),
                 )
                   .then(response => {
-                    const productData = response.payload?.data?.list?.map(
-                      item => ({
+                    if (id) {
+                      dispatch(getStep({ order_id: id }));
+                    }
+
+                    let productData = [];
+
+                    if (response.payload?.data?.list?.length) {
+                      productData = response.payload?.data?.list?.map(item => ({
                         ...item,
                         label: item?.item_name,
                         value: item?._id,
                         isPackage: false,
-                      }),
-                    );
-                    let data = [
-                      { label: 'Package', items: [...packageData] },
-                      { label: 'Product', items: [...productData] },
+                      }));
+                    }
+
+                    const data = [
+                      {
+                        label: 'Package',
+                        items: packageData?.length ? [...packageData] : [],
+                      },
+                      {
+                        label: 'Product',
+                        items: productData?.length ? [...productData] : [],
+                      },
                     ];
+
                     setDropdownDataCollectionOptionList(prevState => ({
                       ...prevState,
                       clientCompanyOptionList: companyData,
@@ -330,6 +363,15 @@ export default function DataCollectionDetail({ initialValues }) {
         search: '',
       }),
     );
+
+    dispatch(
+      getDropdownGroupList({
+        start: 0,
+        limit: 0,
+        isActive: true,
+        search: '',
+      }),
+    );
   };
 
   const handleitemList = (fieldName, fieldValue, e) => {
@@ -345,8 +387,8 @@ export default function DataCollectionDetail({ initialValues }) {
           quantity: 1,
           due_date: '',
           description: data?.remark,
-          data_collection_source: [],
-          data_size: '',
+          // data_collection_source: [],
+          // data_size: '',
         };
       } else {
         newObj = {
@@ -355,8 +397,8 @@ export default function DataCollectionDetail({ initialValues }) {
           quantity: 1,
           due_date: '',
           description: data?.item_description,
-          data_collection_source: [],
-          data_size: '',
+          // data_collection_source: [],
+          // data_size: '',
         };
       }
       editingList = [...values?.editingTable, newObj];
@@ -365,17 +407,17 @@ export default function DataCollectionDetail({ initialValues }) {
         item => item?.item_id !== data?._id,
       );
     }
-    let totalDataCollection = totalCount(editingList, 'data_size');
-    setFieldValue('total_data_collection', totalDataCollection);
+    // let totalDataCollection = totalCount(editingList, 'data_size');
+    // setFieldValue('total_data_collection', totalDataCollection);
     setFieldValue('editingTable', editingList);
 
-    if (id) {
+    if (updateData) {
       dispatch(
         setUpdateSelectedDataCollectionData({
           ...updateSelectedDataCollectionData,
           [fieldName]: fieldValue,
           editingTable: editingList,
-          total_data_collection: totalDataCollection,
+          // total_data_collection: totalDataCollection,
         }),
       );
     } else {
@@ -384,7 +426,7 @@ export default function DataCollectionDetail({ initialValues }) {
           ...addSelectedDataCollectionData,
           [fieldName]: fieldValue,
           editingTable: editingList,
-          total_data_collection: totalDataCollection,
+          // total_data_collection: totalDataCollection,
         }),
       );
     }
@@ -396,26 +438,26 @@ export default function DataCollectionDetail({ initialValues }) {
     const editingList = [...values?.editingTable];
     const index = editingList?.findIndex(x => x?.item_id === item?.item_id);
     const oldObj = editingList[index];
-    let totalDataCollection = 0;
+    // let totalDataCollection = 0;
     const updatedObj = {
       ...oldObj,
       [fieldName]: fieldValue,
     };
     if (index >= 0) editingList[index] = updatedObj;
-    if (fieldName === 'data_size') {
-      totalDataCollection = totalCount(editingList, 'data_size');
-      setFieldValue('total_data_collection', totalDataCollection);
-    }
+    // if (fieldName === 'data_size') {
+    //   totalDataCollection = totalCount(editingList, 'data_size');
+    //   setFieldValue('total_data_collection', totalDataCollection);
+    // }
     setFieldValue('editingTable', editingList);
-    if (id) {
+    if (updateData) {
       dispatch(
         setUpdateSelectedDataCollectionData({
           ...updateSelectedDataCollectionData,
           [fieldName]: fieldValue,
           editingTable: editingList,
-          ...(fieldName === 'data_size' && {
-            total_data_collection: totalDataCollection,
-          }),
+          // ...(fieldName === 'data_size' && {
+          //   total_data_collection: totalDataCollection,
+          // }),
         }),
       );
     } else {
@@ -424,9 +466,9 @@ export default function DataCollectionDetail({ initialValues }) {
           ...addSelectedDataCollectionData,
           [fieldName]: fieldValue,
           editingTable: editingList,
-          ...(fieldName === 'data_size' && {
-            total_data_collection: totalDataCollection,
-          }),
+          // ...(fieldName === 'data_size' && {
+          //   total_data_collection: totalDataCollection,
+          // }),
         }),
       );
     }
@@ -440,60 +482,63 @@ export default function DataCollectionDetail({ initialValues }) {
     );
   };
 
-  const DataCollectionTemplate = data => {
-    return (
-      <div className="form_group d-flex">
-        <MultiSelect
-          value={data?.data_collection_source}
-          options={dropdownDataCollectionOptionList?.DataCollectionList}
-          name="data_collection_source"
-          onChange={e => {
-            handleEditingTableChange(data, e.target.name, e.target.value);
-          }}
-          placeholder="Data Collection Source"
-          className="w-100 me-2"
-          showSelectAll={false}
-          maxSelectedLabels={1}
-        />
-      </div>
-    );
-  };
+  // const DataCollectionTemplate = data => {
+  //   return (
+  //     <div className="form_group d-flex">
+  //       <MultiSelect
+  //         value={data?.data_collection_source}
+  //         options={dropdownDataCollectionOptionList?.DataCollectionList}
+  //         name="data_collection_source"
+  //         onChange={e => {
+  //           handleEditingTableChange(data, e.target.name, e.target.value);
+  //         }}
+  //         placeholder="Data Collection Source"
+  //         className="w-100 me-2"
+  //         showSelectAll={false}
+  //         maxSelectedLabels={1}
+  //       />
+  //     </div>
+  //   );
+  // };
 
-  const dataSizeBodyTemplate = data => {
-    return (
-      <div className="form_group d-flex">
-        {/* <InputText
-          id="Data Size"
-          placeholder="Data size"
-          name="data_size"
-          useGrouping={false}
-          value={data?.data_size}
-          onChange={e => {
-            handleEditingTableChange(data, e.target.name, e.target.value);
-          }}
-          required
-        /> */}
-        <InputNumber
-          id="Data Size"
-          placeholder="Data size"
-          name="data_size"
-          className="max_100"
-          useGrouping={false}
-          maxFractionDigits={2}
-          value={data?.data_size}
-          onBlur={handleBlur}
-          onChange={e => {
-            handleEditingTableChange(
-              data,
-              e.originalEvent.target.name,
-              e.value,
-            );
-          }}
-          required
-        />
-      </div>
-    );
-  };
+  // const dataSizeBodyTemplate = data => {
+  //   return (
+  //     <div className="form_group d-flex">
+  //       {/* <InputText
+  //         id="Data Size"
+  //         placeholder="Data size"
+  //         name="data_size"
+  //         useGrouping={false}
+  //         value={data?.data_size}
+  //         onChange={e => {
+  //           handleEditingTableChange(data, e.target.name, e.target.value);
+  //         }}
+  //         required
+  //       /> */}
+  //       <InputNumber
+  //         id="Data Size"
+  //         placeholder="Data size"
+  //         name="data_size"
+  //         className="max_100"
+  //         useGrouping={false}
+  //         maxFractionDigits={2}
+  //         value={data?.data_size}
+  //         onBlur={handleBlur}
+  //         maxLength="10"
+  //         onChange={e => {
+  //           if (!e.value || checkWordLimit(e.value, 10)) {
+  //             handleEditingTableChange(
+  //               data,
+  //               e.originalEvent.target.name,
+  //               e.value ? e.value : '',
+  //             );
+  //           }
+  //         }}
+  //         required
+  //       />
+  //     </div>
+  //   );
+  // };
 
   const dueDateBodyTemplate = data => {
     return (
@@ -507,9 +552,10 @@ export default function DataCollectionDetail({ initialValues }) {
           name="due_date"
           readOnlyInput
           onChange={e => {
-            const utcDate = new Date(e.value);
+            const utcDate = new Date(e.value ? e.value : '');
             handleEditingTableChange(data, e.target.name, utcDate);
           }}
+          showButtonBar
         />
       </div>
     );
@@ -530,21 +576,16 @@ export default function DataCollectionDetail({ initialValues }) {
   };
 
   const descriptionBodyTemplate = data => {
-    // return (
-    //   <div className="max_500">
-    //     <p>{data?.description}</p>
-    //   </div>
-    // );
     return (
       <div
-        className="max_700 editor_text_wrapper"
+        className="max_250 editor_text_wrapper"
         dangerouslySetInnerHTML={{ __html: data?.description }}
       />
     );
   };
 
   const commonUpdateFieldValue = (fieldName, fieldValue) => {
-    if (id) {
+    if (updateData) {
       dispatch(
         setUpdateSelectedDataCollectionData({
           ...updateSelectedDataCollectionData,
@@ -563,109 +604,165 @@ export default function DataCollectionDetail({ initialValues }) {
     setFieldValue(fieldName, fieldValue);
   };
 
-  const submitHandle = useCallback(async values => {
-    const isDataCollectionSource = values?.editingTable?.some(item => {
-      return item?.data_collection_source.length === 0;
-    });
+  const submitHandle = useCallback(
+    async values => {
+      // const isDataCollectionSource = values?.editingTable?.some(item => {
+      //   return item?.data_collection_source.length === 0;
+      // });
 
-    const isDueDate = values?.editingTable?.some(item => {
-      return !item?.due_date;
-    });
+      const isDueDate = values?.editingTable?.some(item => {
+        return !item?.due_date;
+      });
 
-    const isDataSize = values?.editingTable?.some(item => {
-      return !item?.data_size;
-    });
+      // const isDataSize = values?.editingTable?.some(item => {
+      //   return !item?.data_size;
+      // });
 
-    if (!isDataCollectionSource && !isDataSize && !isDueDate) {
-      if (id) {
-        let updatedList = values?.editingTable?.map(d => {
-          return {
-            ...d,
-            orderItems_id: d?._id,
-          };
-        });
-        let payload = {
-          order_id: id,
-          create_date: values?.create_date
-            ? moment(values?.create_date).format('YYYY-MM-DD')
-            : '',
-          client_company_id: values?.client_company_id,
-          remark: values?.remark,
-          couple_name: values?.couple_name,
-          project_type: values?.project_type,
-          data_collection: updatedList,
-        };
-        dispatch(editDataCollection(payload));
-        dispatch(
-          setIsGetInintialValuesDataCollection({
-            ...isGetInintialValuesDataCollection,
-            update: false,
-          }),
-        );
-        dispatch(clearUpdateSelectedDataCollectionData());
+      // if (isDataCollectionSource) {
+      //   toast.error(
+      //     'Data Collection Source in Data Collection Details is Required',
+      //   );
+      // }
+
+      // if (isDataSize) {
+      //   toast.error('Data Size in Data Collection Details is Required');
+      // }
+
+      if (isDueDate) {
+        toast.error('Due Date in Data Collection Details is Required');
       } else {
+        let navigationLink = '';
+        let orderId = '';
+
         let payload = {
-          inquiry_no: values?.inquiry_no,
+          ...(id ? { order_id: id } : { inquiry_no: values?.inquiry_no }),
           create_date: values?.create_date
             ? moment(values?.create_date).format('YYYY-MM-DD')
             : '',
-          client_company_id: values?.client_company_id,
           remark: values?.remark,
           couple_name: values?.couple_name,
           project_type: values?.project_type,
-          data_collection: values?.editingTable,
+          data_collection_source: values?.data_collection_source,
+          data_size: values?.data_size,
+          data_size_type: values?.data_size_type,
+          client_company_id: values?.client_company_id,
+          ...(!updateData && { data_collection: values?.editingTable }),
+          editing_hour: values?.editing_hour ? values?.editing_hour : 0,
+          editing_minute: values?.editing_minute ? values?.editing_minute : 0,
+          editing_second: values?.editing_second ? values?.editing_second : 0,
         };
-        dispatch(addDataCollection(payload));
-        dispatch(
-          setIsGetInintialValuesDataCollection({
-            ...isGetInintialValuesDataCollection,
-            add: false,
-          }),
-        );
-        dispatch(clearAddSelectedDataCollectionData());
-      }
-      navigate('/data-collection');
-    } else {
-      toast.error('Data Collection Details Are Required');
-    }
-  }, []);
 
-  const { values, errors, touched, setFieldValue, handleBlur, handleSubmit } =
-    useFormik({
-      enableReinitialize: true,
-      initialValues: initialValues,
-      validationSchema: dataCollectionSchema,
-      onSubmit: submitHandle,
-    });
-  const footerGroup = (
-    <ColumnGroup>
-      <Row>
-        <Column className="text-start" footer="Total Data Collection" />
-        <Column
-          className="text-end"
-          footer={`${values?.total_data_collection} GB`}
-          colSpan={5}
-        />
-      </Row>
-    </ColumnGroup>
+        if (updateData) {
+          let updatedList = values?.editingTable?.map(d => {
+            return {
+              ...d,
+              orderItems_id: d?._id,
+            };
+          });
+
+          payload = {
+            ...payload,
+            data_collection: updatedList,
+          };
+
+          await dispatch(editDataCollection(payload));
+
+          dispatch(
+            setIsGetInintialValuesDataCollection({
+              ...isGetInintialValuesDataCollection,
+              update: false,
+            }),
+          );
+          dispatch(clearUpdateSelectedDataCollectionData());
+          orderId = id;
+
+          if (paramValue === 'editing') {
+            navigationLink = `/editing-flow/${id}`;
+          } else {
+            navigationLink = '/data-collection';
+          }
+        } else {
+          const res = await dispatch(addDataCollection(payload));
+
+          dispatch(
+            setIsGetInintialValuesDataCollection({
+              ...isGetInintialValuesDataCollection,
+              add: false,
+            }),
+          );
+          dispatch(clearAddSelectedDataCollectionData());
+          orderId = res?.payload?.data?._id;
+          navigationLink = '/editing';
+        }
+
+        if (!getStepData?.step || getStepData?.step < 1) {
+          let addStepPayload = {
+            step: 1,
+            order_id: orderId,
+          };
+
+          // Its use for completing the data-collection step in Editing:
+          await dispatch(addStep(addStepPayload));
+        }
+
+        navigate(navigationLink);
+      }
+    },
+    [
+      id,
+      dispatch,
+      navigate,
+      paramValue,
+      updateData,
+      getStepData,
+      isGetInintialValuesDataCollection,
+    ],
   );
+
+  const {
+    values,
+    errors,
+    touched,
+    setFieldValue,
+    handleBlur,
+    handleChange,
+    handleSubmit,
+  } = useFormik({
+    enableReinitialize: true,
+    initialValues: initialValues,
+    validationSchema: dataCollectionSchema,
+    onSubmit: submitHandle,
+  });
+
+  // const footerGroup = (
+  //   <ColumnGroup>
+  //     <Row>
+  //       <Column className="text-start" footer="Total Data Collection" />
+  //       <Column
+  //         className="text-end"
+  //         footer={`${values?.total_data_collection} GB`}
+  //         colSpan={5}
+  //       />
+  //     </Row>
+  //   </ColumnGroup>
+  // );
 
   const handleDeleteEditingItem = item => {
     let dummyList = values?.editingTable.filter(
       d => d?.item_id !== item?.item_id,
     );
-    const totalDataCollection = totalCount(dummyList, 'data_size');
-    setFieldValue('total_data_collection', totalDataCollection);
+    // const totalDataCollection = totalCount(dummyList, 'data_size');
+    // setFieldValue('total_data_collection', totalDataCollection);
     setFieldValue('editingTable', dummyList);
     let itemData = values?.editing_inquiry?.filter(d => d !== item?.item_id);
     setFieldValue('editing_inquiry', itemData);
-    if (id) {
+    if (updateData) {
       dispatch(
         setUpdateSelectedDataCollectionData({
           ...updateSelectedDataCollectionData,
           editingTable: dummyList,
           editing_inquiry: itemData,
-          total_data_collection: totalDataCollection,
+          // total_data_collection: totalDataCollection,
         }),
       );
     } else {
@@ -674,14 +771,14 @@ export default function DataCollectionDetail({ initialValues }) {
           ...addSelectedDataCollectionData,
           editingTable: dummyList,
           editing_inquiry: itemData,
-          total_data_collection: totalDataCollection,
+          // total_data_collection: totalDataCollection,
         }),
       );
     }
   };
 
   const handleCancel = () => {
-    if (id) {
+    if (updateData) {
       dispatch(
         setIsGetInintialValuesDataCollection({
           ...isGetInintialValuesDataCollection,
@@ -710,28 +807,17 @@ export default function DataCollectionDetail({ initialValues }) {
         packageLoading ||
         productLoading ||
         devicesLoading ||
-        dataCollectionLoading) && <Loader />}
+        projectTypeLoading ||
+        dataCollectionLoading ||
+        stepLoading) && <Loader />}
       <div className="add_data_collection_wrap bg-white radius15 border">
         <div className="px20 py15 border-bottom">
-          <Row className="align-items-center gy-3">
-            <Col sm={6}>
-              <h2 className="m-0">Data Collection</h2>
-            </Col>
-            <Col sm={6}>
-              <div className="title_right_wrapper">
-                <ul>
-                  <li>
-                    <Button onClick={handleCancel} className="btn_border_dark">
-                      Exit Page
-                    </Button>
-                  </li>
-                  <li>
-                    <Button onClick={handleSubmit} className="btn_primary">
-                      Save
-                    </Button>
-                  </li>
-                </ul>
-              </div>
+          <Row className="align-items-center">
+            <Col sm={12}>
+              <h2 className="m-0">
+                {' '}
+                {updateData ? 'Update Data Collection' : 'Add Data Collection'}
+              </h2>
             </Col>
           </Row>
         </div>
@@ -749,12 +835,12 @@ export default function DataCollectionDetail({ initialValues }) {
                   </li>
                   <li>
                     <h6>Create Date</h6>
-                    <h4>{moment(values.create_date)?.format('YYYY-MM-DD')}</h4>
+                    <h4>{moment(values.create_date)?.format('DD-MM-YYYY')}</h4>
                     {touched?.create_date && errors?.create_date && (
                       <p className="text-danger">{errors?.create_date}</p>
                     )}
                   </li>
-                  {id && (
+                  {updateData && (
                     <li>
                       <h6>Confirm By</h6>
                       <h4>{values?.confirm_by}</h4>
@@ -765,7 +851,9 @@ export default function DataCollectionDetail({ initialValues }) {
               <Row>
                 <Col sm={6}>
                   <div className="form_group mb-3">
-                    <label>Company</label>
+                    <label>
+                      Company<span className="text-danger fs-6">*</span>
+                    </label>
                     <ReactSelectSingle
                       filter
                       value={values?.client_company_id}
@@ -790,7 +878,7 @@ export default function DataCollectionDetail({ initialValues }) {
                 </Col>
                 <Col sm={6}>
                   <div className="form_group mb-3">
-                    {!id && (
+                    {!updateData && (
                       <Button
                         className="btn_primary mt25"
                         onClick={() => {
@@ -808,7 +896,7 @@ export default function DataCollectionDetail({ initialValues }) {
                     <label htmlFor="ClientName">Client Name</label>
                     <InputText
                       id="ClientName"
-                      placeholder="Enter Name"
+                      placeholder="Enter Client Name"
                       className="input_wrap"
                       name="client_full_name"
                       value={values?.client_full_name}
@@ -818,19 +906,20 @@ export default function DataCollectionDetail({ initialValues }) {
                 </Col>
                 <Col sm={6}>
                   <div className="form_group mb-3">
-                    <label htmlFor="CoupleName">Couple Name</label>
+                    <label htmlFor="CoupleName">
+                      Couple Name<span className="text-danger fs-6">*</span>
+                    </label>
                     <InputText
                       id="CoupleName"
-                      placeholder="Enter Name"
-                      className="input_wrap"
                       name="couple_name"
+                      className="input_wrap"
+                      placeholder="Enter Couple Name"
                       value={values?.couple_name}
                       onBlur={handleBlur}
                       onChange={e => {
                         commonUpdateFieldValue(e.target.name, e.target.value);
                       }}
                     />
-
                     {touched?.couple_name && errors?.couple_name && (
                       <p className="text-danger">{errors?.couple_name}</p>
                     )}
@@ -862,13 +951,92 @@ export default function DataCollectionDetail({ initialValues }) {
                     />
                   </div>
                 </Col>
+                <Col sm={6}>
+                  <div className="form_group mb-3">
+                    <label htmlFor="CoupleName">
+                      Data Collection Source
+                      <span className="text-danger fs-6">*</span>
+                    </label>
+                    <MultiSelect
+                      value={values?.data_collection_source}
+                      options={
+                        dropdownDataCollectionOptionList?.DataCollectionList
+                      }
+                      name="data_collection_source"
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      placeholder="Data Collection Source"
+                      className="w-100 me-2"
+                      showSelectAll={false}
+                      maxSelectedLabels={3}
+                    />
+                    {touched?.data_collection_source &&
+                      errors?.data_collection_source && (
+                        <p className="text-danger">
+                          {errors?.data_collection_source}
+                        </p>
+                      )}
+                  </div>
+                </Col>
+                <Col sm={6}>
+                  <Row>
+                    <Col sm={6}>
+                      <div className="form_group mb-3">
+                        <label htmlFor="DataSize">
+                          Data Size<span className="text-danger fs-6">*</span>
+                        </label>
+                        <InputNumber
+                          name="data_size"
+                          placeholder="Enter Data Size"
+                          value={values?.data_size}
+                          onChange={e => {
+                            if (!e.value || checkWordLimit(e.value, 10)) {
+                              setFieldValue('data_size', e.value);
+                            }
+                          }}
+                          maxLength="10"
+                          useGrouping={false}
+                          onBlur={handleBlur}
+                          maxFractionDigits={2}
+                        />
+                        {touched?.data_size && errors?.data_size && (
+                          <p className="text-danger">{errors?.data_size}</p>
+                        )}
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="form_group mb-3">
+                        <label>
+                          Data Size Unit
+                          <span className="text-danger fs-6">*</span>
+                        </label>
+                        <ReactSelectSingle
+                          filter
+                          name="data_size_type"
+                          value={values?.data_size_type}
+                          options={dataSizeType}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          placeholder="Data Size Unit"
+                        />
+                        {touched?.data_size_type && errors?.data_size_type && (
+                          <p className="text-danger">
+                            {errors?.data_size_type}
+                          </p>
+                        )}
+                      </div>
+                    </Col>
+                  </Row>
+                </Col>
               </Row>
             </Col>
             <Col lg={6}>
               <Row>
                 <Col sm={6}>
                   <div className="form_group mb-3">
-                    <label>Project Type</label>
+                    <label>
+                      Project Type<span className="text-danger fs-6">*</span>
+                    </label>
                     <ReactSelectSingle
                       filter
                       value={values?.project_type}
@@ -882,10 +1050,77 @@ export default function DataCollectionDetail({ initialValues }) {
                       onBlur={handleBlur}
                       placeholder="Project Type"
                     />
+                    {touched?.project_type && errors?.project_type && (
+                      <p className="text-danger">{errors?.project_type}</p>
+                    )}
+                  </div>
+                </Col>
+                <Col sm={6}>
+                  <div className="form_group input_time mb-3">
+                    <label>
+                      Total Hours <span className="text-danger fs-6">*</span>
+                    </label>
+                    <div className="d-md-flex align-items-center justify-content-start">
+                      <InputNumber
+                        name="editing_hour"
+                        placeholder="HH"
+                        value={values?.editing_hour}
+                        className="mb-2"
+                        onChange={e => {
+                          setFieldValue('editing_hour', e?.value);
+                        }}
+                        useGrouping={false}
+                        minFractionDigits={0}
+                        min={0}
+                      />
+                      <span className="px-1">
+                        {'H'} {':'}
+                      </span>
+                      <InputNumber
+                        name="editing_minute"
+                        placeholder="MM"
+                        value={values?.editing_minute}
+                        className="mb-2"
+                        onChange={e => {
+                          setFieldValue('editing_minute', e?.value);
+                        }}
+                        useGrouping={false}
+                        minFractionDigits={0}
+                        min={0}
+                      />
+                      <span className="px-1">
+                        {'M'} {':'}
+                      </span>
+                      <InputNumber
+                        name="editing_second"
+                        placeholder="SS"
+                        value={values?.editing_second}
+                        className="mb-2"
+                        onChange={e => {
+                          setFieldValue('editing_second', e?.value);
+                        }}
+                        useGrouping={false}
+                        minFractionDigits={0}
+                        min={0}
+                      />
+                      <span className="px-1">{'S'}</span>
+                    </div>
+                    {(touched?.editing_hour ||
+                      touched?.editing_minute ||
+                      touched?.editing_second) &&
+                      (errors?.editing_hour ||
+                        errors?.editing_minute ||
+                        errors?.editing_second) && (
+                        <p className="text-danger">
+                          {errors?.editing_hour ||
+                            errors?.editing_minute ||
+                            errors?.editing_second}
+                        </p>
+                      )}
                   </div>
                 </Col>
                 <div className="form_group">
-                  <label>Remark</label>
+                  <label>Description</label>
                   {/* <Editor
                     name="remark"
                     value={values?.remark || ''}
@@ -905,7 +1140,9 @@ export default function DataCollectionDetail({ initialValues }) {
               </Row>
             </Col>
           </Row>
-          <h3 className="mt10 mb20">Data Collection Details</h3>
+          <h3 className="mt10 mb20">
+            Data Collection Details<span className="text-danger fs-6">*</span>
+          </h3>
           <Row>
             <Col xl={3} md={6}>
               <div className="form_group mb-3">
@@ -942,26 +1179,21 @@ export default function DataCollectionDetail({ initialValues }) {
               sortField="item_name"
               sortOrder={1}
               rows={10}
-              footerColumnGroup={footerGroup}
+              // footerColumnGroup={footerGroup}
             >
-              <Column
-                field="item_name"
-                header="Item"
-                sortable
-                // body={ItemsBodyTemplate}
-              ></Column>
+              <Column field="item_name" header="Item" sortable></Column>
               <Column
                 field="description"
                 header="Description"
                 sortable
                 body={descriptionBodyTemplate}
               ></Column>
-              <Column
+              {/* <Column
                 field="data_collection_source"
                 header="Data Collection Source"
                 sortable
                 body={DataCollectionTemplate}
-              ></Column>
+              ></Column> */}
               <Column
                 field="due_date"
                 header="Due Date"
@@ -969,18 +1201,36 @@ export default function DataCollectionDetail({ initialValues }) {
                 body={dueDateBodyTemplate}
               ></Column>
               <Column field="quantity" header="Quantity" sortable></Column>
-              <Column
+              {/* <Column
                 field="data_size"
                 header="Data Size (GB)"
                 sortable
                 body={dataSizeBodyTemplate}
-              ></Column>
+              ></Column> */}
               <Column
                 field="action"
                 header="Action"
                 body={actionBodyTemplate}
               ></Column>
             </DataTable>
+          </div>
+          <div className="title_right_wrapper mt-3">
+            <ul className="justify-content-end">
+              <li>
+                <Button onClick={handleCancel} className="btn_border_dark">
+                  Exit Page
+                </Button>
+              </li>
+              <li>
+                <Button
+                  type="submit"
+                  onClick={handleSubmit}
+                  className="btn_primary"
+                >
+                  {updateData ? 'Update' : 'Save'}
+                </Button>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

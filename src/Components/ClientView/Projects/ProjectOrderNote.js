@@ -1,20 +1,19 @@
-import { Button } from 'primereact/button';
-import { Dialog } from 'primereact/dialog';
-import { Editor } from 'primereact/editor';
-import { useCallback, useEffect, useState } from 'react';
-import PlusIcon from '../../../Assets/Images/plus.svg';
-import { useParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import Loader from 'Components/Common/Loader';
+import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
+import { clientOrderNoteSchema } from 'Schema/ClientFlow/ClientSchema';
 import {
   addClientOrderNote,
   getClientOrderNote,
   setIsAddClientOrderNote,
 } from 'Store/Reducers/ClientFlow/Project/ClientProjectSlice';
 import { useFormik } from 'formik';
-import { clientOrderNoteSchema } from 'Schema/ClientFlow/ClientSchema';
-import Loader from 'Components/Common/Loader';
+import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
+import { useCallback, useEffect, useState } from 'react';
 import ReactQuill from 'react-quill';
-import { quillFormats, quillModules } from 'Helper/reactQuillHelper';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
+import PlusIcon from '../../../Assets/Images/plus.svg';
 
 export default function ProjectOrderNote() {
   const dispatch = useDispatch();
@@ -57,13 +56,20 @@ export default function ProjectOrderNote() {
     [dispatch],
   );
 
-  const { values, errors, touched, handleSubmit, resetForm, setFieldValue } =
-    useFormik({
-      enableReinitialize: true,
-      initialValues: clientOrderNoteData,
-      validationSchema: clientOrderNoteSchema,
-      onSubmit: submitHandle,
-    });
+  const {
+    values,
+    errors,
+    touched,
+    handleSubmit,
+    resetForm,
+    setFieldValue,
+    setValues,
+  } = useFormik({
+    enableReinitialize: true,
+    initialValues: clientOrderNoteData,
+    validationSchema: clientOrderNoteSchema,
+    onSubmit: submitHandle,
+  });
 
   const footerContent = (
     <div className="footer_wrap d-flex justify-content-between align-items-center">
@@ -119,7 +125,13 @@ export default function ProjectOrderNote() {
           <div class="delete_btn_wrap mt-auto p-0 text-end">
             <Button
               className="btn_primary filter_btn"
-              onClick={() => setVisible(true)}
+              onClick={() => {
+                setVisible(true);
+                setValues({
+                  ...values,
+                  order_note: ClientOrderNoteList?.order_note,
+                });
+              }}
             >
               <img src={PlusIcon} alt="PlusIcon" /> Create
             </Button>

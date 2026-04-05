@@ -32,6 +32,16 @@
     color: $primary;
   }
 }
+
+.hover_column_text {
+  color: $primary;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover {
+    color: $textLight;
+  }
+}
+
 .item_name_with_tooltip {
   max-width: 200px;
   text-overflow: ellipsis;
@@ -100,6 +110,13 @@
         background-color: #fff;
         width: 100%;
         margin: 0 0 10px;
+        &.background_animation_color {
+          background-size: 100% 200%;
+          transition: background-position 1s;
+          &:hover {
+            background-position: 0% 100%;
+          }
+        }
         .company_header {
           display: flex;
           align-items: center;
@@ -154,6 +171,9 @@
       .company_logo {
         background: #fadcb0;
       }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #fadcb0 100%);
+      }
     }
     &.pending_quotes {
       &:before {
@@ -161,6 +181,9 @@
       }
       .company_logo {
         background: #a3d8ff;
+      }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #a3d8ff 100%);
       }
     }
     &.unassigned_to_editor {
@@ -170,6 +193,9 @@
       .company_logo {
         background: #c8befb;
       }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #c8befb 100%);
+      }
     }
     &.running_projects {
       &:before {
@@ -177,6 +203,9 @@
       }
       .company_logo {
         background: #efb0b0;
+      }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #efb0b0 100%);
       }
     }
     &.in_checking_projects {
@@ -186,6 +215,9 @@
       .company_logo {
         background: #feaf76;
       }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #feaf76 100%);
+      }
     }
     &.export_projects {
       &:before {
@@ -193,6 +225,9 @@
       }
       .company_logo {
         background: #ab9df8;
+      }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #ab9df8 100%);
       }
     }
     &.complete_projects {
@@ -202,6 +237,9 @@
       .company_logo {
         background: #bfe0c9;
       }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #bfe0c9 100%);
+      }
     }
     &.rework_projects {
       &:before {
@@ -209,6 +247,9 @@
       }
       .company_logo {
         background: #e0bfd3;
+      }
+      .background_animation_color {
+        background: linear-gradient(to bottom, #fff 50%, #e0bfd3 100%);
       }
     }
   }
@@ -327,6 +368,7 @@
             color: #1b1d28;
             border: 1px solid #dee2e6;
             border-width: 1px 0 1px 0;
+            white-space: normal;
             p.wrap_content_xl {
               white-space: break-spaces;
               width: 540px;
@@ -342,6 +384,23 @@
               background: #f9f9fb;
               &:last-child {
                 text-align: center;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  &.reporting_user_individual {
+    .table-responsive {
+      table {
+        thead {
+          tr {
+            th {
+              span {
+                &::before {
+                  display: none;
+                }
               }
             }
           }

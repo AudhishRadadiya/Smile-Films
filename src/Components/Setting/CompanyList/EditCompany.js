@@ -10,11 +10,14 @@ import {
 
 export default function EditCompany() {
   const { id } = useParams();
+
   const dispatch = useDispatch();
+
   const { isGetInitialValues, updateSelectedCompanyData } = useSelector(
     ({ company }) => company,
   );
   const [initialData, setInitialData] = useState({});
+
   useEffect(() => {
     if (id) {
       if (isGetInitialValues?.update === true) {
@@ -26,7 +29,11 @@ export default function EditCompany() {
 
         dispatch(getCompany({ company_id: id }))
           .then(response => {
-            const responseData = response.payload;
+            const responseData = {
+              ...response.payload,
+              company_id: id,
+              admin_password: '',
+            };
             setInitialData(responseData);
             dispatch(setUpdateSelectedCompanyData(responseData));
           })

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
-import { Link } from 'react-router-dom';
-import { InputText } from 'primereact/inputtext';
+import { Link, useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { ColumnGroup } from 'primereact/columngroup';
@@ -11,61 +10,70 @@ import ShowIcon from '../../../Assets/Images/show-icon.svg';
 import EditIcon from '../../../Assets/Images/edit.svg';
 import LogoImg from '../../../Assets/Images/logo.svg';
 import DownloadIcon from '../../../Assets/Images/download-icon.svg';
-
-export const JournalData = [
-  {
-    cr_db: 'CR',
-    client_name: 'ABC Company',
-    debit: '₹ 0.00',
-    credit: '₹ 25,000',
-  },
-  {
-    cr_db: 'CR',
-    client_name: 'ABC Company',
-    debit: '₹ 0.00',
-    credit: '₹ 25,000',
-  },
-];
-
-export const EntryDetailsData = [
-  {
-    cr_db: 'CR',
-    client: 'ABC Company',
-    debit: '₹ 0.00',
-    credit: '₹ 25,000',
-  },
-  {
-    cr_db: 'DB',
-    client: 'ABC Company',
-    debit: '₹ 0.00',
-    credit: '₹ 25,000',
-  },
-];
+import { useParams } from 'react-router-dom';
+import { getJournalEntry } from 'Store/Reducers/Accounting/JournalEntry/JournalEntrySlice';
+import { useDispatch, useSelector } from 'react-redux';
+import moment from 'moment';
+import Loader from './../../Common/Loader';
 
 export default function ViewJournalEntry() {
-  const [visible, setVisible] = useState(false);
+  const dispatch = useDispatch();
 
-  const JournalFooterGroup = (
+  const { id } = useParams();
+  const { getJournalEntryLoading } = useSelector(
+    ({ journalEntry }) => journalEntry,
+  );
+  const [getJournalEntryDataFromAPI, setGetJournalEntryDataFromAPI] = useState(
+    [],
+  );
+
+  const [visible, setVisible] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    dispatch(getJournalEntry({ journal_entry_id: id }))
+      .then(res => {
+        setGetJournalEntryDataFromAPI(res?.payload);
+      })
+      .catch(err => {
+        console.error('Error while Fetching Journal Entry Data', err);
+      });
+  }, []);
+
+  const JournalFooterGroup = data => (
     <ColumnGroup>
       <Row>
         <Column className="text-end" footer="Total Amount" colSpan={2} />
-        <Column footer="₹ 25,000" />
-        <Column footer="₹ 25,000" />
+        <Column footer={`₹ ${data?.[0].credit ? data?.[0].credit : 0}`} />
+        <Column footer={`₹ ${data?.[1].debit ? data?.[1].debit : 0}`} />
       </Row>
     </ColumnGroup>
   );
 
-  const EntryfooterGroup = (
+  const EntryfooterGroup = data => (
     <ColumnGroup>
       <Row>
         <Column footer="Total Amount" colSpan={3} />
-        <Column footer="₹ 45,000" colSpan={2} />
+        <Column
+          footer={`₹ ${data?.total_amount ? data?.total_amount : 0}`}
+          colSpan={2}
+        />
       </Row>
     </ColumnGroup>
   );
 
+  const crDb = data => {
+    return data.type === 1 ? 'CR' : 'DB';
+  };
+  const AccountTemplate = data => {
+    return data.type === 1
+      ? data?.receive_client_name
+      : data?.payment_company_name;
+  };
+
   return (
     <div className="main_Wrapper">
+      {getJournalEntryLoading && <Loader />}
       <div className="bg-white radius15 border h-100">
         <div className="billing_heading">
           <Row className="align-items-center gy-3">
@@ -86,7 +94,14 @@ export default function ViewJournalEntry() {
                   <Dialog
                     header={
                       <div className="dialog_logo">
-                        <img src={LogoImg} alt="" />
+                        <img
+                          src={
+                            getJournalEntryDataFromAPI?.company_logo
+                              ? getJournalEntryDataFromAPI?.company_logo
+                              : LogoImg
+                          }
+                          alt=""
+                        />
                       </div>
                     }
                     className="modal_Wrapper payment_dialog"
@@ -100,30 +115,56 @@ export default function ViewJournalEntry() {
                     <div className="delete_popup_wrapper">
                       <div className="client_payment_details">
                         <div className="voucher_head">
-                          <h5>Smile Films</h5>
+                          <h5>
+                            {getJournalEntryDataFromAPI?.company_name
+                              ? getJournalEntryDataFromAPI?.company_name
+                              : ''}
+                          </h5>
                         </div>
                         <Row className="justify-content-between gy-3">
                           <Col sm={5}>
                             <div className="user_bank_details">
                               <h5>
-                                Payment By : <span>ABC Company</span>
+                                Payment By: {'  '}
+                                <span>
+                                  {getJournalEntryDataFromAPI?.payment_company_name
+                                    ? getJournalEntryDataFromAPI?.payment_company_name
+                                    : ''}
+                                </span>
                               </h5>
                             </div>
                             <div className="user_bank_details">
                               <h5>
-                                Receive by : <span>BCD Company</span>
+                                Receive by:{' '}
+                                <span>
+                                  {getJournalEntryDataFromAPI?.receive_client_name
+                                    ? getJournalEntryDataFromAPI?.receive_client_name
+                                    : ''}
+                                </span>
                               </h5>
                             </div>
                           </Col>
                           <Col sm={5}>
                             <div className="user_bank_details bank_details_light">
                               <h5>
-                                Payment No <span>#52123</span>
+                                Payment No
+                                <span>
+                                  {getJournalEntryDataFromAPI?.payment_no
+                                    ? getJournalEntryDataFromAPI?.payment_no
+                                    : 0}
+                                </span>
                               </h5>
                             </div>
                             <div className="user_bank_details bank_details_light">
                               <h5>
-                                Payment Date <span>20 May 20219</span>
+                                Payment Date
+                                <span>
+                                  {getJournalEntryDataFromAPI?.create_date
+                                    ? moment(
+                                        getJournalEntryDataFromAPI?.create_date,
+                                      ).format('DD-MM-YYYY')
+                                    : ''}
+                                </span>
                               </h5>
                             </div>
                           </Col>
@@ -131,40 +172,47 @@ export default function ViewJournalEntry() {
                       </div>
                       <div className="data_table_wrapper max_height border radius15 overflow-hidden">
                         <DataTable
-                          value={EntryDetailsData}
+                          value={
+                            getJournalEntryDataFromAPI?.journalEntryDetails
+                              ? getJournalEntryDataFromAPI?.journalEntryDetails
+                              : []
+                          }
                           sortField="price"
                           sortOrder={1}
                           rows={10}
-                          footerColumnGroup={EntryfooterGroup}
+                          footerColumnGroup={EntryfooterGroup(
+                            getJournalEntryDataFromAPI,
+                          )}
                         >
                           <Column
                             field="cr_db"
                             header="CR/DB"
-                            sortable
+                            body={crDb}
                           ></Column>
                           <Column
-                            field="client"
-                            header="Client"
-                            sortable
+                            field="account_id"
+                            header="Account Name"
+                            body={AccountTemplate}
                           ></Column>
-                          <Column
-                            field="debit"
-                            header="Debit"
-                            sortable
-                          ></Column>
-                          <Column
-                            field="credit"
-                            header="Credit"
-                            sortable
-                          ></Column>
+                          <Column field="debit" header="Debit"></Column>
+                          <Column field="credit" header="Credit"></Column>
                         </DataTable>
                       </div>
                       <div className="delete_btn_wrap">
                         <button
                           className="btn_primary"
-                          onClick={() => setVisible(false)}
+                          onClick={() => {
+                            dispatch(
+                              getJournalEntry({
+                                journal_entry_id: id,
+                                pdf: true,
+                              }),
+                            );
+                            setVisible(false);
+                          }}
                         >
-                          <img src={DownloadIcon} alt="downloadicon" /> Download
+                          <img src={DownloadIcon} alt="downloadicon" />
+                          Download
                         </button>
                       </div>
                     </div>
@@ -173,17 +221,9 @@ export default function ViewJournalEntry() {
                 <li>
                   <Link
                     className="btn_border_dark filter_btn"
-                    to="/create-journal-entry"
+                    to={`/edit-journal-entry/${id}`}
                   >
                     <img src={EditIcon} alt="" /> Edit
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/journal-entry"
-                    className="btn_border_dark filter_btn"
-                  >
-                    Exit Page
                   </Link>
                 </li>
               </ul>
@@ -196,13 +236,23 @@ export default function ViewJournalEntry() {
               <Col lg={2} md={3} sm={4} className="col-6">
                 <div className="client_pyment_wrap">
                   <h5>Payment No</h5>
-                  <h4>#564892</h4>
+                  <h4>
+                    {getJournalEntryDataFromAPI?.payment_no
+                      ? getJournalEntryDataFromAPI?.payment_no
+                      : 0}
+                  </h4>
                 </div>
               </Col>
               <Col lg={2} md={3} sm={4} className="col-6">
                 <div className="client_pyment_wrap">
                   <h5>Create Date</h5>
-                  <h4>30/06/2023</h4>
+                  <h4>
+                    {getJournalEntryDataFromAPI?.create_date
+                      ? moment(getJournalEntryDataFromAPI?.create_date).format(
+                          'DD-MM-YYYY',
+                        )
+                      : ''}
+                  </h4>
                 </div>
               </Col>
             </Row>
@@ -212,25 +262,50 @@ export default function ViewJournalEntry() {
               <Col lg={2} md={3} sm={4} className="col-6">
                 <div className="client_pyment_wrap">
                   <h5 className="text_gray">Payment Company</h5>
-                  <h5>ABC Company</h5>
+                  <h5>
+                    {getJournalEntryDataFromAPI?.payment_company_name
+                      ? getJournalEntryDataFromAPI?.payment_company_name
+                      : ''}
+                  </h5>
                 </div>
               </Col>
               <Col lg={2} md={3} sm={4} className="col-6">
                 <div className="client_pyment_wrap">
                   <h5 className="text_gray">Receive Company </h5>
-                  <h5>Kapil Karchadiya</h5>
+                  <h5>
+                    {getJournalEntryDataFromAPI?.receive_client_name
+                      ? getJournalEntryDataFromAPI?.receive_client_name
+                      : ''}
+                  </h5>
                 </div>
               </Col>
               <Col lg={2} md={3} sm={4} className="col-6">
                 <div className="client_pyment_wrap">
                   <h5 className="text_gray">Payment Type</h5>
-                  <h5>Bank</h5>
+                  <h5>
+                    {getJournalEntryDataFromAPI?.payment_type &&
+                    getJournalEntryDataFromAPI?.payment_type === 1
+                      ? 'Cash'
+                      : getJournalEntryDataFromAPI?.payment_type === 2
+                      ? 'Bank'
+                      : getJournalEntryDataFromAPI?.payment_type === 3
+                      ? 'Check'
+                      : null}
+                  </h5>
                 </div>
               </Col>
               <Col lg={2} md={3} sm={4} className="col-6">
                 <div className="client_pyment_wrap">
-                  <h5 className="text_gray">PayGroup Name</h5>
-                  <h5>HDFC Bank</h5>
+                  {getJournalEntryDataFromAPI?.payment_type === 2 && (
+                    <>
+                      <h5 className="text_gray">PayGroup Name</h5>
+                      <h5>
+                        {getJournalEntryDataFromAPI?.group_name
+                          ? getJournalEntryDataFromAPI?.group_name
+                          : ''}
+                      </h5>
+                    </>
+                  )}
                 </div>
               </Col>
             </Row>
@@ -239,8 +314,12 @@ export default function ViewJournalEntry() {
             <Row>
               <Col lg={2}>
                 <div className="client_pyment_wrap">
-                  <h5 className="text_gray">Remark</h5>
-                  <h5>No Comments</h5>
+                  <h5 className="text_gray">Description</h5>
+                  <h5>
+                    {getJournalEntryDataFromAPI?.remark
+                      ? getJournalEntryDataFromAPI?.remark
+                      : '-'}
+                  </h5>
                 </div>
               </Col>
             </Row>
@@ -251,35 +330,61 @@ export default function ViewJournalEntry() {
             <Col lg={6}>
               <div className="Receipt_Payment_head_wrapper">
                 <div className="Receipt_Payment_head_txt">
-                  <h3 className="m-0">Payment Transection Record</h3>
+                  <h3 className="m-0">Payment Transaction Record</h3>
                 </div>
               </div>
             </Col>
             <Col lg={2}>
-              <div className="form_group">
+              {/* <div className="form_group">
                 <InputText
                   id="search"
                   placeholder="Search"
                   type="search"
                   className="input_wrap small search_wrap"
                 />
-              </div>
+              </div> */}
             </Col>
           </Row>
         </div>
         <div className="data_table_wrapper max_height">
           <DataTable
-            value={JournalData}
+            value={
+              getJournalEntryDataFromAPI?.journalEntryDetails
+                ? getJournalEntryDataFromAPI.journalEntryDetails
+                : []
+            }
             sortField="price"
             sortOrder={1}
             rows={10}
-            footerColumnGroup={JournalFooterGroup}
+            footerColumnGroup={JournalFooterGroup(
+              getJournalEntryDataFromAPI?.journalEntryDetails,
+            )}
           >
-            <Column field="cr_db" header="CR/DB" sortable></Column>
-            <Column field="client_name" header="Client Name" sortable></Column>
-            <Column field="debit" header="Debit" sortable></Column>
-            <Column field="credit" header="Credit" sortable></Column>
+            <Column field="type" header="CR/DB" body={crDb}></Column>
+            <Column
+              field="account_id"
+              header="Account Name"
+              body={AccountTemplate}
+            ></Column>
+            <Column field="debit" header="Debit"></Column>
+            <Column field="credit" header="Credit"></Column>
           </DataTable>
+        </div>
+        <div class="title_right_wrapper">
+          <ul class="justify-content-end">
+            <li>
+              <button
+                class="p-button p-component btn_border_dark filter_btn"
+                data-pc-name="button"
+                data-pc-section="root"
+                onClick={() => {
+                  navigate('/journal-entry');
+                }}
+              >
+                Exit Page
+              </button>
+            </li>
+          </ul>
         </div>
       </div>
     </div>

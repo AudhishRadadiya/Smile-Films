@@ -1,55 +1,51 @@
 import CustomPaginator from 'Components/Common/CustomPaginator';
+import {
+  getEmployeeReportingList,
+  setNonReportingCurrentPage,
+  setNonReportingPageLimit,
+} from 'Store/Reducers/ActivityOverview/AdminReportingFlow/AdminReportingSlice';
 import { Column } from 'primereact/column';
 import { DataTable } from 'primereact/datatable';
 import { Tag } from 'primereact/tag';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 
-export const inquiryData = [
-  {
-    employeesName: 'Kapil',
-    employeesID: '11',
-    role: 'Designer',
-    status: 'Done',
-  },
-  {
-    employeesName: 'Kapil',
-    employeesID: '11',
-    role: 'Designer',
-    status: 'Done',
-  },
-  {
-    employeesName: 'Kapil',
-    employeesID: '11',
-    role: 'Designer',
-    status: 'Done',
-  },
-  {
-    employeesName: 'Kapil',
-    employeesID: '11',
-    role: 'Designer',
-    status: 'Done',
-  },
-  {
-    employeesName: 'Kapil',
-    employeesID: '11',
-    role: 'Designer',
-    status: 'Done',
-  },
-];
-
 export default function NonProjectReporting() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(30);
+  const dispatch = useDispatch();
+  const {
+    getEmployeeReportingListData,
+    nonReportingCurrentPage,
+    nonReportingPageLimit,
+  } = useSelector(({ adminReporting }) => adminReporting);
 
-  const op = useRef(null);
+  const getReportingListFromAPI = useCallback(
+    (start = 1, limit = 10, missing = true) => {
+      dispatch(
+        getEmployeeReportingList({
+          start: start,
+          limit: limit,
+          missing: missing,
+        }),
+      );
+    },
+    [dispatch],
+  );
 
-  const employeesNameBodyTemplate = () => {
-    return <Link to="/user-reporting">Kapil</Link>;
+  useEffect(() => {
+    getReportingListFromAPI(nonReportingCurrentPage, nonReportingPageLimit);
+  }, []);
+
+  const employeesNameBodyTemplate = data => {
+    return (
+      <Link to={`/user-reporting/${data?._id}`} className="hover_text">
+        {data?.employee_name}
+      </Link>
+    );
   };
 
   const statusBodyTemplate = product => {
-    return <Tag value={product.status} severity={getSeverity(product)}></Tag>;
+    return <Tag value={'Missing'} severity={getSeverity('Pending')}></Tag>;
   };
 
   const getSeverity = product => {
@@ -75,27 +71,65 @@ export default function NonProjectReporting() {
   };
 
   const onPageChange = page => {
-    let pageIndex = currentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    setCurrentPage(pageIndex);
+    if (page !== nonReportingCurrentPage) {
+      let pageIndex = nonReportingCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+      dispatch(setNonReportingCurrentPage(pageIndex));
+
+      getReportingListFromAPI(
+        pageIndex,
+        nonReportingPageLimit,
+        nonReportingCurrentPage,
+      );
+    }
   };
+
   const onPageRowsChange = page => {
-    setCurrentPage(page === 0 ? 0 : 1);
-    setPageLimit(page);
+    const updatedCurrentPage = page === 0 ? 0 : 1;
+    dispatch(setNonReportingCurrentPage(updatedCurrentPage));
+    dispatch(setNonReportingPageLimit(page));
+    const pageValue =
+      page === 0
+        ? getEmployeeReportingListData?.totalRows
+          ? getEmployeeReportingListData?.totalRows
+          : 0
+        : page;
+    const prevPageValue =
+      nonReportingPageLimit === 0
+        ? getEmployeeReportingListData?.totalRows
+          ? getEmployeeReportingListData?.totalRows
+          : 0
+        : nonReportingPageLimit;
+    if (
+      prevPageValue < getEmployeeReportingListData?.totalRows ||
+      pageValue < getEmployeeReportingListData?.totalRows
+    ) {
+      getReportingListFromAPI(updatedCurrentPage, page);
+    }
   };
+
   return (
     <div className="reportig_table_wrap">
       <h3 className="mb0 p20">Non Project Reporting</h3>
-      <DataTable value={inquiryData} sortField="price" sortOrder={1} rows={10}>
+      <DataTable
+        value={
+          getEmployeeReportingListData?.list?.length
+            ? getEmployeeReportingListData?.list
+            : []
+        }
+        sortField="price"
+        sortOrder={1}
+        rows={10}
+      >
         <Column
-          field="employeesName"
+          field="employee_name"
           header="Employees Name"
           body={employeesNameBodyTemplate}
           sortable
         ></Column>
-        <Column field="employeesID" header="Employees ID" sortable></Column>
+        <Column field="employee_id" header="Employees ID" sortable></Column>
         <Column field="role" header="Role" sortable></Column>
 
         <Column
@@ -106,12 +140,22 @@ export default function NonProjectReporting() {
         ></Column>
       </DataTable>
       <CustomPaginator
-        dataList={inquiryData}
-        pageLimit={pageLimit}
+        dataList={getEmployeeReportingListData?.list || []}
+        pageLimit={
+          !getEmployeeReportingListData?.totalRows ||
+          getEmployeeReportingListData?.totalRows === 0
+            ? 0
+            : nonReportingPageLimit
+        }
         onPageChange={onPageChange}
         onPageRowsChange={onPageRowsChange}
-        currentPage={currentPage}
-        totalCount={inquiryData?.length}
+        currentPage={
+          !getEmployeeReportingListData?.totalRows ||
+          getEmployeeReportingListData?.totalRows === 0
+            ? 0
+            : nonReportingCurrentPage
+        }
+        totalCount={getEmployeeReportingListData?.totalRows}
       />
     </div>
   );

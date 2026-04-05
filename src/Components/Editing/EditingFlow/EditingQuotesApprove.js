@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useState, useMemo } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
-import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Dialog } from 'primereact/dialog';
-import { ColumnGroup } from 'primereact/columngroup';
 import { InputText } from 'primereact/inputtext';
-import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
-import ShowIcon from '../../../Assets/Images/show-icon.svg';
-import PdfIcon from '../../../Assets/Images/pdf-icon.svg';
+import { DataTable } from 'primereact/datatable';
+import { ColumnGroup } from 'primereact/columngroup';
 import EditIcon from '../../../Assets/Images/edit.svg';
-import EmailIcon from '../../../Assets/Images/email-icon.svg';
 import { useNavigate, useParams } from 'react-router-dom';
+import PdfIcon from '../../../Assets/Images/pdf-icon.svg';
+import ShowIcon from '../../../Assets/Images/show-icon.svg';
+import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
+import EmailIcon from '../../../Assets/Images/email-icon.svg';
 import {
   addInvoice,
   addStep,
@@ -19,6 +19,7 @@ import {
   getEditingFlow,
   getQuotation,
   getQuotationList,
+  getStep,
   setEditingQuotationData,
   setEditingSelectedProgressIndex,
   setQuotationApprovedData,
@@ -26,15 +27,29 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import Loader from 'Components/Common/Loader';
 import moment from 'moment';
-import { InputTextarea } from 'primereact/inputtextarea';
+import { convertIntoNumber } from 'Helper/CommonHelper';
+import { InputNumber } from 'primereact/inputnumber';
+import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
+import { generateUnitForDataSize } from 'Helper/CommonList';
+import {
+  clearUpdateSelectedDataCollectionData,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
 
-export default function EditingQuotesApprove() {
-  const dispatch = useDispatch();
+const EditingQuotesApprove = () => {
   const { id } = useParams();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+
   const [visible, setVisible] = useState(false);
   const [confornation, setConfornation] = useState(false);
 
+  const { isGetInintialValuesDataCollection } = useSelector(
+    ({ dataCollection }) => dataCollection,
+  );
+  const { currencyList, currencyLoading } = useSelector(
+    ({ currency }) => currency,
+  );
   const {
     editingLoading,
     quotationList,
@@ -54,13 +69,18 @@ export default function EditingQuotesApprove() {
           create_date: responseData?.create_date,
           item_name: responseData?.item_name,
           couple_name: responseData?.couple_name,
-          data_size: responseData?.data_size,
+          data_size: convertIntoNumber(responseData?.data_size || 0),
+          data_size_type: responseData?.data_size_type,
           project_type_value: responseData?.project_type_value,
           due_date: responseData?.due_date,
           company_name: responseData?.company_name,
           client_full_name: responseData?.client_full_name,
+          client_company_id: responseData?.client_company_id,
           mobile_no: responseData?.mobile_no,
           email_id: responseData?.email_id,
+          editing_hour: responseData?.editing_hour ?? 0,
+          editing_minute: responseData?.editing_minute ?? 0,
+          editing_second: responseData?.editing_second ?? 0,
         };
         return { updated };
       })
@@ -71,7 +91,16 @@ export default function EditingQuotesApprove() {
             const filteredData = responseList?.find(item => item?.status === 2);
             return { updated, filteredData };
           })
-          .then(({ updated, filteredData }) => {
+          .then(async ({ updated, filteredData }) => {
+            await dispatch(
+              getCurrencyList({
+                start: 0,
+                limit: 0,
+                isActive: true,
+                search: '',
+              }),
+            );
+
             if (!quotationApprovedData?.quotation_id) {
               dispatch(
                 getQuotation({
@@ -93,13 +122,14 @@ export default function EditingQuotesApprove() {
                   });
 
                   const { due_date, ...rest } = responseData;
-                  let data = {
-                    ...updated,
+
+                  const formData = {
                     ...rest,
+                    ...updated,
                     quotation_detail: updatedList,
                   };
 
-                  dispatch(setQuotationApprovedData(data));
+                  dispatch(setQuotationApprovedData(formData));
                 })
                 .catch(error => {
                   console.error('Error fetching product data:', error);
@@ -173,7 +203,17 @@ export default function EditingQuotesApprove() {
     <ColumnGroup>
       <Row>
         <Column footer="Total Amount" colSpan={3} />
-        <Column footer={selectedQuatationData?.sub_total} />
+        <Column
+          footer={`${
+            selectedQuatationData?.currency_symbol
+              ? selectedQuatationData?.currency_symbol
+              : ''
+          }${
+            selectedQuatationData?.sub_total
+              ? selectedQuatationData?.sub_total
+              : 0
+          }`}
+        />
       </Row>
     </ColumnGroup>
   );
@@ -182,10 +222,69 @@ export default function EditingQuotesApprove() {
     <ColumnGroup>
       <Row>
         <Column className="" footer="Total Quantity" colSpan={6} />
-        <Column footer={quotationApprovedData?.sub_total} colSpan={2} />
+        <Column
+          footer={`${
+            quotationApprovedData?.currency_symbol
+              ? quotationApprovedData?.currency_symbol
+              : ''
+          } ${
+            quotationApprovedData?.sub_total
+              ? quotationApprovedData?.sub_total
+              : 0
+          }`}
+          colSpan={2}
+        />
       </Row>
     </ColumnGroup>
   );
+
+  const rateTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span className="me-1">
+          {quotationApprovedData ? quotationApprovedData?.currency_symbol : ''}
+        </span>
+        <span>{rowData?.rate}</span>
+      </div>
+    );
+  };
+
+  const amountTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span className="me-1">
+          {quotationApprovedData ? quotationApprovedData?.currency_symbol : ''}
+        </span>
+        <span>{rowData?.amount}</span>
+      </div>
+    );
+  };
+
+  const viewQuotationRateTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span>
+          {selectedQuatationData?.currency_symbol
+            ? selectedQuatationData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.rate}</span>
+      </div>
+    );
+  };
+
+  const viewQuotationAmountTemplate = rowData => {
+    return (
+      <div className="d-flex">
+        <span>
+          {selectedQuatationData?.currency_symbol
+            ? selectedQuatationData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.amount}</span>
+      </div>
+    );
+  };
 
   const handleMarkAsApprovedChange = () => {
     let payload = {
@@ -206,9 +305,22 @@ export default function EditingQuotesApprove() {
       });
   };
 
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${quotationApprovedData?.editing_hour || 0}:${
+      quotationApprovedData?.editing_minute || 0
+    }:${quotationApprovedData?.editing_second || 0}`;
+  }, [
+    quotationApprovedData?.editing_hour,
+    quotationApprovedData?.editing_minute,
+    quotationApprovedData?.editing_second,
+  ]);
+
   return (
     <div className="">
-      {(editingLoading || quotationLoading || invoiceLoading) && <Loader />}
+      {(editingLoading ||
+        quotationLoading ||
+        invoiceLoading ||
+        currencyLoading) && <Loader />}
       <div className="billing_details">
         <div className="mb25">
           <Row className="g-3 g-sm-4">
@@ -251,8 +363,25 @@ export default function EditingQuotesApprove() {
                 <Row className="g-3 g-sm-4">
                   <Col md={6}>
                     <div className="order-details-wrapper p10 border radius15 h-100">
-                      <div className="pb10 border-bottom">
+                      <div className="pb10 border-bottom d-flex justify-content-between">
                         <h6 className="m-0">Job</h6>
+                        <img
+                          src={EditIcon}
+                          className="cusor-pointer"
+                          alt=""
+                          onClick={() => {
+                            dispatch(
+                              setIsGetInintialValuesDataCollection({
+                                ...isGetInintialValuesDataCollection,
+                                update: false,
+                              }),
+                            );
+                            dispatch(clearUpdateSelectedDataCollectionData());
+                            navigate(
+                              `/update-data-collection/${id}?param=editing`,
+                            );
+                          }}
+                        />
                       </div>
                       <div className="details_box pt10">
                         <div className="details_box_inner">
@@ -264,11 +393,20 @@ export default function EditingQuotesApprove() {
                             <span>Couple Name :</span>
                             <h5>{quotationApprovedData?.couple_name}</h5>
                           </div>
+                          <div className="order-date">
+                            <span>Hours :</span>
+                            <h5>{showHoursWithMinutesAndSeconds}</h5>
+                          </div>
                         </div>
                         <div className="details_box_inner">
                           <div className="order-date">
                             <span>Data Size :</span>
-                            <h5>{quotationApprovedData?.data_size}</h5>
+                            <h5>
+                              {quotationApprovedData?.data_size}{' '}
+                              {generateUnitForDataSize(
+                                quotationApprovedData?.data_size_type,
+                              )}
+                            </h5>
                           </div>
                           <div className="order-date">
                             <span>Project Type :</span>
@@ -333,8 +471,10 @@ export default function EditingQuotesApprove() {
                                 <div className="quotation_name">
                                   <h5>{data?.quotation_name}</h5>
                                   <h5 className="fw_400 m-0">
-                                    {' '}
-                                    {data?.total_amount}
+                                    {data?.currency_symbol
+                                      ? data?.currency_symbol
+                                      : ''}{' '}
+                                    {convertIntoNumber(data?.total_amount)}
                                   </h5>
                                 </div>
                               </Col>
@@ -370,7 +510,7 @@ export default function EditingQuotesApprove() {
                                       <h6 className="text_gray m-0 me-2">
                                         {data?.approved_at &&
                                           moment(data?.approved_at)?.format(
-                                            'YYYY-MM-DD hh:mm:ss A',
+                                            'DD-MM-YYYY hh:mm:ss A',
                                           )}
                                       </h6>
                                     </div>
@@ -403,7 +543,9 @@ export default function EditingQuotesApprove() {
           </Row>
         </div>
         <div className="order_items">
-          <h3>Quotation Details</h3>
+          <h3>
+            Quotation Details <span className="text-danger fs-6">*</span>
+          </h3>
           <Row className="justify-content-between g-4">
             <Col xl={3} lg={4} md={6}>
               <div className="form_group">
@@ -430,7 +572,8 @@ export default function EditingQuotesApprove() {
               <div className="">
                 <div className="form_group d-sm-flex align-items-center">
                   <label className="me-sm-3 mb-sm-0 mb-2 fw_500 text-nowrap">
-                    Name the Quotation
+                    Name the Quotation{' '}
+                    <span className="text-danger fs-6">*</span>
                   </label>
                   <InputText
                     placeholder="Write here"
@@ -466,8 +609,18 @@ export default function EditingQuotesApprove() {
             ></Column>
             <Column field="due_date" header="Due Date" sortable></Column>
             <Column field="quantity" header="Qty" sortable></Column>
-            <Column field="rate" header="Rate" sortable></Column>
-            <Column field="amount" header="Amount" sortable></Column>
+            <Column
+              field="rate"
+              header="Rate"
+              sortable
+              body={rateTemplate}
+            ></Column>
+            <Column
+              field="amount"
+              header="Amount"
+              sortable
+              body={amountTemplate}
+            ></Column>
           </DataTable>
         </div>
         <div className="amount_condition pt20">
@@ -475,7 +628,7 @@ export default function EditingQuotesApprove() {
             <Col xl={5} lg={6}>
               <div className="amount-condition-wrapper border radius15">
                 <div className="p20 border-bottom">
-                  <h5 className="m-0">Term & Condition</h5>
+                  <h5 className="m-0">Terms & Condition</h5>
                 </div>
                 <div
                   className="condition-content p20"
@@ -525,16 +678,26 @@ export default function EditingQuotesApprove() {
                       <h5>Sub Total</h5>
                     </div>
                     <div className="subtotal-input">
-                      <h5>{quotationApprovedData?.sub_total}</h5>
+                      <h5>
+                        {quotationApprovedData
+                          ? quotationApprovedData?.currency_symbol
+                          : ''}{' '}
+                        {quotationApprovedData?.sub_total}
+                      </h5>
                     </div>
                   </div>
                   <div className="sub-total-wrapper">
                     <div className="subtotal-title">
                       <h5>Discount ( - )</h5>
                     </div>
-                    <div className="subtotal-input">
-                      <input
-                        placeholder="₹ 00.00"
+                    <div className="d-flex align-items-center subtotal-input gap-1">
+                      <div>
+                        {quotationApprovedData?.currency_symbol
+                          ? quotationApprovedData?.currency_symbol
+                          : ''}
+                      </div>
+                      <InputText
+                        placeholder="Discount"
                         value={quotationApprovedData?.discount}
                         disabled
                       />
@@ -549,13 +712,32 @@ export default function EditingQuotesApprove() {
                     </div>
                   </div> */}
                   <div className="sub-total-wrapper">
-                    <div className="subtotal-title">
+                    <div className="tax-input">
                       <h5>Tax</h5>
+                      <div className="subtotal-input">
+                        <InputNumber
+                          name="tax_percentage"
+                          placeholder="Tax Percentage"
+                          value={quotationApprovedData?.tax_percentage}
+                          disabled
+                          min={0}
+                          max={100}
+                          maxLength={3}
+                          useGrouping={false}
+                          maxFractionDigits={2}
+                        />
+                      </div>
                     </div>
-                    <div className="subtotal-input">
-                      <input
-                        placeholder="₹ 00.00"
+                    <div className="d-flex align-items-center subtotal-input gap-1">
+                      <div>
+                        {quotationApprovedData?.currency_symbol
+                          ? quotationApprovedData?.currency_symbol
+                          : ''}
+                      </div>
+                      <InputText
+                        placeholder="0"
                         value={quotationApprovedData?.tax}
+                        disabled
                       />
                     </div>
                   </div>
@@ -565,6 +747,9 @@ export default function EditingQuotesApprove() {
                     </div>
                     <div className="subtotal-input">
                       <h5 className="fw_700">
+                        {quotationApprovedData?.currency_symbol
+                          ? quotationApprovedData?.currency_symbol
+                          : ''}{' '}
                         {quotationApprovedData?.total_amount}
                       </h5>
                     </div>
@@ -595,6 +780,7 @@ export default function EditingQuotesApprove() {
                 };
                 dispatch(addStep(payload))
                   .then(response => {
+                    dispatch(getStep({ order_id: id }));
                     dispatch(setEditingSelectedProgressIndex(4));
                   })
                   .catch(errors => {
@@ -614,25 +800,27 @@ export default function EditingQuotesApprove() {
         header={
           <div className="quotation_wrapper">
             <div className="dialog_logo">
-              <img
-                src={selectedQuatationData?.company_logo}
-                alt="company logo"
-              />
+              <img src={selectedQuatationData?.company_logo} alt="" />
             </div>
             {selectedQuatationData?.status === 2 && (
               <button
                 className="btn_border_dark"
                 onClick={() => {
-                  dispatch(
-                    addInvoice({
-                      order_id: id,
-                      quotation_id: selectedQuatationData?._id,
-                    }),
-                  );
-                  setVisible(false);
+                  if (!selectedQuatationData?.bill_converted) {
+                    dispatch(
+                      addInvoice({
+                        order_id: id,
+                        quotation_id: selectedQuatationData?._id,
+                      }),
+                    );
+                    setVisible(false);
+                  }
                 }}
+                disabled={selectedQuatationData?.bill_converted}
               >
-                Convert to Bill
+                {selectedQuatationData?.bill_converted
+                  ? 'Converted'
+                  : 'Convert to Bill'}
               </button>
             )}
           </div>
@@ -672,6 +860,18 @@ export default function EditingQuotesApprove() {
                     Order Date <span>{selectedQuatationData?.created_at}</span>
                   </h5>
                 </div>
+                <div className="user_bank_details bank_details_light">
+                  <h5>
+                    Company Name{' '}
+                    <span>{selectedQuatationData?.client_company}</span>
+                  </h5>
+                </div>
+                <div className="user_bank_details bank_details_light">
+                  <h5>
+                    Couple Name{' '}
+                    <span>{selectedQuatationData?.couple_name}</span>
+                  </h5>
+                </div>
               </Col>
             </Row>
           </div>
@@ -685,8 +885,18 @@ export default function EditingQuotesApprove() {
             >
               <Column field="item_name" header="Item" sortable></Column>
               <Column field="quantity" header="Qty" sortable></Column>
-              <Column field="rate" header="Rate" sortable></Column>
-              <Column field="amount" header="Amount" sortable></Column>
+              <Column
+                field="rate"
+                header="Rate"
+                sortable
+                body={viewQuotationRateTemplate}
+              ></Column>
+              <Column
+                field="amount"
+                header="Amount"
+                sortable
+                body={viewQuotationAmountTemplate}
+              ></Column>
             </DataTable>
           </div>
           <div className="quotation-wrapper amount_condition mt20">
@@ -694,7 +904,7 @@ export default function EditingQuotesApprove() {
               <Col lg={6}>
                 <div className="amount-condition-wrapper">
                   <div className="pb10">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div
                     className="condition-content"
@@ -738,7 +948,9 @@ export default function EditingQuotesApprove() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text-end">
-                          {' '}
+                          {selectedQuatationData?.currency_symbol
+                            ? selectedQuatationData?.currency_symbol
+                            : ''}{' '}
                           {selectedQuatationData?.sub_total}
                         </h5>
                       </div>
@@ -749,7 +961,9 @@ export default function EditingQuotesApprove() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
-                          {' '}
+                          {selectedQuatationData?.currency_symbol
+                            ? selectedQuatationData?.currency_symbol
+                            : ''}{' '}
                           {selectedQuatationData?.discount}
                         </h5>
                       </div>
@@ -764,11 +978,13 @@ export default function EditingQuotesApprove() {
                     </div> */}
                     <div className="sub-total-wrapper">
                       <div className="subtotal-title">
-                        <h5>Tax</h5>
+                        <h5>Tax ({selectedQuatationData?.tax_percentage}%)</h5>
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
-                          {' '}
+                          {selectedQuatationData?.currency_symbol
+                            ? selectedQuatationData?.currency_symbol
+                            : ''}{' '}
                           {selectedQuatationData?.tax}
                         </h5>
                       </div>
@@ -779,7 +995,9 @@ export default function EditingQuotesApprove() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="fw_700 text-end">
-                          {' '}
+                          {selectedQuatationData?.currency_symbol
+                            ? selectedQuatationData?.currency_symbol
+                            : ''}{' '}
                           {selectedQuatationData?.total_amount}
                         </h5>
                       </div>
@@ -790,36 +1008,53 @@ export default function EditingQuotesApprove() {
             </Row>
           </div>
           <div className="delete_btn_wrap">
+            {/* {selectedQuatationData?.status === 1 && ( */}
             <button
               className="btn_border_dark"
               onClick={() => {
-                const itemList = [];
-                let updatedList = selectedQuatationData?.quotation_detail?.map(
-                  d => {
-                    itemList.push(d?.item_id);
-                    return {
-                      ...d,
-                      due_date: d?.due_date ? new Date(d.due_date) : '',
-                      order_iteam_id: d?._id,
-                    };
-                  },
-                );
-                const updated = {
-                  ...quotationApprovedData,
-                  ...selectedQuatationData,
-                  editingTable: updatedList,
-                  editing_inquiry: itemList,
-                  quotation_id: selectedQuatationData?._id,
-                };
+                if (!selectedQuatationData?.bill_converted) {
+                  const itemList = [];
+                  let updatedList =
+                    selectedQuatationData?.quotation_detail?.map(d => {
+                      itemList.push(d?.item_id);
+                      return {
+                        ...d,
+                        due_date: d?.due_date ? new Date(d.due_date) : '',
+                        order_iteam_id: d?._id,
+                      };
+                    });
 
-                dispatch(setEditingQuotationData(updated));
-                setVisible(false);
-                dispatch(setEditingSelectedProgressIndex(2));
+                  const clientCurrency = currencyList?.list?.find(
+                    c => c?._id === selectedQuatationData?.currency,
+                  );
+
+                  const findedDefaultCurrency = currencyList?.list?.find(
+                    c => c?.currency_code === 'INR',
+                  );
+
+                  const updated = {
+                    ...selectedQuatationData,
+                    ...quotationApprovedData,
+                    editingTable: updatedList,
+                    editing_inquiry: itemList,
+                    quotation_id: selectedQuatationData?._id,
+                    currency: clientCurrency?._id,
+                    selected_currency: clientCurrency,
+                    default_currency: findedDefaultCurrency,
+                    exchange_currency_rate: clientCurrency?.exchange_rate,
+                  };
+
+                  dispatch(setEditingQuotationData(updated));
+                  setVisible(false);
+                  dispatch(setEditingSelectedProgressIndex(2));
+                }
               }}
+              disabled={selectedQuatationData?.bill_converted}
             >
               <img src={EditIcon} alt="editicon" /> Edit Quotation
             </button>
-            <button
+            {/* )} */}
+            {/* <button
               className="btn_border_dark"
               onClick={() => {
                 dispatch(
@@ -834,7 +1069,7 @@ export default function EditingQuotesApprove() {
               // onClick={() => setVisible(false)}
             >
               <img src={EmailIcon} alt="EmailIcon" /> Send Email
-            </button>
+            </button> */}
             <button
               className="btn_border_dark"
               onClick={() => {
@@ -874,7 +1109,7 @@ export default function EditingQuotesApprove() {
         draggable={false}
       >
         <div className="delete_popup_wrapper">
-          <h2>Are you Sure you want to Delete this Group?</h2>
+          <h2>Are you sure, You want to delete this group?</h2>
           <div className="delete_btn_wrap">
             <button className="btn_primary" onClick={() => setVisible(false)}>
               Delete
@@ -887,4 +1122,5 @@ export default function EditingQuotesApprove() {
       </Dialog>
     </div>
   );
-}
+};
+export default memo(EditingQuotesApprove);

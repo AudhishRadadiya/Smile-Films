@@ -1,23 +1,7 @@
-import { Button } from 'primereact/button';
-import { InputText } from 'primereact/inputtext';
-import React, { useState, useCallback, useEffect } from 'react';
-import { Col, Row } from 'react-bootstrap';
-import PlusIcon from '../../Assets/Images/plus.svg';
-import TrashIcon from '../../Assets/Images/trash.svg';
-import ReactSelectSingle from '../Common/ReactSelectSingle';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Dialog } from 'primereact/dialog';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
-import { InputTextarea } from 'primereact/inputtextarea';
-import { Calendar } from 'primereact/calendar';
-import { RadioButton } from 'primereact/radiobutton';
-import CreateClientCompanyInInquiry from './CreateClientCompanyInInquiry';
-import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
-import { getReferenceList } from 'Store/Reducers/Settings/Master/ReferenceSlice';
-import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
-import { useDispatch, useSelector } from 'react-redux';
 import Loader from 'Components/Common/Loader';
+import { checkWordLimit } from 'Helper/CommonHelper';
+import { getFormattedDate } from 'Helper/CommonList';
+import { inquirySchema } from 'Schema/ActivityOverview/activityOverviewSchema';
 import {
   addInquiry,
   clearAddSelectedInquiryData,
@@ -25,26 +9,49 @@ import {
   editInquiry,
   getInquiryNo,
   setAddSelectedInquiryData,
+  setInquirySelectedProgressIndex,
   setIsGetInintialValuesInquiry,
   setUpdateSelectedInquiryData,
 } from 'Store/Reducers/ActivityOverview/inquirySlice';
-import { useFormik } from 'formik';
 import {
   getClientCompany,
   getClientCompanyList,
   setIsAddClientCompany,
 } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
+import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
+import { getCurrencyList } from 'Store/Reducers/Settings/Master/CurrencySlice';
 import { getPackageList } from 'Store/Reducers/Settings/Master/PackageSlice';
 import { getProductList } from 'Store/Reducers/Settings/Master/ProductSlice';
-import { MultiSelect } from 'primereact/multiselect';
+import { getReferenceList } from 'Store/Reducers/Settings/Master/ReferenceSlice';
+import { useFormik } from 'formik';
+import { Button } from 'primereact/button';
+import { Calendar } from 'primereact/calendar';
+import { Column } from 'primereact/column';
+import { DataTable } from 'primereact/datatable';
+import { Dialog } from 'primereact/dialog';
 import { InputNumber } from 'primereact/inputnumber';
-import { inquirySchema } from 'Schema/ActivityOverview/activityOverviewSchema';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { MultiSelect } from 'primereact/multiselect';
+import { RadioButton } from 'primereact/radiobutton';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { Col, Row } from 'react-bootstrap';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import PlusIcon from '../../Assets/Images/plus.svg';
+import TrashIcon from '../../Assets/Images/trash.svg';
+import ReactSelectSingle from '../Common/ReactSelectSingle';
+import CreateClientCompanyInInquiry from './CreateClientCompanyInInquiry';
+import moment from 'moment';
+import { getDropdownGroupList } from 'Store/Reducers/Settings/AccountMaster/GroupSlice';
 
-export default function InquiryForm({ initialValues }) {
+const InquiryForm = ({ initialValues }) => {
+  const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { id } = useParams();
+
+  const [isShowNext, setIsShowNext] = useState(false);
   const [saveFilterModal, setSaveFilterModal] = useState(false);
   const [createCompanyModal, setCreateCompanyModal] = useState(false);
   const [dropdownInquiryOptionList, setDropdownInquiryOptionList] = useState({
@@ -68,57 +75,99 @@ export default function InquiryForm({ initialValues }) {
   } = useSelector(({ inquiry }) => inquiry);
 
   const companyHandleChange = (fieldName, fieldValue) => {
-    const responseData = {};
-
     dispatch(getClientCompany({ client_company_id: fieldValue }))
       ?.then(response => {
         const responseData = response?.payload?.data;
         setFieldValue(fieldName, fieldValue);
-        setFieldValue('client_full_name', responseData?.client_full_name);
-        setFieldValue('reference', responseData?.reference_value);
-        setFieldValue('email_id', responseData?.email_id);
-        setFieldValue('mobile_no', responseData?.mobile_no);
-        setFieldValue('address', responseData?.address);
-        setFieldValue('country', responseData?.country_value);
-        setFieldValue('state', responseData?.state_value);
-        setFieldValue('city', responseData?.city_value);
-        setFieldValue('pin_code', responseData?.pin_code);
+
+        const changeUpdatedFields = {
+          [fieldName]: fieldValue,
+          client_full_name: responseData?.client_full_name,
+          reference: responseData?.reference_value,
+          email_id: responseData?.email_id,
+          mobile_no: responseData?.mobile_no,
+          address: responseData?.address,
+          country: responseData?.country_value,
+          state: responseData?.state_value,
+          city: responseData?.city_value,
+          pin_code: responseData?.pin_code,
+        };
+
+        handleUpdateFieldsValue(changeUpdatedFields);
       })
       .catch(error => {
         console.error('Error fetching employee data:', error);
       });
-    if (id) {
-      dispatch(
-        setUpdateSelectedInquiryData({
-          ...updateSelectedInquiryData,
-          [fieldName]: fieldValue,
-          reference: responseData?.reference_value,
-          email_id: responseData?.email_id,
-          mobile_no: responseData?.mobile_no,
-          address: responseData?.address,
-          country: responseData?.country_value,
-          state: responseData?.state_value,
-          city: responseData?.city_value,
-          pin_code: responseData?.pin_code,
-        }),
-      );
-    } else {
-      dispatch(
-        setAddSelectedInquiryData({
-          ...addSelectedInquiryData,
-          [fieldName]: fieldValue,
-          reference: responseData?.reference_value,
-          email_id: responseData?.email_id,
-          mobile_no: responseData?.mobile_no,
-          address: responseData?.address,
-          country: responseData?.country_value,
-          state: responseData?.state_value,
-          city: responseData?.city_value,
-          pin_code: responseData?.pin_code,
-        }),
-      );
-    }
   };
+
+  const loadProductAndPackageData = useCallback((type = 1) => {
+    dispatch(
+      getPackageList({
+        start: 0,
+        limit: 0,
+        isActive: true,
+        search: '',
+        type,
+      }),
+    )
+      .then(response => {
+        let packageData = [];
+
+        if (Object.keys(response.payload?.data)?.length) {
+          packageData = response.payload?.data?.list?.map(item => ({
+            ...item,
+            label: item?.package_name,
+            value: item?._id,
+            isPackage: true,
+          }));
+        }
+
+        return { packageData };
+      })
+      .then(({ packageData }) => {
+        dispatch(
+          getProductList({
+            start: 0,
+            limit: 0,
+            isActive: true,
+            search: '',
+            type,
+          }),
+        )
+          .then(response => {
+            let productData = [];
+
+            if (Object.keys(response.payload?.data)?.length) {
+              productData = response.payload?.data?.list?.map(item => ({
+                ...item,
+                label: item?.item_name,
+                value: item?._id,
+                isPackage: false,
+              }));
+            }
+
+            const data = [
+              { label: 'Package', items: packageData },
+              { label: 'Product', items: productData },
+            ];
+
+            setDropdownInquiryOptionList(prevState => ({
+              ...prevState,
+              editingItemOptionList: data,
+              exposingItemOptionList: data,
+            }));
+
+            return { packageData, response };
+          })
+
+          .catch(error => {
+            console.error('Error fetching product data:', error);
+          });
+      })
+      .catch(error => {
+        console.error('Error fetching package data:', error);
+      });
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -137,6 +186,7 @@ export default function InquiryForm({ initialValues }) {
           setFieldValue('inquiry_no', responseData);
           setFieldValue('create_date', new Date());
         })
+
         .catch(error => {
           console.error('Error fetching inquiry no:', error);
         });
@@ -151,67 +201,24 @@ export default function InquiryForm({ initialValues }) {
       }),
     )
       .then(response => {
-        const companyData = response.payload?.data?.list?.map(item => ({
-          label: item?.company_name,
-          value: item?._id,
+        const companyData = response.payload?.data?.list
+          ?.map(item => ({
+            label: item?.company_name,
+            value: item?._id,
+          }))
+          ?.filter(item => item);
+
+        setDropdownInquiryOptionList(prevState => ({
+          ...prevState,
+          clientCompanyOptionList: companyData,
         }));
 
         return { companyData };
       })
-      .then(({ companyData }) => {
-        dispatch(
-          getPackageList({
-            start: 0,
-            limit: 0,
-            isActive: true,
-            search: '',
-          }),
-        )
-          .then(response => {
-            const packageData = response.payload?.data?.list?.map(item => ({
-              ...item,
-              label: item?.package_name,
-              value: item?._id,
-              isPackage: true,
-            }));
-
-            return { companyData, packageData };
-          })
-          .then(({ companyData, packageData }) => {
-            dispatch(
-              getProductList({
-                start: 0,
-                limit: 0,
-                isActive: true,
-                search: '',
-              }),
-            )
-              .then(response => {
-                const productData = response.payload?.data?.list?.map(item => ({
-                  ...item,
-                  label: item?.item_name,
-                  value: item?._id,
-                  isPackage: false,
-                }));
-                let data = [
-                  { label: 'Package', items: [...packageData] },
-                  { label: 'Product', items: [...productData] },
-                ];
-                setDropdownInquiryOptionList(prevState => ({
-                  ...prevState,
-                  clientCompanyOptionList: companyData,
-                  editingItemOptionList: data,
-                  exposingItemOptionList: data,
-                }));
-              })
-              .catch(error => {
-                console.error('Error fetching product data:', error);
-              });
-          })
-          .catch(error => {
-            console.error('Error fetching package data:', error);
-          });
+      .then(() => {
+        loadProductAndPackageData();
       })
+
       .catch(error => {
         console.error('Error fetching company data:', error);
       });
@@ -282,6 +289,15 @@ export default function InquiryForm({ initialValues }) {
         search: '',
       }),
     );
+
+    dispatch(
+      getDropdownGroupList({
+        start: 0,
+        limit: 0,
+        isActive: true,
+        search: '',
+      }),
+    );
   };
 
   const handleEditingTableChange = (item, fieldName, fieldValue) => {
@@ -330,14 +346,18 @@ export default function InquiryForm({ initialValues }) {
           placeholder="Select Date"
           showIcon
           dateFormat="dd-mm-yy"
-          value={data?.due_date}
+          value={data?.due_date ? new Date(data?.due_date) : ''}
           name="due_date"
           minDate={new Date(values?.create_date)}
           readOnlyInput
           onChange={e => {
-            const utcDate = new Date(e.value);
+            const utcDate = e.value
+              ? //  new Date(e.value)
+                getFormattedDate(e.value)
+              : '';
             handleEditingTableChange(data, e.target.name, utcDate);
           }}
+          showButtonBar
         />
       </div>
     );
@@ -353,12 +373,18 @@ export default function InquiryForm({ initialValues }) {
           useGrouping={false}
           value={data?.quantity}
           onChange={e => {
-            handleEditingTableChange(
-              data,
-              e.originalEvent.target.name,
-              e.value,
-            );
+            // if (/^\d{1,10}(\.\d{1,2})?$/.test(e.value))
+            if (!e.value || checkWordLimit(e.value, 10)) {
+              handleEditingTableChange(
+                data,
+                e.originalEvent.target.name,
+                e.value,
+              );
+            }
           }}
+          minFractionDigits={0}
+          maxFractionDigits={2}
+          maxLength="10"
           required
         />
       </div>
@@ -403,23 +429,43 @@ export default function InquiryForm({ initialValues }) {
     );
   };
 
-  const dueDateExpoBodyTemplate = data => {
+  const dueDateExpoBodyTemplate = (rowData, item) => {
+    const fieldName = item?.field;
     return (
-      <div className="form_group date_select_wrapper w_150 hover_date">
+      <div className="form_group date_select_wrapper w_260 hover_date">
         <Calendar
+          name={fieldName}
+          selectionMode="range"
+          dateFormat="dd-mm-yy"
+          placeholder="Select Order Date"
+          showIcon
+          showButtonBar
+          readOnlyInput
+          minDate={new Date(values?.create_date)}
+          value={rowData[fieldName] ? rowData[fieldName] : []}
+          onChange={e => {
+            handleExposingTableChange(rowData, e.target.name, e.value);
+          }}
+        />
+
+        {/* <Calendar
           id="Order Date"
           placeholder="Select Date"
           showIcon
           dateFormat="dd-mm-yy"
-          value={data?.order_date}
+          value={data?.order_date ? new Date(data?.order_date) : ''}
           name="order_date"
           minDate={new Date(values?.create_date)}
           readOnlyInput
           onChange={e => {
-            const utcDate = new Date(e.value);
+            const utcDate = e.value
+              ? //  new Date(e.value)
+                getFormattedDate(e.value)
+              : '';
             handleExposingTableChange(data, e.target.name, utcDate);
           }}
-        />
+          showButtonBar
+        /> */}
       </div>
     );
   };
@@ -434,12 +480,16 @@ export default function InquiryForm({ initialValues }) {
           useGrouping={false}
           value={data?.quantity}
           onChange={e => {
-            handleExposingTableChange(
-              data,
-              e.originalEvent.target.name,
-              e.value,
-            );
+            // if (/^\d{1,10}$/.test(e.value)) {
+            if (!e.value || checkWordLimit(e.value, 10)) {
+              handleExposingTableChange(
+                data,
+                e.originalEvent.target.name,
+                e.value,
+              );
+            }
           }}
+          maxLength="10"
           required
         />
       </div>
@@ -451,16 +501,20 @@ export default function InquiryForm({ initialValues }) {
       <div className="form_group w_120 hover_input">
         <InputNumber
           id="Rate"
-          placeholder="Enter Qty"
+          placeholder="Enter Rate"
           name="rate"
           useGrouping={false}
           value={data?.rate}
+          maxFractionDigits={2}
+          maxLength="10"
           onChange={e => {
-            handleExposingTableChange(
-              data,
-              e.originalEvent.target.name,
-              e.value,
-            );
+            if (!e.value || checkWordLimit(e.value, 10)) {
+              handleExposingTableChange(
+                data,
+                e.originalEvent.target.name,
+                e.value ? e.value : '',
+              );
+            }
           }}
           required
         />
@@ -494,28 +548,74 @@ export default function InquiryForm({ initialValues }) {
 
   const submitHandle = useCallback(
     async values => {
-      const isDueDate =
+      const isDueDate = values?.editing_inquiryTable?.some(item => {
+        return !item?.due_date;
+      });
+
+      const isOrderDate = values?.exposing_inquiryTable?.some(item => {
+        return !item?.order_date;
+      });
+
+      const isRate = values?.exposing_inquiryTable?.some(item => {
+        return !item?.rate || item?.rate === 0;
+      });
+
+      const isQty =
         values?.inquiry_type === 1
           ? values?.editing_inquiryTable?.some(item => {
-              return !item?.due_date;
+              return !item?.quantity;
             })
           : values?.exposing_inquiryTable?.some(item => {
-              return !item?.order_date;
+              return !item?.quantity;
             });
 
-      if (!isDueDate) {
+      if (isQty) {
+        toast.error('Quantity in Inquiry Details is Required');
+      } else if (isDueDate && values?.inquiry_type === 1) {
+        toast.error('Due Date in Inquiry Details is Required');
+      } else if (isOrderDate && values?.inquiry_type !== 1) {
+        toast.error('Order Date in Inquiry Details is Required');
+      } else if (isRate && values?.inquiry_type !== 1) {
+        toast.error('Rate in Inquiry Details is Required');
+      } else {
+        let updatedExposingTable = [];
+
+        if (values?.inquiry_type === 2) {
+          updatedExposingTable = values?.exposing_inquiryTable?.map(
+            exposing => {
+              const { order_date, ...rest } = exposing;
+              const startDate =
+                order_date?.length && order_date[0]
+                  ? moment(order_date[0])?.format('YYYY-MM-DD')
+                  : '';
+              const endDate =
+                order_date?.length && order_date[1]
+                  ? moment(order_date[1])?.format('YYYY-MM-DD')
+                  : '';
+
+              return {
+                ...rest,
+                order_start_date: startDate,
+                order_end_date: endDate,
+              };
+            },
+          );
+        }
+
+        const payload = {
+          ...(id ? { inquiry_id: id } : { inquiry_no: values?.inquiry_no }),
+          create_date: values?.create_date,
+          client_company_id: values?.client_company_id,
+          remark: values?.remark,
+          inquiry_type: values?.inquiry_type,
+          couple_name: values?.couple_name?.trim(),
+          inquiry_item:
+            values?.inquiry_type === 1
+              ? values?.editing_inquiryTable
+              : updatedExposingTable,
+        };
+
         if (id) {
-          let payload = {
-            inquiry_id: id,
-            create_date: values?.create_date,
-            client_company_id: values?.client_company_id,
-            remark: values?.remark,
-            inquiry_type: values?.inquiry_type,
-            inquiry_item:
-              values?.inquiry_type === 1
-                ? values?.editing_inquiryTable
-                : values?.exposing_inquiryTable,
-          };
           dispatch(editInquiry(payload));
           dispatch(
             setIsGetInintialValuesInquiry({
@@ -525,17 +625,17 @@ export default function InquiryForm({ initialValues }) {
           );
           dispatch(clearUpdateSelectedInquiryData());
         } else {
-          let payload = {
-            inquiry_no: values?.inquiry_no,
-            create_date: values?.create_date,
-            client_company_id: values?.client_company_id,
-            remark: values?.remark,
-            inquiry_type: values?.inquiry_type,
-            inquiry_item:
-              values?.inquiry_type === 1
-                ? values?.editing_inquiryTable
-                : values?.exposing_inquiryTable,
-          };
+          // let payload = {
+          //   // inquiry_no: values?.inquiry_no,
+          //   create_date: values?.create_date,
+          //   client_company_id: values?.client_company_id,
+          //   remark: values?.remark,
+          //   inquiry_type: values?.inquiry_type,
+          //   inquiry_item:
+          //     values?.inquiry_type === 1
+          //       ? values?.editing_inquiryTable
+          //       : values?.exposing_inquiryTable,
+          // };
           dispatch(addInquiry(payload));
           dispatch(
             setIsGetInintialValuesInquiry({
@@ -546,12 +646,11 @@ export default function InquiryForm({ initialValues }) {
           dispatch(clearAddSelectedInquiryData());
         }
         navigate('/inquiry');
-      } else {
-        toast.error('Due Date is Required');
       }
     },
-    [id, dispatch, navigate],
+    [id, dispatch, navigate, isGetInintialValuesInquiry],
   );
+
   const {
     values,
     errors,
@@ -560,6 +659,7 @@ export default function InquiryForm({ initialValues }) {
     handleBlur,
     handleChange,
     handleSubmit,
+    setValues,
   } = useFormik({
     enableReinitialize: true,
     initialValues: initialValues,
@@ -585,6 +685,29 @@ export default function InquiryForm({ initialValues }) {
     }
 
     setFieldValue(fieldName, fieldValue);
+  };
+
+  const handleUpdateFieldsValue = fieldObj => {
+    if (id) {
+      dispatch(
+        setUpdateSelectedInquiryData({
+          ...updateSelectedInquiryData,
+          ...fieldObj,
+        }),
+      );
+    } else {
+      dispatch(
+        setAddSelectedInquiryData({
+          ...addSelectedInquiryData,
+          ...fieldObj,
+        }),
+      );
+    }
+
+    setValues({
+      ...values,
+      ...fieldObj,
+    });
   };
 
   const handleitemList = (fieldName, fieldValue, e) => {
@@ -891,25 +1014,9 @@ export default function InquiryForm({ initialValues }) {
       <div className="create_inquiry_wrap bg-white radius15 border">
         <div className="create_inquiry_top p15 border-bottom">
           <Row className="align-items-center gy-3">
-            <Col sm={3}>
+            <Col sm={12}>
               <div className="page_title">
                 <h3 className="m-0">Inquiry Form</h3>
-              </div>
-            </Col>
-            <Col sm={9}>
-              <div className="title_right_wrapper">
-                <ul>
-                  <li>
-                    <Button onClick={handleCancel} className="btn_border_dark">
-                      Exit Page
-                    </Button>
-                  </li>
-                  <li>
-                    <Button className="btn_primary" onClick={handleSubmit}>
-                      Save Inquiry
-                    </Button>
-                  </li>
-                </ul>
               </div>
             </Col>
           </Row>
@@ -921,7 +1028,10 @@ export default function InquiryForm({ initialValues }) {
                 <Row>
                   <Col xl={5} sm={6}>
                     <div className="form_group mb-3">
-                      <label>Inquiry No</label>
+                      <label>
+                        Inquiry No
+                        <span className="text-danger fs-6">*</span>
+                      </label>
                       <InputText
                         id="Inquiry No"
                         placeholder="Enter Inquiry No"
@@ -938,7 +1048,9 @@ export default function InquiryForm({ initialValues }) {
                   </Col>
                   <Col xl={5} sm={6}>
                     <div className="form_group date_select_wrapper mb-3">
-                      <label>Create Date</label>
+                      <label>
+                        Create Date <span className="text-danger fs-6">*</span>
+                      </label>
                       <Calendar
                         id="Creat Date"
                         placeholder="Select Date"
@@ -961,8 +1073,9 @@ export default function InquiryForm({ initialValues }) {
                 <Row>
                   <Col sm={6}>
                     <div className="form_group mb-3">
-                      <label>Company</label>
-
+                      <label>
+                        Company <span className="text-danger fs-6">*</span>
+                      </label>
                       <ReactSelectSingle
                         filter
                         value={values?.client_company_id}
@@ -1118,10 +1231,10 @@ export default function InquiryForm({ initialValues }) {
                   </Col>
                   <Col sm={6}>
                     <div className="form_group mb-3">
-                      <label htmlFor="Remark">Remark</label>
+                      <label htmlFor="Remark">Description</label>
                       <InputTextarea
                         id="Remark"
-                        placeholder="Remark"
+                        placeholder="Description"
                         className="input_wrap"
                         rows={6}
                         name="remark"
@@ -1139,45 +1252,56 @@ export default function InquiryForm({ initialValues }) {
             <Col xl={6}>
               <div className="inquiry_form_right">
                 <h3 className="mb-3">Inquiry Details</h3>
-                <div className="radio_wrapper d-flex flex-wrap align-items-center mb20">
-                  <label className="me-3">Inquiry Type</label>
-                  <div className="radio-inner-wrap d-flex align-items-center me-3">
-                    <RadioButton
-                      inputId="Editing"
-                      name="inquiry_type"
-                      value={1}
-                      onBlur={handleBlur}
-                      onChange={e => {
-                        commonUpdateFieldValue(e.target.name, e.target.value);
-                      }}
-                      checked={values?.inquiry_type === 1}
-                    />
-                    <label htmlFor="ingredient1" className="ms-sm-2 ms-1">
-                      Editing
-                    </label>
-                  </div>
-                  <div className="radio-inner-wrap d-flex align-items-center">
-                    <RadioButton
-                      inputId="Exposing"
-                      name="inquiry_type"
-                      value={2}
-                      onBlur={handleBlur}
-                      onChange={e => {
-                        commonUpdateFieldValue(e.target.name, e.target.value);
-                      }}
-                      checked={values?.inquiry_type === 2}
-                    />
-                    <label htmlFor="ingredient2" className="ms-sm-2 ms-1">
-                      Exposing
-                    </label>
-                  </div>
-                  {touched?.inquiry_type && errors?.inquiry_type && (
-                    <p className="text-danger">{errors?.inquiry_type}</p>
-                  )}
-                </div>
                 <Row>
                   <Col sm={6}>
-                    <div className="form_group mb-3">
+                    <div className="form_group radio_wrapper d-flex flex-wrap align-items-center">
+                      <label className="me-3">
+                        Inquiry Type <span className="text-danger fs-6">*</span>
+                      </label>
+                      <label className="radio-inner-wrap d-flex align-items-center me-2">
+                        <RadioButton
+                          inputId="Editing"
+                          name="inquiry_type"
+                          value={1}
+                          onBlur={handleBlur}
+                          onChange={e => {
+                            commonUpdateFieldValue(
+                              e.target.name,
+                              e.target.value,
+                            );
+                            loadProductAndPackageData(e.target.value);
+                          }}
+                          checked={values?.inquiry_type === 1}
+                        />
+                        <label htmlFor="ingredient1" className="ms-sm-1 ms-1">
+                          Editing
+                        </label>
+                      </label>
+                      <label className="radio-inner-wrap d-flex align-items-center">
+                        <RadioButton
+                          inputId="Exposing"
+                          name="inquiry_type"
+                          value={2}
+                          onBlur={handleBlur}
+                          onChange={e => {
+                            commonUpdateFieldValue(
+                              e.target.name,
+                              e.target.value,
+                            );
+                            loadProductAndPackageData(e.target.value);
+                          }}
+                          checked={values?.inquiry_type === 2}
+                        />
+                        <label htmlFor="ingredient2" className="ms-sm-1 ms-1">
+                          Exposing
+                        </label>
+                      </label>
+                      {touched?.inquiry_type && errors?.inquiry_type && (
+                        <p className="text-danger">{errors?.inquiry_type}</p>
+                      )}
+                    </div>
+
+                    <div className="form_group">
                       <MultiSelect
                         value={
                           values?.inquiry_type === 1
@@ -1206,7 +1330,8 @@ export default function InquiryForm({ initialValues }) {
                         placeholder="Select items"
                         showSelectAll={false}
                         onBlur={handleBlur}
-                        className="w-100 "
+                        // className="w-100 without_title_field"
+                        className="w-100"
                       />
                       {/* <ReactSelectSingle
                         filter
@@ -1227,6 +1352,27 @@ export default function InquiryForm({ initialValues }) {
                             {errors?.exposing_inquiry}
                           </p>
                         )}
+                    </div>
+                  </Col>
+                  <Col sm={6}>
+                    <div className="form_group mb-3">
+                      <label htmlFor="CoupleName">
+                        Couple Name<span className="text-danger fs-6">*</span>
+                      </label>
+                      <InputText
+                        id="CoupleName"
+                        name="couple_name"
+                        className="input_wrap"
+                        placeholder="Enter Couple Name"
+                        value={values?.couple_name}
+                        onBlur={handleBlur}
+                        onChange={e => {
+                          commonUpdateFieldValue(e.target.name, e.target.value);
+                        }}
+                      />
+                      {touched?.couple_name && errors?.couple_name && (
+                        <p className="text-danger">{errors?.couple_name}</p>
+                      )}
                     </div>
                   </Col>
                 </Row>
@@ -1300,6 +1446,54 @@ export default function InquiryForm({ initialValues }) {
               </div>
             </Col>
           </Row>
+          <div className="title_right_wrapper mt-3">
+            <ul className="justify-content-end">
+              <li>
+                <Button onClick={handleCancel} className="btn_border_dark">
+                  Exit Page
+                </Button>
+              </li>
+              <li>
+                <Button className="btn_primary" onClick={handleSubmit}>
+                  {id ? 'Update Inquiry' : 'Save Inquiry'}
+                </Button>
+              </li>
+              {/* {!isShowNext ? (
+                <li>
+                  <Button className="btn_primary" onClick={handleSubmit}>
+                    {id ? 'Update Inquiry' : 'Save Inquiry'}
+                  </Button>
+                </li>
+              ) : (
+                <Button
+                  onClick={() => {
+                    // if (
+                    //   !getExposingStepData?.step ||
+                    //   getExposingStepData?.step < 1
+                    // ) {
+                    //   let payload = {
+                    //     order_id: id,
+                    //     step: 1,
+                    //   };
+                    //   dispatch(addExposingStep(payload))
+                    //     .then(response => {
+                    //       dispatch(setExposingSelectedProgressIndex(2));
+                    //     })
+                    //     .catch(errors => {
+                    //       console.error('Add Status:', errors);
+                    //     });
+                    // } else {
+                    //   dispatch(setExposingSelectedProgressIndex(2));
+                    // }
+                    dispatch(setInquirySelectedProgressIndex(2));
+                  }}
+                  className="btn_primary ms-2"
+                >
+                  Next
+                </Button>
+              )} */}
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -1404,4 +1598,5 @@ export default function InquiryForm({ initialValues }) {
       </Sidebar> */}
     </div>
   );
-}
+};
+export default memo(InquiryForm);

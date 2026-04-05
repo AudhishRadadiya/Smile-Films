@@ -1,91 +1,139 @@
-import React, { useState } from 'react';
-
-import { Button, Col, Row } from 'react-bootstrap';
-import DeleteIcon from '../../../Assets/Images/trash.svg';
-import EditIcon from '../../../Assets/Images/edit.svg';
-import { Calendar } from 'primereact/calendar';
-import HighchartsReact from 'highcharts-react-official';
+import React, { memo, useCallback, useEffect, useMemo } from 'react';
 import Highcharts from 'highcharts';
+import { useParams } from 'react-router-dom';
+import { Col, Row } from 'react-bootstrap';
+import EditIcon from '../../../Assets/Images/edit.svg';
+import { useDispatch, useSelector } from 'react-redux';
+import HighchartsReact from 'highcharts-react-official';
+import { thousandSeparator } from 'Helper/CommonHelper';
+import DeleteIcon from '../../../Assets/Images/trash.svg';
+import { getClientCompany } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
+import { getCashFlowData } from 'Store/Reducers/ClientFlow/Dashboard/ClientDashboardSlice';
 
-export default function CompanyOverview() {
-  const [dates, setDates] = useState(null);
+const CompanyOverview = () => {
+  const { id } = useParams();
+  const dispatch = useDispatch();
 
-  const incomeChart = {
-    chart: {
-      type: 'column',
-    },
-    title: {
-      text: '',
-    },
-    xAxis: {
-      categories: [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ],
-      crosshair: false,
-      labels: {
-        style: {
-          color: '#7B7B7B',
-        },
+  const { selectedClientCompanyData } = useSelector(
+    ({ clientCompany }) => clientCompany,
+  );
+  const { clientCashFlowData } = useSelector(
+    ({ clientDashboard }) => clientDashboard,
+  );
+
+  const fetchRequiredData = useCallback(() => {
+    dispatch(
+      getClientCompany({
+        client_company_id: id,
+      }),
+    );
+    dispatch(getCashFlowData());
+  }, [dispatch, id]);
+
+  useEffect(() => {
+    fetchRequiredData();
+  }, []);
+
+  const calculateTotalIncome = useMemo(() => {
+    const calculatedIncome = clientCashFlowData?.data?.reduce(
+      (accumulator, currentValue) => accumulator + currentValue?.amount,
+      0,
+    );
+
+    return calculatedIncome;
+  }, [clientCashFlowData]);
+
+  const clientCompanyOverviewIncomeData = useMemo(() => {
+    let clientCompanyIncomeData = [];
+
+    if (clientCashFlowData?.data?.length > 0) {
+      clientCompanyIncomeData = clientCashFlowData?.data?.map(item => {
+        return item?.amount;
+      });
+    }
+
+    const incomeChart = {
+      chart: {
+        type: 'column',
       },
-      lineColor: '#D7D7D7',
-      lineWidth: 1,
-    },
-    yAxis: {
       title: {
-        text: 'Number of Orders',
+        text: '',
       },
-    },
-    plotOptions: {
-      column: {
-        pointPadding: 0,
-        borderWidth: 0,
-      },
-    },
-    credits: {
-      enabled: false,
-    },
-    legend: {
-      enabled: false,
-    },
-    series: [
-      {
-        data: [
-          43934, 48656, 65165, 81827, 112143, 142383, 171533, 165174, 155157,
-          161454, 154610, 15020,
-        ],
-        color: '#373AA5',
-        pointWidth: 10,
-      },
-    ],
-
-    responsive: {
-      rules: [
-        {
-          condition: {
-            maxWidth: 500,
+      xAxis: {
+        categories: clientCashFlowData?.date || [],
+        crosshair: false,
+        labels: {
+          style: {
+            color: '#7B7B7B',
           },
         },
+        lineColor: '#D7D7D7',
+        lineWidth: 1,
+      },
+      yAxis: {
+        title: {
+          text: 'Number of Income',
+        },
+      },
+      plotOptions: {
+        column: {
+          pointPadding: 0,
+          borderWidth: 0,
+        },
+      },
+      credits: {
+        enabled: false,
+      },
+      legend: {
+        enabled: false,
+      },
+      series: [
+        {
+          data: clientCompanyIncomeData,
+          color: '#373AA5',
+          pointWidth: 10,
+          name: 'Income',
+        },
       ],
-    },
-  };
+      tooltip: {
+        formatter: function () {
+          return (
+            '<div>' +
+            '<span class="tooltip-x">' +
+            this.x +
+            '</span>' +
+            '</div>' +
+            '<div> <br> <br>' +
+            '<span style="color:' +
+            this.point.color +
+            '">\u25CF</span> <b>' +
+            this.series.name +
+            '</b>:' +
+            thousandSeparator(this.y) +
+            '</div>'
+          );
+        },
+      },
+      responsive: {
+        rules: [
+          {
+            condition: {
+              maxWidth: 500,
+            },
+          },
+        ],
+      },
+    };
+
+    return incomeChart;
+  }, [clientCashFlowData]);
 
   return (
     <div className="company_overview_wrap p20 p15-sm">
       <div className="company_box p20 radius15 mb20">
         <div className="company_box_title mb25 flex-wrap gap-3 d-flex justify-content-between align-items-center">
-          <h2>ABC Company</h2>
-          <div className="title_right_wrapper">
+          <h2>{selectedClientCompanyData?.company_name}</h2>
+          {/* <div className="title_right_wrapper">
             <ul>
               <li>
                 <Button className="btn_border_dark">
@@ -100,7 +148,7 @@ export default function CompanyOverview() {
                 </Button>
               </li>
             </ul>
-          </div>
+          </div> */}
         </div>
         <div className="company_box_inner">
           <Row>
@@ -108,15 +156,15 @@ export default function CompanyOverview() {
               <ul>
                 <li className="mb20">
                   <h5 className="fw_400 text_grey mb5">Name</h5>
-                  <h4>Mr. Kapil Kachhadiya</h4>
+                  <h4>{selectedClientCompanyData?.client_full_name}</h4>
                 </li>
                 <li className="mb20">
                   <h5 className="fw_400 text_grey mb5">Email</h5>
-                  <h4>ankitparsurampuria@gmail.com</h4>
+                  <h4>{selectedClientCompanyData?.email_id}</h4>
                 </li>
                 <li>
                   <h5 className="fw_400 text_grey mb5">Mobile</h5>
-                  <h4>9013537809</h4>
+                  <h4>{selectedClientCompanyData?.mobile_no?.join(', ')}</h4>
                 </li>
               </ul>
             </Col>
@@ -124,10 +172,7 @@ export default function CompanyOverview() {
               <ul>
                 <li>
                   <h3 className="mt-3 mt-md-0">Billing Address</h3>
-                  <p>
-                    406 Dhara arcade, Near Mahadev Chowk Mota Varacha
-                    Surat,Gujrat, 394101
-                  </p>
+                  <p>{selectedClientCompanyData?.address}</p>
                 </li>
               </ul>
             </Col>
@@ -136,11 +181,11 @@ export default function CompanyOverview() {
               <ul className="border-0">
                 <li className="mb20">
                   <h5 className="fw_400 text_grey mb5">Default Currency</h5>
-                  <h4>INR</h4>
+                  <h4>{selectedClientCompanyData?.currency || '-'}</h4>
                 </li>
                 <li className="mb20">
                   <h5 className="fw_400 text_grey mb5">Group Name</h5>
-                  <h4>Trading General</h4>
+                  <h4>{selectedClientCompanyData?.group_name || '-'}</h4>
                 </li>
               </ul>
             </Col>
@@ -152,26 +197,36 @@ export default function CompanyOverview() {
           <h4>Income</h4>
         </Col>
         <Col lg={6}>
-          <div className="form_group date_select_wrapper text-end">
+          {/*<div className="form_group date_select_wrapper text-end">
             <Calendar
-              id="Creat Date"
-              placeholder="Select Date"
+              id=" ConsumptionDate"
+              value={clientCompanyIncomeDate}
+              placeholder="Select Date Range"
               showIcon
+              selectionMode="range"
               dateFormat="dd-mm-yy"
               readOnlyInput
-              selectionMode="range"
-              onChange={e => setDates(e.value)}
-              className="w-auto"
+              showButtonBar
+              onChange={e => {
+                handleClientCompanyProfileDate(e);
+              }}
             />
-          </div>
+          </div>*/}
         </Col>
         <Col lg={6}>
           <div className="overview_chart mt30 mb40">
-            <HighchartsReact highcharts={Highcharts} options={incomeChart} />
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={clientCompanyOverviewIncomeData}
+            />
           </div>
-          <h4>Total Income ( This Year ) - ₹1,10,000.00</h4>
+          <h4>{`Total Income ( This Year ) - ₹${
+            calculateTotalIncome ? calculateTotalIncome : 0
+          }`}</h4>
         </Col>
       </Row>
     </div>
   );
-}
+};
+
+export default memo(CompanyOverview);

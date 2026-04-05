@@ -1,0 +1,127 @@
+//================================ Reports page ================================
+.main_data_Wrapper {
+  height: calc(100% - 70px);
+  // overflow: auto;
+
+  .favorite_list_contant {
+    padding: 20px;
+    .favorite_title {
+      padding-bottom: 20px;
+      .favorite_title_img {
+        width: 22px;
+        height: 20px;
+        @media (max-width: 768px) {
+          height: 18px;
+          width: 20px;
+        }
+      }
+      .favorites_title {
+        padding-left: 10px;
+        font-size: 22px;
+        font-weight: 500;
+        line-height: 24px;
+        color: $textPrimary;
+        @media (max-width: 1024px) {
+          font-size: 19px;
+          line-height: 21px;
+        }
+        @media (max-width: 768px) {
+          font-size: 16px;
+          line-height: 18px;
+        }
+      }
+    }
+    .favorite_content {
+      max-height: 150px;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      .favorite_list {
+        .favorite_list_item {
+          padding-bottom: 11px;
+          border-bottom: 1px dotted $borderColor;
+          max-width: 263px;
+          margin-bottom: 20px;
+          @media (max-width: 575px) {
+            margin: 0 auto 20px auto;
+          }
+          .favorite_image {
+            height: 18px;
+            width: 18px;
+          }
+          .list_name {
+            padding-left: 10px;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 21px;
+            color: $textLightBlue;
+          }
+        }
+      }
+    }
+  }
+
+  .reports_page_area {
+    padding: 20px;
+    .menu_list_partition {
+      &:nth-child(n + 5) {
+        padding-top: 40px;
+      }
+      @media (max-width: 991px) {
+        &:nth-child(n + 4) {
+          padding-top: 30px;
+        }
+      }
+      @media (max-width: 767px) {
+        &:nth-child(n + 3) {
+          padding-top: 20px;
+        }
+      }
+      @media (max-width: 575px) {
+        &:nth-child(n + 2) {
+          padding-top: 30px;
+        }
+      }
+      .list_title {
+        padding-bottom: 20px;
+        .title_img {
+          height: 24px;
+          width: 24px;
+        }
+        h3 {
+          padding-left: 10px;
+          font-size: 16px;
+          font-weight: 500;
+          line-height: 24px;
+          color: $textPrimary;
+        }
+      }
+      .list_menu {
+        .list_icon {
+          padding-bottom: 11px;
+          border-bottom: 1px dotted $borderColor;
+          max-width: 263px;
+          &:nth-child(n + 2) {
+            padding-top: 20px;
+          }
+          @media (max-width: 575px) {
+            margin: 0 auto;
+          }
+          .star_icon {
+            height: 18px;
+            width: 18px;
+          }
+          .list_name {
+            padding-left: 10px;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 21px;
+            color: $textLightBlue;
+          }
+        }
+      }
+    }
+  }
+}
+
+// list_icon d-flex align-items-baseline justify-content-sm-start justify-content-center

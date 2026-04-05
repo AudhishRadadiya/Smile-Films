@@ -1,282 +1,337 @@
-import React, { useState } from 'react';
-import { Column } from 'primereact/column';
-import { Col, Dropdown, Row } from 'react-bootstrap';
-import { InputText } from 'primereact/inputtext';
-import { Button } from 'primereact/button';
-import ActionBtn from '../../../Assets/Images/action.svg';
-import TrashIcon from '../../../Assets/Images/trash.svg';
-import EditIcon from '../../../Assets/Images/edit.svg';
-import { DataTable } from 'primereact/datatable';
+import React, { useCallback, useEffect, useState } from 'react';
+import _ from 'lodash';
 import { Tag } from 'primereact/tag';
-import CustomPaginator from 'Components/Common/CustomPaginator';
+import { Column } from 'primereact/column';
+import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
-import { Link } from 'react-router-dom';
+import { InputText } from 'primereact/inputtext';
+import { DataTable } from 'primereact/datatable';
+import { Col, Dropdown, Row } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
 import { MultiSelect } from 'primereact/multiselect';
-import { setInquiryStatus } from 'Store/Reducers/ActivityOverview/inquirySlice';
 import { useDispatch, useSelector } from 'react-redux';
-import { InquiryStatusList } from 'Helper/CommonList';
 
-export const inquiryData = [
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Jasmin & Ryan',
-    item_Names: 'Wedding, Teaser, Pre-we...',
-    item_type: 'Exposing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Completed',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Sophia & Ethan',
-    item_Names: 'Wedding, Teaser, Pre-we...',
-    item_type: 'Exposing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'In Progress',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Olivia & Liam',
-    item_Names: 'Editing',
-    item_type: 'Exposing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Initial',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Ava & Noah',
-    item_Names: 'Pre-Wedding',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'In Progress',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Mia & Oliver',
-    item_Names: 'Editing',
-    item_type: 'Exposing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Initial',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Isabella & Lucas',
-    item_Names: 'Teaser',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Cancelled',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Charlotte & Henry',
-    item_Names: 'Exposing',
-    item_type: 'Exposing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Initial',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Harper & Elijah',
-    item_Names: 'Teaser',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Cancelled',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Amelia & William',
-    item_Names: 'Exposing',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Initial',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Sanjay & Sangita',
-    item_Names: 'Pre-Wedding',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Cancelled',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Naresh & Jamna',
-    item_Names: 'Exposing',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Pending',
-    action: 'action',
-  },
-  {
-    order_no: '#56123',
-    company_name: 'ABC Company',
-    couple_name: 'Kapil & Krupa',
-    item_Names: 'Wedding',
-    item_type: 'Editing',
-    invoice_no: '#8964',
-    inquiry_date: '27/07/2023',
-    amount: '₹ 33,000',
-    commission: 'Yes',
-    status: 'Cancelled',
-    action: 'action',
-  },
-];
+import {
+  getBillingList,
+  setBillingCurrentPage,
+  setBillingItemType,
+  setBillingListCheckboxs,
+  setBillingPageLimit,
+  setBillingPaymentCompleted,
+  setBillingPaymentStatus,
+  setBillingSearchParam,
+} from 'Store/Reducers/Accounting/Billing/BillingSlice';
+import Loader from 'Components/Common/Loader';
+import { BillingStatusList } from 'Helper/CommonList';
+import EditIcon from '../../../Assets/Images/edit.svg';
+import ActionBtn from '../../../Assets/Images/action.svg';
+import CustomPaginator from 'Components/Common/CustomPaginator';
+
+const getSeverity = product => {
+  switch (product) {
+    case 'Partial':
+      return 'primary';
+    case 'Due':
+      return 'danger';
+    case 'Completed':
+      return 'success';
+    default:
+      return null;
+  }
+};
 
 export default function Billing() {
   const dispatch = useDispatch();
-  const [checked, setChecked] = useState(false);
-  const [setDeletePopup] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(30);
+  const navigate = useNavigate();
 
-  const { filterStatus } = useSelector(({ inquiry }) => inquiry);
+  // const [checkboxes, setCheckboxes] = useState({
+  //   editing: false,
+  //   exposing: false,
+  //   paymentCompleted: false,
+  // });
 
-  const statusBodyTemplate = product => {
+  const {
+    billingListData,
+    billingCurrentPage,
+    billingPageLimit,
+    billingSearchParam,
+    billingItemType,
+    billingPaymentStatus,
+    billingPaymentCompleted,
+    billingListCheckboxs,
+    billingListLoading,
+  } = useSelector(({ billing }) => billing);
+
+  const getBillingListApi = useCallback(
+    (
+      start = 1,
+      limit = 10,
+      search = '',
+      item_type = '',
+      payment_status = '',
+      payment_completed = '',
+    ) => {
+      dispatch(
+        getBillingList({
+          start: start,
+          limit: limit,
+          search: search?.trim(),
+          item_type: item_type,
+          payment_status: payment_status,
+          payment_completed: payment_completed,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    getBillingListApi(
+      billingCurrentPage,
+      billingPageLimit,
+      billingSearchParam,
+      billingItemType,
+      billingPaymentStatus,
+      billingPaymentCompleted,
+    );
+  }, []);
+
+  const statusBodyTemplate = data => {
     return (
-      <Tag value={product.status} severity={getSeverity(product.status)}></Tag>
+      <Tag
+        value={data?.payment_status}
+        severity={getSeverity(data?.payment_status)}
+      ></Tag>
     );
   };
 
-  const ItemNameTemplate = product => {
+  const ItemNameTemplate = data => {
+    let buttonTooltip = data?.item_name;
     return (
-      <>
-        <div className="item_name_wrapper">
-          <Button
-            className="btn_as_text"
-            placeholder="bottom"
-            tooltip="Wedding, Teaser, Pre-Wedding"
-            type="button"
-            label="Wedding, Teaser, Pre-Wedding"
-            tooltipOptions={{ position: 'bottom' }}
-          />
-        </div>
-      </>
+      <Button
+        tooltip={buttonTooltip}
+        tooltipOptions={{ position: 'top' }}
+        className="btn_transparent text_dark item_name_with_tooltip"
+      >
+        {data?.item_name}
+      </Button>
     );
   };
 
-  const CompanyNameTemplate = () => {
-    return <Link to="/view-billing">ABC Company</Link>;
+  const amountTemplate = rowData => {
+    return (
+      <div>
+        <span>{rowData?.amount}</span>
+        {rowData?.partial_amount ? (
+          <span style={{ color: '#c94444' }}>
+            {` (₹ ${rowData?.partial_amount || 0} pending)`}
+          </span>
+        ) : (
+          ''
+        )}
+      </div>
+    );
   };
 
-  const getSeverity = product => {
-    switch (product) {
-      case 'In Progress':
-        return 'warning';
-
-      case 'Pending':
-        return 'primary';
-
-      case 'Completed':
-        return 'success';
-
-      case 'Initial':
-        return 'info';
-
-      case 'Cancelled':
-        return 'danger';
-
-      default:
-        return null;
-    }
+  const CompanyNameTemplate = data => {
+    return (
+      <Link to={`/edit-billing/${data?._id}`} className="hover_text">
+        {data?.company_name}
+      </Link>
+    );
   };
 
   const statusItemTemplate = option => {
     return <Tag value={option.label} severity={getSeverity(option.label)} />;
   };
 
-  const actionBodyTemplate = () => {
+  const actionBodyTemplate = data => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle id="dropdown-basic" className="action_btn">
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            <Dropdown.Item>
-              <img src={EditIcon} alt="EditIcon" /> Edit
-            </Dropdown.Item>
-            <Dropdown.Item
-              onClick={() => {
-                // setDeleteId(id)
-                setDeletePopup(true);
-              }}
-            >
-              <img src={TrashIcon} alt="TrashIcon" /> Delete
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle id="dropdown-basic" className="action_btn">
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       <Dropdown.Item
+      //         onClick={() => {
+      //           navigate(`/edit-billing/${data?._id}`);
+      //         }}
+      //       >
+      //         <img src={EditIcon} alt="EditIcon" /> Edit
+      //       </Dropdown.Item>
+      //       {/* <Dropdown.Item
+      //         onClick={() => {
+      //           // setDeleteId(id)
+      //           setDeletePopup(true);
+      //         }}
+      //       >
+      //         <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //       </Dropdown.Item> */}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+      <div className="d-flex gap-3">
+        <img
+          alt=""
+          src={EditIcon}
+          className="cursor_pointer"
+          onClick={() => {
+            navigate(`/edit-billing/${data?._id}`);
+          }}
+        />
       </div>
     );
   };
 
+  const handleCheckboxChange = (name, checked) => {
+    let data = [];
+
+    let copy = {
+      ...billingListCheckboxs,
+      [name]: checked,
+    };
+
+    dispatch(
+      setBillingListCheckboxs({
+        ...billingListCheckboxs,
+        [name]: checked,
+      }),
+    );
+
+    const paymentCompletedData = copy.paymentCompleted === true ? 1 : 0;
+
+    // setCheckboxes(prevState => ({
+    //   ...prevState,
+    //   [name]: checked,
+    // }));
+
+    if (copy.editing === true) {
+      data.push(1);
+    }
+
+    if (copy.exposing === true) {
+      data.push(2);
+    }
+
+    dispatch(setBillingItemType(data));
+    dispatch(setBillingPaymentCompleted(paymentCompletedData));
+    dispatch(setBillingCurrentPage(1));
+
+    getBillingListApi(
+      1,
+      billingPageLimit,
+      billingSearchParam,
+      data,
+      billingPaymentStatus,
+      paymentCompletedData,
+    );
+  };
+
   const onPageChange = page => {
-    let pageIndex = currentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    setCurrentPage(pageIndex);
+    if (page !== billingCurrentPage) {
+      let pageIndex = billingCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+
+      dispatch(setBillingCurrentPage(pageIndex));
+      getBillingListApi(
+        pageIndex,
+        billingPageLimit,
+        billingSearchParam,
+        billingItemType,
+        billingPaymentStatus,
+        billingPaymentCompleted,
+      );
+    }
   };
 
   const onPageRowsChange = page => {
-    setCurrentPage(page === 0 ? 0 : 1);
-    setPageLimit(page);
+    dispatch(setBillingCurrentPage(page === 0 ? 0 : 1));
+    dispatch(setBillingPageLimit(page));
+    const pageValue =
+      page === 0
+        ? billingListData?.totalRows
+          ? billingListData?.totalRows
+          : 0
+        : page;
+    const prevPageValue =
+      billingPageLimit === 0
+        ? billingListData?.totalRows
+          ? billingListData?.totalRows
+          : 0
+        : billingPageLimit;
+    if (
+      prevPageValue < billingListData?.totalRows ||
+      pageValue < billingListData?.totalRows
+    ) {
+      getBillingListApi(
+        page === 0 ? 0 : 1,
+        page,
+        billingSearchParam,
+        billingItemType,
+        billingPaymentStatus,
+        billingPaymentCompleted,
+      );
+    }
   };
 
+  const onChangeMultiSelector = e => {
+    dispatch(setBillingPaymentStatus(e.value));
+    dispatch(setBillingCurrentPage(1));
+
+    // dispatch(
+    //   getBillingList({
+    //     start: billingCurrentPage,
+    //     limit: billingPageLimit,
+    //     search: billingSearchParam,
+    //     item_type: billingItemType,
+    //     payment_status: e.value,
+    //     payment_completed: billingPaymentCompleted,
+    //   }),
+    // );
+    getBillingListApi(
+      1,
+      billingPageLimit,
+      billingSearchParam,
+      billingItemType,
+      e.value,
+      billingPaymentCompleted,
+    );
+  };
+
+  const handleSearchInput = e => {
+    dispatch(setBillingCurrentPage(1));
+    // dispatch(
+    //   getBillingList({
+    //     start: billingCurrentPage,
+    //     limit: billingPageLimit,
+    //     search: e.target.value,
+    //     item_type: billingItemType,
+    //     payment_status: billingPaymentStatus,
+    //     payment_completed: billingPaymentCompleted,
+    //   }),
+    // );
+    getBillingListApi(
+      billingCurrentPage,
+      billingPageLimit,
+      e.target.value?.trim(),
+      billingItemType,
+      billingPaymentStatus,
+      billingPaymentCompleted,
+    );
+  };
+
+  const debounceHandleSearchInput = useCallback(
+    _.debounce(e => {
+      handleSearchInput(e);
+    }, 800),
+    [billingPaymentCompleted, billingPaymentStatus],
+  );
   return (
     <div className="main_Wrapper">
+      {billingListLoading && <Loader />}
       <div className="table_main_Wrapper">
         <div className="top_filter_wrap">
           <Row className="align-items-center gy-3">
@@ -292,8 +347,11 @@ export default function Billing() {
                     <div className="checkbox_wrap_main d-flex align-items-center gap-2">
                       <div className="form_group checkbox_wrap">
                         <Checkbox
-                          onChange={e => setChecked(e.checked)}
-                          checked={checked}
+                          name="editing"
+                          onChange={e =>
+                            handleCheckboxChange('editing', e.checked)
+                          }
+                          checked={billingListCheckboxs?.editing}
                         ></Checkbox>
                       </div>
                       <span>Show Editing</span>
@@ -303,8 +361,11 @@ export default function Billing() {
                     <div className="checkbox_wrap_main d-flex align-items-center gap-2">
                       <div className="form_group checkbox_wrap">
                         <Checkbox
-                          onChange={e => setChecked(e.checked)}
-                          checked={checked}
+                          name="exposing"
+                          onChange={e =>
+                            handleCheckboxChange('exposing', e.checked)
+                          }
+                          checked={billingListCheckboxs?.exposing}
                         ></Checkbox>
                       </div>
                       <span>Show Exposing</span>
@@ -314,8 +375,11 @@ export default function Billing() {
                     <div className="checkbox_wrap_main d-flex align-items-center gap-2">
                       <div className="form_group checkbox_wrap">
                         <Checkbox
-                          onChange={e => setChecked(e.checked)}
-                          checked={checked}
+                          name="paymentCompleted"
+                          onChange={e =>
+                            handleCheckboxChange('paymentCompleted', e.checked)
+                          }
+                          checked={billingListCheckboxs?.paymentCompleted}
                         ></Checkbox>
                       </div>
                       <span>Payment Completed</span>
@@ -328,6 +392,11 @@ export default function Billing() {
                         placeholder="Search"
                         type="search"
                         className="input_wrap small search_wrap"
+                        value={billingSearchParam}
+                        onChange={e => {
+                          debounceHandleSearchInput(e);
+                          dispatch(setBillingSearchParam(e.target.value));
+                        }}
                       />
                     </div>
                   </li>
@@ -387,16 +456,17 @@ export default function Billing() {
                       </div>
                     </OverlayPanel>
                   </li> */}
-                  <li className="inquiry_multeselect">
+
+                  <li className="inquiry_multeselect w-auto">
                     <MultiSelect
-                      options={InquiryStatusList}
-                      value={filterStatus}
+                      options={BillingStatusList}
+                      value={billingPaymentStatus}
                       name="items"
                       onChange={e => {
-                        dispatch(setInquiryStatus(e.target.value));
+                        onChangeMultiSelector(e);
                       }}
                       placeholder="Filter by Status"
-                      className="btn_border w-100"
+                      className="btn_primary w-100"
                       itemTemplate={statusItemTemplate}
                     />
                   </li>
@@ -407,7 +477,7 @@ export default function Billing() {
         </div>
         <div className="data_table_wrapper">
           <DataTable
-            value={inquiryData}
+            value={billingListData ? billingListData?.list : []}
             sortField="price"
             sortOrder={1}
             rows={10}
@@ -429,7 +499,7 @@ export default function Billing() {
             <Column field="item_type" header="Item Type" sortable></Column>
             <Column field="invoice_no" header="Invoice No" sortable></Column>
             <Column
-              field="inquiry_date"
+              field="invoice_date"
               header="Invoice Date"
               sortable
             ></Column>
@@ -438,8 +508,9 @@ export default function Billing() {
               header="Amount"
               sortable
               className="with_concate"
+              body={amountTemplate}
             ></Column>
-            <Column field="commission" header="Commission" sortable></Column>
+            <Column field="commision" header="Commission" sortable></Column>
             <Column
               field="payment_status"
               header="Payment Status"
@@ -449,17 +520,16 @@ export default function Billing() {
             <Column
               field="action"
               header="Action"
-              sortable
               body={actionBodyTemplate}
             ></Column>
           </DataTable>
           <CustomPaginator
-            dataList={inquiryData}
-            pageLimit={pageLimit}
+            dataList={billingListData?.list}
+            pageLimit={billingPageLimit}
             onPageChange={onPageChange}
             onPageRowsChange={onPageRowsChange}
-            currentPage={currentPage}
-            totalCount={inquiryData?.length}
+            currentPage={billingCurrentPage}
+            totalCount={billingListData?.totalRows}
           />
         </div>
       </div>

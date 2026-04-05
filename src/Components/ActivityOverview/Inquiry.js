@@ -1,25 +1,18 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Button } from 'primereact/button';
-import { InputText } from 'primereact/inputtext';
-import { Col, Dropdown, Row } from 'react-bootstrap';
-import ExportIcon from '../../Assets/Images/export.svg';
-import PlusIcon from '../../Assets/Images/plus.svg';
-import ActionBtn from '../../Assets/Images/action.svg';
-import EditIcon from '../../Assets/Images/edit.svg';
-import TrashIcon from '../../Assets/Images/trash.svg';
-import { Link, useNavigate } from 'react-router-dom';
-import { Dialog } from 'primereact/dialog';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
+import _ from 'lodash';
 import { Tag } from 'primereact/tag';
-import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
-import CustomPaginator from 'Components/Common/CustomPaginator';
+import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
+import { Column } from 'primereact/column';
 import { Sidebar } from 'primereact/sidebar';
-import { InputTextarea } from 'primereact/inputtextarea';
+import { useNavigate } from 'react-router-dom';
+import { InputText } from 'primereact/inputtext';
+import { DataTable } from 'primereact/datatable';
+import { Col, Dropdown, Row } from 'react-bootstrap';
 import { MultiSelect } from 'primereact/multiselect';
-import { InquiryStatusFilterList, InquiryStatusList } from 'Helper/CommonList';
-import ReactSelectSingle from '../Common/ReactSelectSingle';
 import { useDispatch, useSelector } from 'react-redux';
+import { InputTextarea } from 'primereact/inputtextarea';
+
 import {
   clearAddSelectedInquiryData,
   clearUpdateSelectedInquiryData,
@@ -29,14 +22,46 @@ import {
   setInquiryCurrentPage,
   setInquiryPageLimit,
   setInquirySearchParam,
+  setInquirySelectedProgressIndex,
   setInquiryStatus,
   setIsAddInquiry,
   setIsDeleteInquiry,
   setIsGetInintialValuesInquiry,
   setIsUpdateInquiry,
+  setSelectedInquiryFlowData,
 } from 'Store/Reducers/ActivityOverview/inquirySlice';
 import Loader from 'Components/Common/Loader';
-import _ from 'lodash';
+import PlusIcon from '../../Assets/Images/plus.svg';
+import EditIcon from '../../Assets/Images/edit.svg';
+import TrashIcon from '../../Assets/Images/trash.svg';
+import ActionBtn from '../../Assets/Images/action.svg';
+import ExportIcon from '../../Assets/Images/export.svg';
+import ReactSelectSingle from '../Common/ReactSelectSingle';
+import CustomPaginator from 'Components/Common/CustomPaginator';
+import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
+import { InquiryStatusFilterList, InquiryStatusList } from 'Helper/CommonList';
+
+const getSeverity = product => {
+  switch (product) {
+    case 'In Progress':
+      return 'warning';
+
+    case 'Pending':
+      return 'primary';
+
+    case 'Completed':
+      return 'success';
+
+    case 'Initial':
+      return 'info';
+
+    case 'Cancelled':
+      return 'danger';
+
+    default:
+      return null;
+  }
+};
 
 const initialValues = {
   inquiry_no: '',
@@ -74,28 +99,37 @@ export default function Inquiry({ hasAccess }) {
     isGetInintialValuesInquiry,
   } = useSelector(({ inquiry }) => inquiry);
 
+  const getInquiryListApi = useCallback(
+    (start = 1, limit = 10, search = '', inquiry_status = '') => {
+      dispatch(
+        getInquiryList({
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+          inquiry_status: inquiry_status,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
-    dispatch(
-      getInquiryList({
-        start: inquiryCurrentPage,
-        limit: inquiryPageLimit,
-        isActive: '',
-        search: inquirySearchParam,
-        inquiry_status: inquiryStatus,
-      }),
+    getInquiryListApi(
+      inquiryCurrentPage,
+      inquiryPageLimit,
+      inquirySearchParam,
+      inquiryStatus,
     );
-  }, [dispatch, inquiryCurrentPage, inquiryPageLimit]);
+  }, []);
 
   useEffect(() => {
     if (isAddInquiry || isUpdateInquiry || isDeleteInquiry) {
-      dispatch(
-        getInquiryList({
-          start: inquiryCurrentPage,
-          limit: inquiryPageLimit,
-          isActive: '',
-          search: inquirySearchParam,
-          inquiry_status: inquiryStatus,
-        }),
+      getInquiryListApi(
+        inquiryCurrentPage,
+        inquiryPageLimit,
+        inquirySearchParam,
+        inquiryStatus,
       );
     }
     if (isUpdateInquiry) {
@@ -108,15 +142,17 @@ export default function Inquiry({ hasAccess }) {
       dispatch(setIsDeleteInquiry(false));
     }
   }, [
+    dispatch,
     isAddInquiry,
+    inquiryStatus,
     isUpdateInquiry,
     isDeleteInquiry,
-    dispatch,
-    inquiryCurrentPage,
     inquiryPageLimit,
+    getInquiryListApi,
+    inquiryCurrentPage,
     inquirySearchParam,
-    inquiryStatus,
   ]);
+
   const statusItemTemplate = option => {
     return (
       <Tag
@@ -129,44 +165,93 @@ export default function Inquiry({ hasAccess }) {
 
   const actionBodyTemplate = row => {
     return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  dispatch(
-                    setIsGetInintialValuesInquiry({
-                      ...isGetInintialValuesInquiry,
-                      update: false,
-                    }),
-                  );
-                  dispatch(clearUpdateSelectedInquiryData());
-                  navigate(`/update-inquiry/${row?._id}`);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle
+      //       id="dropdown-basic"
+      //       className="action_btn"
+      //       disabled={is_edit_access || is_delete_access ? false : true}
+      //     >
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       {is_edit_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             dispatch(
+      //               setIsGetInintialValuesInquiry({
+      //                 ...isGetInintialValuesInquiry,
+      //                 update: false,
+      //               }),
+      //             );
+
+      //             const inquiryStep = row?.inquiry_step
+      //               ? row?.inquiry_step === 3
+      //                 ? row?.inquiry_step
+      //                 : row?.inquiry_step + 1
+      //               : 1;
+      //             dispatch(setInquirySelectedProgressIndex(inquiryStep));
+      //             dispatch(setSelectedInquiryFlowData({}));
+      //             // dispatch(setInquirySelectedProgressIndex(1));
+      //             dispatch(clearUpdateSelectedInquiryData());
+      //             navigate(`/update-inquiry-flow/${row?._id}`);
+      //             // navigate(`/update-inquiry/${row?._id}`);
+      //           }}
+      //         >
+      //           <img src={EditIcon} alt="EditIcon" /> Edit
+      //         </Dropdown.Item>
+      //       )}
+      //       {is_delete_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             setDeleteId(row?._id);
+      //             setDeletePopup(true);
+      //           }}
+      //         >
+      //           <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //         </Dropdown.Item>
+      //       )}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        {is_edit_access && (
+          <img
+            alt=""
+            src={EditIcon}
+            className="cursor_pointer"
+            onClick={() => {
+              dispatch(
+                setIsGetInintialValuesInquiry({
+                  ...isGetInintialValuesInquiry,
+                  update: false,
+                }),
+              );
+
+              const inquiryStep = row?.inquiry_step
+                ? row?.inquiry_step === 3
+                  ? row?.inquiry_step
+                  : row?.inquiry_step + 1
+                : 1;
+              dispatch(setInquirySelectedProgressIndex(inquiryStep));
+              dispatch(setSelectedInquiryFlowData({}));
+              dispatch(clearUpdateSelectedInquiryData());
+              navigate(`/update-inquiry-flow/${row?._id}`);
+            }}
+          />
+        )}
+        {is_delete_access && (
+          <img
+            src={TrashIcon}
+            alt=""
+            className="cursor_pointer"
+            onClick={() => {
+              setDeleteId(row?._id);
+              setDeletePopup(true);
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -183,6 +268,11 @@ export default function Inquiry({ hasAccess }) {
         {data?.company_name}
       </span>
     );
+  };
+
+  const mobileBodyTemplate = rowData => {
+    const phoneNumber = rowData?.mobile_no?.join(', ');
+    return <span>{phoneNumber}</span>;
   };
 
   const itemsNameBodyTemplate = data => {
@@ -215,28 +305,6 @@ export default function Inquiry({ hasAccess }) {
     );
   };
 
-  const getSeverity = product => {
-    switch (product) {
-      case 'In Progress':
-        return 'warning';
-
-      case 'Pending':
-        return 'primary';
-
-      case 'Completed':
-        return 'success';
-
-      case 'Initial':
-        return 'info';
-
-      case 'Cancelled':
-        return 'danger';
-
-      default:
-        return null;
-    }
-  };
-
   const handleDelete = useCallback(() => {
     const deleteItemObj = {
       inquiry_id: deleteId,
@@ -248,16 +316,43 @@ export default function Inquiry({ hasAccess }) {
   }, [dispatch, deleteId]);
 
   const onPageChange = page => {
-    let pageIndex = inquiryCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setInquiryCurrentPage(pageIndex));
+    if (page !== inquiryCurrentPage) {
+      let pageIndex = inquiryCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+      dispatch(setInquiryCurrentPage(pageIndex));
+      getInquiryListApi(
+        pageIndex,
+        inquiryPageLimit,
+        inquirySearchParam,
+        inquiryStatus,
+      );
+    }
   };
 
   const onPageRowsChange = page => {
     dispatch(setInquiryCurrentPage(page === 0 ? 0 : 1));
     dispatch(setInquiryPageLimit(page));
+    const pageValue =
+      page === 0 ? (inquiryList?.totalRows ? inquiryList?.totalRows : 0) : page;
+    const prevPageValue =
+      inquiryPageLimit === 0
+        ? inquiryList?.totalRows
+          ? inquiryList?.totalRows
+          : 0
+        : inquiryPageLimit;
+    if (
+      prevPageValue < inquiryList?.totalRows ||
+      pageValue < inquiryList?.totalRows
+    ) {
+      getInquiryListApi(
+        page === 0 ? 0 : 1,
+        page,
+        inquirySearchParam,
+        inquiryStatus,
+      );
+    }
   };
 
   const handleSearchInput = e => {
@@ -267,7 +362,7 @@ export default function Inquiry({ hasAccess }) {
         start: 1,
         limit: inquiryPageLimit,
         isActive: '',
-        search: e.target.value,
+        search: e.target.value?.trim(),
         inquiry_status: inquiryStatus,
       }),
     );
@@ -275,7 +370,7 @@ export default function Inquiry({ hasAccess }) {
 
   const debounceHandleSearchInput = useCallback(
     _.debounce(handleSearchInput, 800),
-    [],
+    [inquiryStatus],
   );
 
   return (
@@ -319,7 +414,7 @@ export default function Inquiry({ hasAccess }) {
                             start: inquiryCurrentPage,
                             limit: inquiryPageLimit,
                             isActive: '',
-                            search: inquirySearchParam,
+                            search: inquirySearchParam.trim(),
                             inquiry_status: e.target.value,
                           }),
                         );
@@ -329,11 +424,11 @@ export default function Inquiry({ hasAccess }) {
                       itemTemplate={statusItemTemplate}
                     />
                   </li>
-                  <li>
+                  {/* <li>
                     <Link to="" className="btn_border icon_btn">
                       <img src={ExportIcon} alt="" />
                     </Link>
-                  </li>
+                  </li> */}
                   {is_create_access === true && (
                     <li>
                       <Button
@@ -346,6 +441,7 @@ export default function Inquiry({ hasAccess }) {
                           );
                           dispatch(clearAddSelectedInquiryData());
                           navigate('/create-inquiry');
+                          // navigate('/create-inquiry-flow');
                         }}
                         className="btn_primary"
                       >
@@ -374,7 +470,13 @@ export default function Inquiry({ hasAccess }) {
               body={companyBodyTemplate}
             ></Column>
             <Column field="client_name" header="Client Name" sortable></Column>
-            <Column field="mobile_no" header="Contact Number" sortable></Column>
+            <Column field="couple_name" header="Couple Name" sortable></Column>
+            <Column
+              field="mobile_no"
+              header="Contact Number"
+              sortable
+              body={mobileBodyTemplate}
+            ></Column>
             <Column
               field="inquiry_type"
               header="Inquiry Type"
@@ -388,7 +490,7 @@ export default function Inquiry({ hasAccess }) {
             ></Column>
             <Column
               field="remark"
-              header="Remark"
+              header="Description"
               sortable
               className="with_concate"
             ></Column>
@@ -402,7 +504,6 @@ export default function Inquiry({ hasAccess }) {
             <Column
               field="action"
               header="Action"
-              sortable
               body={actionBodyTemplate}
             ></Column>
           </DataTable>
@@ -434,6 +535,7 @@ export default function Inquiry({ hasAccess }) {
         </Button>
       </Dialog>
       <ConfirmDeletePopup
+        moduleName={'Inquiry'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}

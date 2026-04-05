@@ -1,28 +1,36 @@
-import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Col, Row } from 'react-bootstrap';
-import ReactSelectSingle from '../Common/ReactSelectSingle';
-import { RadioButton } from 'primereact/radiobutton';
+import { generateUniqueId, getFormattedDate } from 'Helper/CommonHelper';
+import { Type } from 'Helper/CommonList';
+import { clientCompanyInInquirySchema } from 'Schema/Setting/clientComapnySchema';
+import { addClientCompany } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
+import { getCityList } from 'Store/Reducers/Settings/Master/CitySlice';
+import { getStateList } from 'Store/Reducers/Settings/Master/StateSlice';
+import { useFormik } from 'formik';
+import { Button } from 'primereact/button';
 import { Calendar } from 'primereact/calendar';
 import { Checkbox } from 'primereact/checkbox';
-import { Button } from 'primereact/button';
-import { useFormik } from 'formik';
+import { Dialog } from 'primereact/dialog';
 import { InputNumber } from 'primereact/inputnumber';
-import { getStateList } from 'Store/Reducers/Settings/Master/StateSlice';
+import { InputText } from 'primereact/inputtext';
+import { RadioButton } from 'primereact/radiobutton';
+import PlusIcon from '../../Assets/Images/plus.svg';
+import TrashIcon from '../../Assets/Images/trash.svg';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { Col, Row } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
-import { getCityList } from 'Store/Reducers/Settings/Master/CitySlice';
-import { Type } from 'Helper/CommonList';
-import { getFormattedDate } from 'Helper/CommonHelper';
-import { addClientCompany } from 'Store/Reducers/Settings/CompanySetting/ClientCompanySlice';
-import { clientComapnySchema } from 'Schema/Setting/clientComapnySchema';
+import ReactSelectSingle from '../Common/ReactSelectSingle';
 
 const clientCompanyData = {
   company_name: '',
   client_full_name: '',
   email_id: '',
-  mobile_no: '',
+  mobile_no: [
+    {
+      mobile_no: '',
+      unique_id: generateUniqueId(),
+    },
+  ],
   address: '',
+  group_name: '',
   country: '',
   state: '',
   city: '',
@@ -37,16 +45,17 @@ const clientCompanyData = {
   isActive: true,
 };
 
-export default function CreateClientCompanyInInquiry({
+const CreateClientCompanyInInquiry = ({
   createCompanyModal,
   setCreateCompanyModal,
-}) {
+}) => {
   const dispatch = useDispatch();
   const { countryList } = useSelector(({ country }) => country);
   const { currencyList } = useSelector(({ currency }) => currency);
   const { referenceList } = useSelector(({ references }) => references);
-  const [ingredients, setIngredients] = useState([]);
+  const { dropdownGroupList } = useSelector(({ group }) => group);
 
+  const [ingredients, setIngredients] = useState([]);
   const [dropdownOptionList, setDropdownOptionList] = useState({
     countryList: [],
     referenceOptionList: [],
@@ -55,6 +64,7 @@ export default function CreateClientCompanyInInquiry({
     cityList: [],
     typeList: [],
     companyList: [],
+    dropdownGroupOptionList: [],
   });
 
   const onIngredientsChange = e => {
@@ -70,7 +80,8 @@ export default function CreateClientCompanyInInquiry({
     if (
       countryList?.list?.length > 0 &&
       referenceList?.list?.length > 0 &&
-      currencyList?.list?.length > 0
+      currencyList?.list?.length > 0 &&
+      dropdownGroupList?.length
     ) {
       const countyData = countryList?.list?.map(item => {
         return { label: item?.country, value: item?._id };
@@ -81,22 +92,42 @@ export default function CreateClientCompanyInInquiry({
       const currencyData = currencyList?.list?.map(item => {
         return { label: item?.currency_name, value: item?._id };
       });
+      const groupList = dropdownGroupList?.map(item => ({
+        label: item?.group_name,
+        value: item?._id,
+      }));
 
       setDropdownOptionList({
         ...dropdownOptionList,
         countryList: countyData,
         referenceOptionList: referenceData,
         currencyList: currencyData,
+        dropdownGroupOptionList: groupList,
       });
     }
-  }, [countryList, referenceList, currencyList]);
+  }, [countryList, referenceList, currencyList, dropdownGroupList]);
+
+  const groupLableTemplate = option => {
+    return (
+      <div className="flex align-items-center">
+        <div>{option.label}</div>
+      </div>
+    );
+  };
 
   const submitHandle = useCallback(
     async values => {
+      const updatedMobileNumbers = values?.mobile_no?.map(mobileNumber => {
+        return mobileNumber?.mobile_no;
+      });
+
       const payload = {
         ...values,
+        mobile_no: updatedMobileNumbers,
+        email_id: values?.email_id?.trim(),
         pay_due_date: getFormattedDate(values?.pay_due_date),
       };
+
       dispatch(addClientCompany(payload));
       resetForm();
       setCreateCompanyModal(false);
@@ -115,7 +146,7 @@ export default function CreateClientCompanyInInquiry({
   } = useFormik({
     enableReinitialize: true,
     initialValues: clientCompanyData,
-    validationSchema: clientComapnySchema,
+    validationSchema: clientCompanyInInquirySchema,
     onSubmit: submitHandle,
   });
 
@@ -215,10 +246,12 @@ export default function CreateClientCompanyInInquiry({
         <Row>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label htmlFor="Company">Company</label>
+              <label htmlFor="Company">
+                Company<span className="text-danger fs-6">*</span>
+              </label>
               <InputText
                 id="Company"
-                placeholder="Write Company"
+                placeholder="Company"
                 className="input_wrap"
                 name="company_name"
                 value={values?.company_name || ''}
@@ -232,10 +265,12 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label htmlFor="ClientFullName">Client Full Name</label>
+              <label htmlFor="ClientFullName">
+                Client Full Name<span className="text-danger fs-6">*</span>
+              </label>
               <InputText
                 id="ClientFullName"
-                placeholder="Write Name"
+                placeholder="Client Name"
                 className="input_wrap"
                 name="client_full_name"
                 value={values?.client_full_name || ''}
@@ -249,10 +284,12 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label htmlFor="EmailAddress">Email Address</label>
+              <label htmlFor="EmailAddress">
+                Email Address<span className="text-danger fs-6">*</span>
+              </label>
               <InputText
                 id="EmailAddress"
-                placeholder="Write email address"
+                placeholder="Email Address"
                 className="input_wrap"
                 name="email_id"
                 value={values?.email_id || ''}
@@ -264,12 +301,14 @@ export default function CreateClientCompanyInInquiry({
               )}
             </div>
           </Col>
-          <Col sm={6}>
+          {/* <Col sm={6}>
             <div className="form_group mb-3">
-              <label htmlFor="PhoneNumber">Phone Number</label>
+              <label htmlFor="PhoneNumber">
+                Phone Number<span className="text-danger fs-6">*</span>
+              </label>
               <InputText
                 id="PhoneNumber"
-                placeholder="Write number"
+                placeholder="Phone Number"
                 className="input_wrap"
                 name="mobile_no"
                 value={values?.mobile_no || ''}
@@ -280,13 +319,79 @@ export default function CreateClientCompanyInInquiry({
                 <p className="text-danger">{errors?.mobile_no}</p>
               )}
             </div>
-          </Col>
-          <Col xs={12}>
+          </Col> */}
+          {values?.mobile_no?.length > 0 &&
+            values?.mobile_no?.map((item, index) => {
+              return (
+                <Col sm={6}>
+                  <div className="form_group mb-3">
+                    <div className="d-flex justify-content-between">
+                      <div>
+                        <span>Phone Number {index + 1} </span>
+                        <span className="text-danger fs-6">*</span>
+                      </div>
+                      <div>
+                        {index === 0 && values?.mobile_no?.length < 3 && (
+                          <Button
+                            className="btn_transparent text_primary btn_right add_btn"
+                            onClick={e => {
+                              e.preventDefault();
+                              if (values?.mobile_no?.length < 3) {
+                                setFieldValue('mobile_no', [
+                                  ...values?.mobile_no,
+                                  {
+                                    unique_id: generateUniqueId(),
+                                    mobile_no: '',
+                                  },
+                                ]);
+                              }
+                            }}
+                          >
+                            ADD
+                            <img src={PlusIcon} alt="PlusIcon" />
+                          </Button>
+                        )}
+                        {index > 0 && (
+                          <Button
+                            className="btn_transparent add_btn"
+                            onClick={() => {
+                              const updatedData = values?.mobile_no?.filter(
+                                value => value?.unique_id !== item?.unique_id,
+                              );
+                              setFieldValue('mobile_no', updatedData);
+                            }}
+                          >
+                            <img src={TrashIcon} alt="TrashIcon" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <InputText
+                      placeholder="Write number"
+                      className="input_wrap"
+                      name={`mobile_no[${index}].mobile_no`}
+                      value={item?.mobile_no || ''}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                    />
+                    {errors?.mobile_no?.length &&
+                      touched?.mobile_no?.length &&
+                      touched?.mobile_no[index]?.mobile_no &&
+                      errors?.mobile_no[index]?.mobile_no && (
+                        <p className="text-danger">
+                          {errors?.mobile_no[index]?.mobile_no}
+                        </p>
+                      )}
+                  </div>
+                </Col>
+              );
+            })}
+          <Col xs={6}>
             <div className="form_group mb-3">
               <label htmlFor="Address">Address</label>
               <InputText
                 id="Address"
-                placeholder="Write address"
+                placeholder="Address"
                 className="input_wrap"
                 name="address"
                 value={values?.address || ''}
@@ -300,13 +405,37 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label>Country</label>
+              <label htmlFor="group_name">
+                Group Name <span className="text-danger fs-6">*</span>
+              </label>
+              <ReactSelectSingle
+                filter
+                id="group_name"
+                name="group_name"
+                placeholder="Group Name"
+                value={values?.group_name}
+                options={dropdownOptionList?.dropdownGroupOptionList || []}
+                onBlur={handleBlur}
+                onChange={e => setFieldValue('group_name', e.value)}
+                optionGroupTemplate={groupLableTemplate}
+              />
+              {touched?.group_name && errors?.group_name && (
+                <p className="text-danger">{errors?.group_name}</p>
+              )}
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="form_group mb-3">
+              <label>
+                Country<span className="text-danger fs-6">*</span>
+              </label>
               <ReactSelectSingle
                 filter
                 id="country"
                 options={dropdownOptionList?.countryList}
                 value={values?.country || ''}
                 name="country"
+                onBlur={handleBlur}
                 onChange={e => {
                   setFieldValue('country', e.value);
                   loadStateData(e.value);
@@ -320,7 +449,9 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label>State</label>
+              <label>
+                State<span className="text-danger fs-6">*</span>
+              </label>
               <ReactSelectSingle
                 filter
                 id="state"
@@ -331,6 +462,7 @@ export default function CreateClientCompanyInInquiry({
                   setFieldValue('state', e.value);
                   loadCityData(e.value);
                 }}
+                onBlur={handleBlur}
                 placeholder="Select State"
               />
               {touched?.state && errors?.state && !values?.state && (
@@ -340,13 +472,16 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label>City</label>
+              <label>
+                City<span className="text-danger fs-6">*</span>
+              </label>
               <ReactSelectSingle
                 filter
                 id="city"
                 options={dropdownOptionList?.cityList}
                 value={values?.city || ''}
                 name="city"
+                onBlur={handleBlur}
                 onChange={e => {
                   setFieldValue('city', e.value);
                 }}
@@ -362,7 +497,7 @@ export default function CreateClientCompanyInInquiry({
               <label htmlFor="PinCode">Pin code</label>
               <InputNumber
                 id="PinCode"
-                placeholder="Write Pin code"
+                placeholder="Pin code"
                 useGrouping={false}
                 name="pin_code"
                 value={values?.pin_code || ''}
@@ -378,13 +513,17 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label>Reference</label>
+              <label>
+                Reference<span className="text-danger fs-6">*</span>
+              </label>
               <ReactSelectSingle
                 filter
                 id="reference"
                 options={dropdownOptionList?.referenceOptionList}
                 value={values?.reference || ''}
                 name="reference"
+                placeholder="Select Reference"
+                onBlur={handleBlur}
                 onChange={e => {
                   setFieldValue('reference', e.value);
                 }}
@@ -396,7 +535,9 @@ export default function CreateClientCompanyInInquiry({
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label>Type</label>
+              <label>
+                Type<span className="text-danger fs-6">*</span>
+              </label>
               <ReactSelectSingle
                 filter
                 id="type"
@@ -407,18 +548,25 @@ export default function CreateClientCompanyInInquiry({
                   setFieldValue('type', e.value);
                 }}
                 placeholder="Select Type"
+                onBlur={handleBlur}
               />
+              {touched?.type && errors?.type && (
+                <p className="text-danger">{errors?.type}</p>
+              )}
             </div>
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label>Currency</label>
+              <label>
+                Currency<span className="text-danger fs-6">*</span>
+              </label>
               <ReactSelectSingle
                 filter
                 id="currency"
                 options={dropdownOptionList?.currencyList}
                 value={values?.currency || ''}
                 name="currency"
+                onBlur={handleBlur}
                 onChange={e => {
                   setFieldValue('currency', e.value);
                 }}
@@ -464,23 +612,25 @@ export default function CreateClientCompanyInInquiry({
               </div>
               <InputNumber
                 id="opening_balance"
-                placeholder="Write opening Balance"
                 name="opening_balance"
-                useGrouping={false}
+                placeholder="Opening Balance"
                 value={values?.opening_balance || ''}
-                onBlur={handleBlur}
                 onChange={e => {
                   setFieldValue('opening_balance', e.value);
                 }}
+                min={0}
+                onBlur={handleBlur}
+                useGrouping={false}
+                maxFractionDigits={2}
               />
             </div>
           </Col>
           <Col sm={6}>
             <div className="form_group mb-3">
-              <label htmlFor="CreditsLimits">Credits Limits</label>
+              <label htmlFor="CreditsLimits">Credit Limits</label>
               <InputNumber
                 id="credits_limits"
-                placeholder="Write Credits Limits"
+                placeholder="Credit Limits"
                 name="credits_limits"
                 useGrouping={false}
                 value={values?.credits_limits || ''}
@@ -496,7 +646,7 @@ export default function CreateClientCompanyInInquiry({
               <label htmlFor="pay_due_date">Pay Due Date</label>
               <Calendar
                 id="pay_due_date"
-                placeholder="Write Credits Limits"
+                placeholder="Select Due Date"
                 showIcon
                 dateFormat="dd-mm-yy"
                 readOnlyInput
@@ -511,4 +661,5 @@ export default function CreateClientCompanyInInquiry({
       </div>
     </Dialog>
   );
-}
+};
+export default memo(CreateClientCompanyInInquiry);

@@ -88,8 +88,8 @@ export default function Overview() {
   };
 
   return (
-    <div className="main_Wrapper">
-      <div className="processing_main bg-white radius15 border">
+    <div className="main_wrapper">
+      <div className="processing_main">
         <div className="billing_heading">
           <div className="processing_bar_wrapper">
             <div className="verifide_wrap">

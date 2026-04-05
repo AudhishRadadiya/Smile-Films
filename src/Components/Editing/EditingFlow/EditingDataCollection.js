@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -7,10 +7,12 @@ import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
 import TrashIcon from '../../../Assets/Images/trash.svg';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { ColumnGroup } from 'primereact/columngroup';
+import EditIcon from '../../../Assets/Images/edit.svg';
 import {
   addStep,
   getEditingFlow,
+  getStep,
+  setEditingCollectionData,
   setEditingQuotationData,
   setEditingSelectedProgressIndex,
 } from 'Store/Reducers/Editing/EditingFlow/EditingSlice';
@@ -18,10 +20,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import CommentDataCollection from './CommentDataCollection';
 import Loader from 'Components/Common/Loader';
 import { useFormik } from 'formik';
-import { editDataCollection } from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
-import { InputText } from 'primereact/inputtext';
-// import { DataCollectionList } from 'Helper/CommonList';
-import { totalCount } from 'Helper/CommonHelper';
+import {
+  clearUpdateSelectedDataCollectionData,
+  editDataCollection,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
+import { convertIntoNumber } from 'Helper/CommonHelper';
 import { getPackageList } from 'Store/Reducers/Settings/Master/PackageSlice';
 import { getProductList } from 'Store/Reducers/Settings/Master/ProductSlice';
 import { Calendar } from 'primereact/calendar';
@@ -29,22 +33,29 @@ import { toast } from 'react-toastify';
 import moment from 'moment';
 import { editingDataCollectionSchema } from 'Schema/Editing/editingSchema';
 import { getDevicesList } from 'Store/Reducers/Settings/Master/DevicesSlice';
+import { generateUnitForDataSize } from 'Helper/CommonList';
 
-export default function EditingDataCollection() {
+const EditingDataCollection = () => {
   const dispatch = useDispatch();
   const { id } = useParams();
   const navigate = useNavigate();
   const [editingItemOptionList, setEditingItemOptionList] = useState([]);
   const [isShowNext, setIsShowNext] = useState(false);
-  const { commentLoading, selectedEditingData, editingLoading, getStepData } =
-    useSelector(({ editing }) => editing);
-  const { dataCollectionLoading } = useSelector(
-    ({ dataCollection }) => dataCollection,
-  );
+  const {
+    getStepData,
+    editingLoading,
+    commentLoading,
+    selectedEditingData,
+    editingCollectionData,
+  } = useSelector(({ editing }) => editing);
+  const { dataCollectionLoading, isGetInintialValuesDataCollection } =
+    useSelector(({ dataCollection }) => dataCollection);
+  const { productLoading } = useSelector(({ product }) => product);
+  const { packageLoading } = useSelector(({ packages }) => packages);
   const { devicesList, devicesLoading } = useSelector(({ devices }) => devices);
 
   useEffect(() => {
-    dispatch(getEditingFlow({ order_id: id }));
+    // dispatch(getEditingFlow({ order_id: id }));
     dispatch(
       getDevicesList({
         start: 0,
@@ -56,57 +67,97 @@ export default function EditingDataCollection() {
   }, [dispatch]);
 
   useEffect(() => {
-    dispatch(
-      getPackageList({
-        start: 0,
-        limit: 0,
-        isActive: true,
-        search: '',
-      }),
-    )
-      .then(response => {
-        const packageData = response.payload?.data?.list?.map(item => ({
-          ...item,
-          label: item?.package_name,
-          value: item?._id,
-          isPackage: true,
-        }));
-
-        return { packageData };
+    dispatch(getEditingFlow({ order_id: id }))
+      .then(res => {
+        const editingResponseData = res?.payload;
+        return { editingResponseData };
       })
-      .then(({ packageData }) => {
+      .then(({ editingResponseData }) => {
         dispatch(
-          getProductList({
+          getPackageList({
             start: 0,
             limit: 0,
             isActive: true,
             search: '',
+            type: 1,
           }),
         )
           .then(response => {
-            const productData = response.payload?.data?.list?.map(item => ({
-              ...item,
-              label: item?.item_name,
-              value: item?._id,
-              isPackage: false,
-            }));
-            let data = [
-              { label: 'Package', items: [...packageData] },
-              { label: 'Product', items: [...productData] },
-            ];
-            setEditingItemOptionList(data);
+            let packageData = [];
+
+            if (response.payload?.data?.list?.length) {
+              packageData = response.payload?.data?.list?.map(item => ({
+                ...item,
+                label: item?.package_name,
+                value: item?._id,
+                isPackage: true,
+              }));
+            }
+
+            return { packageData };
+          })
+          .then(({ packageData }) => {
+            dispatch(
+              getProductList({
+                start: 0,
+                limit: 0,
+                isActive: true,
+                search: '',
+                type: 1,
+              }),
+            )
+              .then(response => {
+                let productData = [];
+
+                if (response.payload?.data?.list?.length) {
+                  productData = response.payload?.data?.list?.map(item => ({
+                    ...item,
+                    label: item?.item_name,
+                    value: item?._id,
+                    isPackage: false,
+                  }));
+                }
+
+                const optionsData = [
+                  { label: 'Package', items: [...packageData] },
+                  { label: 'Product', items: [...productData] },
+                ];
+
+                const packageAndProductData = [...packageData, ...productData];
+
+                setEditingItemOptionList(optionsData);
+
+                const findEditingInquiryData = editingResponseData?.editingTable
+                  ?.map(item => {
+                    const findInquiryData = packageAndProductData?.find(
+                      p => p?._id === item?.item_id,
+                    );
+                    if (findInquiryData) {
+                      return findInquiryData?._id;
+                    }
+                  })
+                  ?.filter(data => data);
+
+                dispatch(
+                  setEditingCollectionData({
+                    ...editingResponseData,
+                    editing_inquiry: findEditingInquiryData,
+                  }),
+                );
+              })
+
+              .catch(error => {
+                console.error('Error fetching product data:', error);
+              });
           })
           .catch(error => {
-            console.error('Error fetching product data:', error);
+            console.error('Error fetching package data:', error);
           });
-      })
-      .catch(error => {
-        console.error('Error fetching package data:', error);
       });
     // if (getStepData?.step >= 1) {
     //   setIsShowNext(true);
     // }
-  }, [dispatch]);
+  }, [dispatch, id]);
 
   const DataCollectionListOption = useMemo(() => {
     if (devicesList?.list?.length > 0) {
@@ -120,9 +171,11 @@ export default function EditingDataCollection() {
   const handleitemList = (fieldName, fieldValue, e) => {
     const data = e?.selectedOption;
     let editingList = [];
-    let totalDataCollection = 0;
+    // let totalDataCollection = 0;
+
     if (!values?.editing_inquiry?.includes(data?._id)) {
       let newObj = {};
+
       if (data?.isPackage === true) {
         newObj = {
           item_id: data?._id,
@@ -130,8 +183,8 @@ export default function EditingDataCollection() {
           quantity: 1,
           due_date: '',
           description: data?.remark,
-          data_collection_source: [],
-          data_size: '',
+          // data_collection_source: [],
+          // data_size: '',
         };
       } else {
         newObj = {
@@ -140,8 +193,8 @@ export default function EditingDataCollection() {
           quantity: 1,
           due_date: '',
           description: data?.item_description,
-          data_collection_source: [],
-          data_size: '',
+          // data_collection_source: [],
+          // data_size: '',
         };
       }
       editingList = [...values?.editingTable, newObj];
@@ -149,8 +202,8 @@ export default function EditingDataCollection() {
       editingList = values?.editingTable?.filter(
         item => item?.item_id !== data?._id,
       );
-      totalDataCollection = totalCount(editingList, 'data_size');
-      setFieldValue('total_data_collection', totalDataCollection);
+      // totalDataCollection = totalCount(editingList, 'data_size');
+      // setFieldValue('total_data_collection', totalDataCollection);
     }
     setFieldValue('editingTable', editingList);
     setFieldValue(fieldName, fieldValue);
@@ -160,15 +213,15 @@ export default function EditingDataCollection() {
     const editingList = [...values?.editingTable];
     const index = editingList?.findIndex(x => x?.item_id === item?.item_id);
     const oldObj = editingList[index];
-    let totalDataCollection = 0;
+    // let totalDataCollection = 0;
     const updatedObj = {
       ...oldObj,
       [fieldName]: fieldValue,
     };
     if (index >= 0) editingList[index] = updatedObj;
     if (fieldName === 'data_size') {
-      totalDataCollection = totalCount(editingList, 'data_size');
-      setFieldValue('total_data_collection', totalDataCollection);
+      // totalDataCollection = totalCount(editingList, 'data_size');
+      // setFieldValue('total_data_collection', totalDataCollection);
     }
     setFieldValue('editingTable', editingList);
   };
@@ -177,8 +230,8 @@ export default function EditingDataCollection() {
     let dummyList = values?.editingTable.filter(
       d => d?.item_id !== item?.item_id,
     );
-    const totalDataCollection = totalCount(dummyList, 'data_size');
-    setFieldValue('total_data_collection', totalDataCollection);
+    // const totalDataCollection = totalCount(dummyList, 'data_size');
+    // setFieldValue('total_data_collection', totalDataCollection);
     setFieldValue('editingTable', dummyList);
     let itemData = values?.editing_inquiry?.filter(d => d !== item?.item_id);
     setFieldValue('editing_inquiry', itemData);
@@ -193,41 +246,34 @@ export default function EditingDataCollection() {
   };
 
   const DescriptionTemplate = data => {
-    // return (
-    //   <>
-    //     <div className="max_250">
-    //       <p>{data?.description}</p>
-    //     </div>
-    //   </>
-    // );
     return (
       <div
-        className="editor_text_wrapper max_700"
+        className="editor_text_wrapper max_250"
         dangerouslySetInnerHTML={{ __html: data.description }}
       />
     );
   };
 
-  const DataCollectionTemplate = data => {
-    return (
-      <div className="form_group">
-        <MultiSelect
-          value={data?.data_collection_source}
-          options={DataCollectionListOption}
-          name="data_collection_source"
-          onChange={e => {
-            handleEditingTableChange(data, e.target.name, e.target.value);
-          }}
-          disabled={isShowNext}
-          placeholder="Data Collection Source"
-          className="w-100"
-          filter
-          showSelectAll={false}
-        />
-        <p className="mt10">{values?.data_collection_source}</p>
-      </div>
-    );
-  };
+  // const DataCollectionTemplate = data => {
+  //   return (
+  //     <div className="form_group">
+  //       <MultiSelect
+  //         value={data?.data_collection_source}
+  //         options={DataCollectionListOption}
+  //         name="data_collection_source"
+  //         onChange={e => {
+  //           handleEditingTableChange(data, e.target.name, e.target.value);
+  //         }}
+  //         disabled={isShowNext}
+  //         placeholder="Data Collection Source"
+  //         className="w-100"
+  //         filter
+  //         showSelectAll={false}
+  //       />
+  //       <p className="mt10">{values?.data_collection_source}</p>
+  //     </div>
+  //   );
+  // };
 
   const dueDateBodyTemplate = data => {
     return (
@@ -241,32 +287,56 @@ export default function EditingDataCollection() {
           value={data?.due_date}
           name="due_date"
           readOnlyInput
-          onChange={e => {
-            const utcDate = new Date(e.value);
-            handleEditingTableChange(data, e.target.name, utcDate);
-          }}
+          // onChange={e => {
+          //   const utcDate = new Date(e.value);
+          //   handleEditingTableChange(data, e.target.name, utcDate);
+          // }}
+          onChange={e =>
+            handleEditingTableChange(data, e.target.name, e.target.value)
+          }
+          showButtonBar
         />
       </div>
     );
   };
 
-  const dataSizeBodyTemplate = data => {
-    return (
-      <div className="form_group d-flex">
-        <InputText
-          id="Data Size"
-          placeholder="Data size"
-          name="data_size"
-          value={data?.data_size}
-          disabled={isShowNext}
-          onChange={e => {
-            handleEditingTableChange(data, e.target.name, e.target.value);
-          }}
-          required
-        />
-      </div>
-    );
-  };
+  // const dataSizeBodyTemplate = data => {
+  //   return (
+  //     <div className="form_group d-flex">
+  //       {/* <InputText
+  //         id="Data Size"
+  //         placeholder="Data size"
+  //         name="data_size"
+  //         value={data?.data_size}
+  //         disabled={isShowNext}
+  //         onChange={e => {
+  //           handleEditingTableChange(data, e.target.name, e.target.value);
+  //         }}
+  //         required
+  //       /> */}
+  //       <InputNumber
+  //         id="Data Size"
+  //         placeholder="Data size"
+  //         name="data_size"
+  //         className="w_100"
+  //         useGrouping={false}
+  //         maxFractionDigits={2}
+  //         value={data?.data_size}
+  //         disabled={isShowNext}
+  //         onChange={e => {
+  //           if (!e.value || checkWordLimit(e.value, 10)) {
+  //             handleEditingTableChange(
+  //               data,
+  //               e.originalEvent.target.name,
+  //               e.value ? e.value : '',
+  //             );
+  //           }
+  //         }}
+  //         maxLength="10"
+  //       />
+  //     </div>
+  //   );
+  // };
 
   const actionBodyTemplate = data => {
     return (
@@ -285,19 +355,29 @@ export default function EditingDataCollection() {
 
   const submitHandle = useCallback(
     async (values, { resetForm }) => {
-      const isDataCollectionSource = values?.editingTable?.some(item => {
-        return item?.data_collection_source.length === 0;
-      });
+      // const isDataCollectionSource = values?.editingTable?.some(item => {
+      //   return item?.data_collection_source.length === 0;
+      // });
 
       const isDueDate = values?.editingTable?.some(item => {
         return !item?.due_date;
       });
 
-      const isDataSize = values?.editingTable?.some(item => {
-        return !item?.data_size;
-      });
+      // const isDataSize = values?.editingTable?.some(item => {
+      //   return !item?.data_size;
+      // });
 
-      if (!isDataCollectionSource && !isDataSize && !isDueDate) {
+      // if (isDataCollectionSource) {
+      //   toast.error('Data Collection Source are required');
+      // }
+
+      // if (isDataSize) {
+      //   toast.error('Data Collection Data Size are required');
+      // }
+
+      if (isDueDate) {
+        toast.error('Data Collection Due Date are required');
+      } else if (!isDueDate) {
         let updatedList = values?.editingTable?.map(d => {
           return {
             ...d,
@@ -312,9 +392,28 @@ export default function EditingDataCollection() {
         };
         dispatch(editDataCollection(payload))
           .then(response => {
+            dispatch(
+              setEditingCollectionData({
+                ...editingCollectionData,
+                editingTable: values?.editingTable,
+              }),
+            );
             dispatch(getEditingFlow({ order_id: id }))
               .then(responseData => {
-                resetForm();
+                if (!getStepData?.step || getStepData?.step < 1) {
+                  let payload = {
+                    order_id: id,
+                    step: 1,
+                  };
+                  dispatch(addStep(payload))
+                    .then(response => {
+                      dispatch(getStep({ order_id: id }));
+                      resetForm();
+                    })
+                    .catch(errors => {
+                      console.error('Add Status:', errors);
+                    });
+                }
                 setIsShowNext(true);
               })
               .catch(error => {
@@ -324,42 +423,51 @@ export default function EditingDataCollection() {
           .catch(error => {
             console.error('Error fetching while edit data collection:', error);
           });
-      } else {
-        toast.error('Data Collection Details Are Required');
       }
+      // else {
+      //   toast.error('Data Collection Details Are Required');
+      // }
     },
 
-    [id, dispatch],
+    [id, dispatch, editingCollectionData, getStepData],
   );
 
-  const { values, errors, touched, setFieldValue, resetForm, handleSubmit } =
+  const { values, errors, touched, handleBlur, handleSubmit, setFieldValue } =
     useFormik({
       enableReinitialize: true,
-      initialValues: selectedEditingData,
+      initialValues: editingCollectionData,
       validationSchema: editingDataCollectionSchema,
       onSubmit: submitHandle,
     });
 
-  const footerGroup = (
-    <ColumnGroup>
-      <Row>
-        <Column
-          colSpan={5}
-          className="text-start"
-          footer="Total Data Collection"
-        />
-        <Column footer={`${values?.total_data_collection} GB`} />
-        <Column footer="" />
-      </Row>
-    </ColumnGroup>
-  );
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${values?.editing_hour || 0}:${values?.editing_minute || 0}:${
+      values?.editing_second || 0
+    }`;
+  }, [values?.editing_hour, values?.editing_minute, values?.editing_second]);
+
+  // const footerGroup = (
+  //   <ColumnGroup>
+  //     <Row>
+  //       <Column
+  //         colSpan={5}
+  //         className="text-start"
+  //         footer="Total Data Collection"
+  //       />
+  //       <Column footer={`${values?.total_data_collection} GB`} />
+  //       <Column footer="" />
+  //     </Row>
+  //   </ColumnGroup>
+  // );
 
   return (
     <div className="p20 p15-xs">
       {(commentLoading ||
         dataCollectionLoading ||
         editingLoading ||
-        devicesLoading) && <Loader />}
+        devicesLoading ||
+        packageLoading ||
+        productLoading) && <Loader />}
       <Row>
         <Col xxl={8} xl={7}>
           <div className="process_order_wrap p-0 pb-3 mb20">
@@ -403,8 +511,23 @@ export default function EditingDataCollection() {
             <Row className="g-3 g-sm-4">
               <Col md={6}>
                 <div className="order-details-wrapper p10 border radius15 h-100">
-                  <div className="pb10 border-bottom">
+                  <div className="pb10 border-bottom d-flex justify-content-between">
                     <h6 className="m-0">Job</h6>
+                    <img
+                      src={EditIcon}
+                      className="cusor-pointer"
+                      alt=""
+                      onClick={() => {
+                        dispatch(
+                          setIsGetInintialValuesDataCollection({
+                            ...isGetInintialValuesDataCollection,
+                            update: false,
+                          }),
+                        );
+                        dispatch(clearUpdateSelectedDataCollectionData());
+                        navigate(`/update-data-collection/${id}?param=editing`);
+                      }}
+                    />
                   </div>
                   <div className="details_box pt10">
                     <div className="details_box_inner">
@@ -416,11 +539,18 @@ export default function EditingDataCollection() {
                         <span>Couple Name :</span>
                         <h5>{values?.couple_name}</h5>
                       </div>
+                      <div className="order-date">
+                        <span>Hours :</span>
+                        <h5>{showHoursWithMinutesAndSeconds}</h5>
+                      </div>
                     </div>
                     <div className="details_box_inner">
                       <div className="order-date">
                         <span>Data Size :</span>
-                        <h5>{values?.data_size} GB</h5>
+                        <h5>
+                          {convertIntoNumber(values?.data_size)}{' '}
+                          {generateUnitForDataSize(values?.data_size_type)}
+                        </h5>
                       </div>
                       <div className="order-date">
                         <span>Project Type :</span>
@@ -466,7 +596,10 @@ export default function EditingDataCollection() {
             </Row>
           </div>
           <div className="order_items">
-            <h3>Data Collection Details</h3>
+            <h3>
+              Data Collection Details{' '}
+              <span className="text-danger fs-6">*</span>
+            </h3>
             <Row>
               <Col xxl={4} sm={6}>
                 <div className="form_group">
@@ -484,6 +617,7 @@ export default function EditingDataCollection() {
                     optionGroupTemplate={editingItemsTemplate}
                     placeholder="Select Editing Items"
                     className="w-100"
+                    onBlur={handleBlur}
                     showSelectAll={false}
                     disabled={isShowNext}
                   />
@@ -500,7 +634,7 @@ export default function EditingDataCollection() {
               sortField="item_name"
               sortOrder={1}
               rows={10}
-              footerColumnGroup={footerGroup}
+              // footerColumnGroup={footerGroup}
             >
               <Column
                 field="item_name"
@@ -514,12 +648,12 @@ export default function EditingDataCollection() {
                 body={DescriptionTemplate}
                 sortable
               ></Column>
-              <Column
+              {/* <Column
                 field="data_collection_source"
                 header="Data Collection Source"
                 sortable
                 body={DataCollectionTemplate}
-              ></Column>
+              ></Column> */}
               <Column
                 field="due_date"
                 header="Due Date"
@@ -529,12 +663,12 @@ export default function EditingDataCollection() {
                 {' '}
               </Column>
               <Column field="quantity" header="Quantity" sortable></Column>
-              <Column
+              {/* <Column
                 field="data_size"
                 header="Data Size"
                 sortable
                 body={dataSizeBodyTemplate}
-              ></Column>
+              ></Column> */}
               <Column
                 field="action"
                 header="Action"
@@ -562,23 +696,25 @@ export default function EditingDataCollection() {
         {isShowNext && (
           <Button
             onClick={() => {
-              if (!getStepData?.step || getStepData?.step < 1) {
-                let payload = {
-                  order_id: id,
-                  step: 1,
-                };
-                dispatch(addStep(payload))
-                  .then(response => {
-                    dispatch(setEditingSelectedProgressIndex(2));
-                    dispatch(setEditingQuotationData({}));
-                  })
-                  .catch(errors => {
-                    console.error('Add Status:', errors);
-                  });
-              } else {
-                dispatch(setEditingSelectedProgressIndex(2));
-                dispatch(setEditingQuotationData({}));
-              }
+              // if (!getStepData?.step || getStepData?.step < 1) {
+              //   let payload = {
+              //     order_id: id,
+              //     step: 1,
+              //   };
+              //   //   // dispatch(addStep(payload))
+              //   //   //   .then(response => {
+              //   //   //     dispatch(setEditingSelectedProgressIndex(2));
+              //   //   //     dispatch(setEditingQuotationData({}));
+              //   //   //   })
+              //   //   //   .catch(errors => {
+              //   //   //     console.error('Add Status:', errors);
+              //   //   //   });
+              // } else {
+              //     dispatch(setEditingSelectedProgressIndex(2));
+              //     dispatch(setEditingQuotationData({}));
+              // }
+              dispatch(setEditingSelectedProgressIndex(2));
+              dispatch(setEditingQuotationData({}));
             }}
             className="btn_primary ms-2"
           >
@@ -588,4 +724,5 @@ export default function EditingDataCollection() {
       </div>
     </div>
   );
-}
+};
+export default memo(EditingDataCollection);

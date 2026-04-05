@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import ArrowIcon from '../../../Assets/Images/left_arrow.svg';
 import PlusIcon from '../../../Assets/Images/plus.svg';
+import EditIcon from '../../../Assets/Images/edit.svg';
 import AddUserIcon from '../../../Assets/Images/add-user.svg';
-import CompleteIcon from '../../../Assets/Images/complete-green.svg';
 import ReactSelectSingle from '../../Common/ReactSelectSingle';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Tag } from 'primereact/tag';
@@ -21,25 +21,34 @@ import { useFormik } from 'formik';
 import Loader from 'Components/Common/Loader';
 import CommentDataCollection from './CommentDataCollection';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { Checkbox } from 'primereact/checkbox';
+import { generateUnitForDataSize } from 'Helper/CommonList';
+import {
+  clearUpdateSelectedDataCollectionData,
+  setIsGetInintialValuesDataCollection,
+} from 'Store/Reducers/Editing/DataCollection/DataCollectionSlice';
 
-export default function EditingReworkCompleted() {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+const ProjectStatus = [
+  { label: 'Initial', value: 1 },
+  { label: 'Library Done', value: 2 },
+  { label: 'IN Progress', value: 3 },
+  { label: 'IN Checking', value: 4 },
+  { label: 'Exporting', value: 5 },
+  { label: 'Completed', value: 6 },
+];
+
+const EditingReworkCompleted = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [createGroupModel, setCreateGroupModel] = useState(false);
 
-  const ProjectStatus = [
-    { label: 'Initial', value: 1 },
-    { label: 'Library Done', value: 2 },
-    { label: 'IN Progress', value: 3 },
-    { label: 'IN Checking', value: 4 },
-    { label: 'Completed', value: 5 },
-    { label: 'Exporting', value: 6 },
-  ];
-
   const { editingLoading, editingReworkCompletedData, commentLoading } =
     useSelector(({ editing }) => editing);
+  const { isGetInintialValuesDataCollection } = useSelector(
+    ({ dataCollection }) => dataCollection,
+  );
 
   useEffect(() => {
     dispatch(getEditingFlow({ order_id: id }))
@@ -95,7 +104,18 @@ export default function EditingReworkCompleted() {
     };
     dispatch(editOrder(payload))
       .then(response => {
-        dispatch(getEditingFlow({ order_id: id }));
+        dispatch(getEditingFlow({ order_id: id })).then(res => {
+          const editingData = res?.payload;
+
+          // if (e?.value === 6) {
+          //   dispatch(
+          //     addInvoice({
+          //       order_id: id,
+          //       quotation_id: editingData?.quotation_id,
+          //     }),
+          //   );
+          // }
+        });
       })
       .catch(error => {
         console.error('Error fetching Editing Flow:', error);
@@ -107,18 +127,22 @@ export default function EditingReworkCompleted() {
       let payload = {
         order_id: id,
         final_work: values?.new_final_work,
+        is_rework_url: true,
       };
       dispatch(editOrder(payload))
         .then(response => {
           let payload = {
             order_id: id,
             step: 9,
+            is_rework_url: true,
           };
           dispatch(addStep(payload))
             .then(response => {
               dispatch(getEditingFlow({ order_id: id }))
                 .then(response => {
-                  navigate('/editing');
+                  const responseData = response.payload;
+                  dispatch(setEditingReworkCompletedData(responseData));
+                  // navigate('/editing');
                 })
                 .catch(error => {
                   console.error('Error fetching Editing Flow:', error);
@@ -132,23 +156,21 @@ export default function EditingReworkCompleted() {
           console.error('Error fetching Editing Flow:', error);
         });
     },
-    [dispatch],
+    [dispatch, id],
   );
 
-  const {
-    values,
-    errors,
-    touched,
-    setFieldValue,
-    handleChange,
-    handleBlur,
-    handleSubmit,
-    resetForm,
-  } = useFormik({
-    enableReinitialize: true,
-    initialValues: editingReworkCompletedData,
-    onSubmit: submitHandle,
-  });
+  const { values, setFieldValue, handleChange, handleBlur, handleSubmit } =
+    useFormik({
+      enableReinitialize: true,
+      initialValues: editingReworkCompletedData,
+      onSubmit: submitHandle,
+    });
+
+  const showHoursWithMinutesAndSeconds = useMemo(() => {
+    return `${values?.editing_hour || 0}:${values?.editing_minute || 0}:${
+      values?.editing_second || 0
+    }`;
+  }, [values?.editing_hour, values?.editing_minute, values?.editing_second]);
 
   return (
     <div className="">
@@ -195,8 +217,25 @@ export default function EditingReworkCompleted() {
                 <Row className="g-3 g-sm-4">
                   <Col md={6}>
                     <div className="order-details-wrapper p10 border radius15 h-100">
-                      <div className="pb10 border-bottom">
+                      <div className="pb10 border-bottom d-flex justify-content-between">
                         <h6 className="m-0">Job</h6>
+                        <img
+                          src={EditIcon}
+                          className="cusor-pointer"
+                          alt=""
+                          onClick={() => {
+                            dispatch(
+                              setIsGetInintialValuesDataCollection({
+                                ...isGetInintialValuesDataCollection,
+                                update: false,
+                              }),
+                            );
+                            dispatch(clearUpdateSelectedDataCollectionData());
+                            navigate(
+                              `/update-data-collection/${id}?param=editing`,
+                            );
+                          }}
+                        />
                       </div>
                       <div className="details_box pt10">
                         <div className="details_box_inner">
@@ -208,11 +247,18 @@ export default function EditingReworkCompleted() {
                             <span>Couple Name :</span>
                             <h5>{values?.couple_name}</h5>
                           </div>
+                          <div className="order-date">
+                            <span>Hours :</span>
+                            <h5>{showHoursWithMinutesAndSeconds}</h5>
+                          </div>
                         </div>
                         <div className="details_box_inner">
                           <div className="order-date">
                             <span>Data Size :</span>
-                            <h5>{values?.data_size} GB</h5>
+                            <h5>
+                              {values?.data_size}
+                              {generateUnitForDataSize(values?.data_size_type)}
+                            </h5>
                           </div>
                           <div className="order-date">
                             <span>Project Type :</span>
@@ -259,8 +305,8 @@ export default function EditingReworkCompleted() {
               </div>
               <div className="completed_wrapper max_660">
                 <div className="complete_img text-center">
-                  <img src={CompleteIcon} alt="completeicon" />
-                  <h2>This Job is Completed</h2>
+                  {/* <img src={CompleteIcon} alt="completeicon" /> */}
+                  <h2>Current Status Of This Project</h2>
                 </div>
                 <div className="d-sm-flex align-items-center justify-content-center mb-3">
                   <h5 className="m-0 me-sm-2 mb-sm-0 mb-2">Project Status</h5>
@@ -275,6 +321,8 @@ export default function EditingReworkCompleted() {
                       valueTemplate={statusItemTemplate}
                       placeholder="Project Status"
                       className="w-100"
+                      // disabled={!values?.is_rework_url}
+                      disabled={!values?.new_final_work?.trim()}
                     />
                   </div>
                 </div>
@@ -306,23 +354,30 @@ export default function EditingReworkCompleted() {
                     </div>
                     <div className="delete_btn_wrap justify-content-center text-center">
                       <button className="btn_border_dark me-2">Cancel</button>
-                      <button className="btn_primary" onClick={handleSubmit}>
+                      <button
+                        className="btn_primary"
+                        onClick={handleSubmit}
+                        disabled={!values?.new_final_work?.trim()}
+                      >
                         Submit
                       </button>
                     </div>
                   </div>
                 </div>
-                {/* <div className="checkbox_wrap_main d-flex align-items-center justify-content-end gap-2">
+                <div className="checkbox_wrap_main d-flex align-items-center justify-content-end gap-2">
                   <div className="form_group checkbox_wrap">
                     <Checkbox
                       onChange={() => {
                         let payload = {
+                          step: 5,
                           order_id: id,
                           is_rework: true,
+                          is_rework_url: false,
                         };
                         dispatch(addStep(payload))
                           .then(response => {
-                            dispatch(setEditingSelectedProgressIndex(7));
+                            // dispatch(setEditingReworkData({}));
+                            dispatch(setEditingSelectedProgressIndex(6));
                           })
                           .catch(errors => {
                             console.error('Add rework:', errors);
@@ -332,7 +387,7 @@ export default function EditingReworkCompleted() {
                     ></Checkbox>
                   </div>
                   <span>Rework</span>
-                </div> */}
+                </div>
               </div>
             </Col>
             <CommentDataCollection />
@@ -373,8 +428,7 @@ export default function EditingReworkCompleted() {
           </div>
         </div>
       </Dialog>
-
-      {/* conformation popup */}
     </div>
   );
-}
+};
+export default memo(EditingReworkCompleted);

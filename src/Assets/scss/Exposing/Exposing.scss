@@ -2,6 +2,8 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  max-width: 550px;
+  flex-wrap: wrap;
 
   li {
     .dropdown_common {
@@ -624,6 +626,17 @@
 @media (max-width: 767px) {
   .top_filter_wrap .right_filter_wrapper ul.exposing_ul {
     justify-content: flex-start;
+  }
+  .assign-profile-wrapper .assign_profile img {
+    width: 18px;
+    height: 18px;
+  }
+  .assign-body-wrap.edit-assign-body-wrap
+    .assign_dropdown_wrapper
+    .p-dropdown
+    .p-dropdown-label::before {
+    width: 12px;
+    height: 18px;
   }
 }
 

@@ -1,19 +1,30 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'primereact/checkbox';
-import { InputText } from 'primereact/inputtext';
+// import { InputText } from 'primereact/inputtext';
 import { OverlayPanel } from 'primereact/overlaypanel';
-import { Tag } from 'primereact/tag';
-import { Button, Col, Row } from 'react-bootstrap';
-import FilterIcon from '../../../Assets/Images/filter.svg';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+// import { Tag } from 'primereact/tag';
+import {
+  // Button,
+  Col,
+  Row,
+} from 'react-bootstrap';
+// import FilterIcon from '../../../Assets/Images/filter.svg';
+import {
+  DndProvider,
+  // useDrag,
+  useDrop,
+} from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { COLUMN_NAMES } from './constants';
-import { tasks } from './tasks';
-import TopRightArrow from '../../../Assets/Images/top-right-arrow.svg';
-import { Dialog } from 'primereact/dialog';
-import { InputTextarea } from 'primereact/inputtextarea';
+// import { tasks } from './tasks';
+// import TopRightArrow from '../../../Assets/Images/top-right-arrow.svg';
+// import { Dialog } from 'primereact/dialog';
+// import { InputTextarea } from 'primereact/inputtextarea';
+import { useDispatch, useSelector } from 'react-redux';
+import { getProjectStatusList } from 'Store/Reducers/ActivityOverview/ProjectStatus/ProjectStatusSlice';
+import { useNavigate } from 'react-router-dom';
 
-const Column = ({ children, className, title }) => {
+const Column = ({ children, className, title, length }) => {
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: 'Our first type',
     drop: () => ({ name: title }),
@@ -33,6 +44,7 @@ const Column = ({ children, className, title }) => {
         CompleteProjects,
         ReworkProjects,
       } = COLUMN_NAMES;
+
       const { currentColumnName } = item;
       return (
         currentColumnName === title ||
@@ -75,7 +87,7 @@ const Column = ({ children, className, title }) => {
       style={{ backgroundColor: getBackgroundColor() }}
     >
       <h5>
-        {title} <span>7</span>
+        {title} <span>{length}</span>
       </h5>
       <div className="items_wrapper">{children}</div>
     </div>
@@ -83,69 +95,69 @@ const Column = ({ children, className, title }) => {
 };
 
 export default function ProjectStatus() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const { projectStatusList } = useSelector(
+    ({ projectStatus }) => projectStatus,
+  );
   const op = useRef(null);
+  //   const [items, setItems] = useState(tasks);
+  //   const [workDesc, setWorkDesc] = useState('');
   const [checked, setChecked] = useState(false);
-  const [workSubmission, setWorkSubmission] = useState(false);
-  const [ingredients, setIngredients] = useState([]);
-  const [workDesc, setWorkDesc] = useState('');
-  const statusBodyTemplate = product => {
-    return <Tag value={product.status} severity={getSeverity(product)}></Tag>;
-  };
-  const getSeverity = product => {
-    switch (product.status) {
-      case 'Partial':
-        return 'info';
+  //   const [workSubmission, setWorkSubmission] = useState(false);
 
-      case 'In Progress':
-        return 'primary';
+  useEffect(() => {
+    dispatch(
+      getProjectStatusList({
+        search: '',
+        isActive: '',
+        order_status: '',
+      }),
+    );
+  }, [dispatch]);
 
-      case 'Pending':
-        return 'warning';
+  const projectStatusListData = useMemo(() => {
+    if (projectStatusList?.list?.length > 0) {
+      return projectStatusList.list.map(item => {
+        const { step, order_status, is_rework } = item;
 
-      case 'Due':
-        return 'danger';
+        const columnName =
+          order_status === 6
+            ? 'Complete Projects'
+            : is_rework
+            ? 'Rework Projects'
+            : order_status === 4
+            ? 'IN checking Projects'
+            : order_status === 5
+            ? 'Export Projects'
+            : !step || step === 0
+            ? 'Pending Data Collection'
+            : step === 1 || step === 2
+            ? 'Pending Quotes'
+            : step === 3
+            ? 'Unassigned To Editor'
+            : step === 4 || step === 5 || step === 6
+            ? 'Running Projects'
+            : 'Pending Data Collection';
 
-      case 'Completed':
-        return 'success';
-
-      default:
-        return null;
-    }
-  };
-
-  const [items, setItems] = useState(tasks);
-
-  const moveCardHandler = (dragIndex, hoverIndex) => {
-    const dragItem = items[dragIndex];
-
-    if (dragItem) {
-      setItems(prevState => {
-        const coppiedStateArray = [...prevState];
-
-        // remove item by "hoverIndex" and put "dragItem" instead
-        const prevItem = coppiedStateArray.splice(hoverIndex, 1, dragItem);
-
-        // remove item by "dragIndex" and put "prevItem" instead
-        coppiedStateArray.splice(dragIndex, 1, prevItem[0]);
-
-        return coppiedStateArray;
+        return {
+          ...item,
+          column: columnName,
+          item_name:
+            item?.item_name?.length === 1
+              ? item?.item_name[0]
+              : item?.item_name?.join(', '),
+        };
       });
     }
-  };
+    return [];
+  }, [projectStatusList]);
 
   const returnItemsForColumn = columnName => {
-    return items
+    return projectStatusListData
       .filter(item => item.column === columnName)
-      .map((item, index) => (
-        <MovableItem
-          key={item.id}
-          name={item.name}
-          currentColumnName={item.column}
-          setItems={setItems}
-          index={index}
-          moveCardHandler={moveCardHandler}
-        />
-      ));
+      .map(item => <MovableItem key={item._id} item={item} />);
   };
 
   const {
@@ -159,176 +171,61 @@ export default function ProjectStatus() {
     ReworkProjects,
   } = COLUMN_NAMES;
 
-  const onIngredientsChange = e => {
-    let _ingredients = [...ingredients];
+  const MovableItem = ({ item }) => {
+    const { _id, company_name, inquiry_no, item_name, couple_name } = item;
 
-    if (e.checked) _ingredients.push(e.value);
-    else _ingredients.splice(_ingredients.indexOf(e.value), 1);
-
-    setIngredients(_ingredients);
-  };
-
-  const MovableItem = ({
-    name,
-    index,
-    currentColumnName,
-    moveCardHandler,
-    setItems,
-  }) => {
-    const changeItemColumn = (currentItem, columnName) => {
-      setItems(prevState => {
-        return prevState.map(e => {
-          return {
-            ...e,
-            column: e.name === currentItem.name ? columnName : e.column,
-          };
-        });
-      });
-    };
-
-    const ref = useRef(null);
-
-    const [, drop] = useDrop({
-      accept: 'Our first type',
-      hover(item, monitor) {
-        if (!ref.current) {
-          return;
-        }
-        const dragIndex = item.index;
-        const hoverIndex = index;
-        // Don't replace items with themselves
-        if (dragIndex === hoverIndex) {
-          return;
-        }
-        // Determine rectangle on screen
-        const hoverBoundingRect = ref.current?.getBoundingClientRect();
-        // Get vertical middle
-        const hoverMiddleY =
-          (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-        // Determine mouse position
-        const clientOffset = monitor.getClientOffset();
-        // Get pixels to the top
-        const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-        // Only perform the move when the mouse has crossed half of the items height
-        // When dragging downwards, only move when the cursor is below 50%
-        // When dragging upwards, only move when the cursor is above 50%
-        // Dragging downwards
-        if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
-          return;
-        }
-        // Dragging upwards
-        if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) {
-          return;
-        }
-        // Time to actually perform the action
-        moveCardHandler(dragIndex, hoverIndex);
-        // Note: we're mutating the monitor item here!
-        // Generally it's better to avoid mutations,
-        // but it's good here for the sake of performance
-        // to avoid expensive index searches.
-        item.index = hoverIndex;
-      },
-    });
-
-    const [{ isDragging }, drag] = useDrag({
-      type: 'BOX',
-      item: { index, name, currentColumnName, type: 'Our first type' },
-      end: (item, monitor) => {
-        const dropResult = monitor.getDropResult();
-
-        if (dropResult) {
-          const { name } = dropResult;
-          const {
-            PendingDataCollection,
-            PendingQuotes,
-            UnassignedToEditor,
-            RunningProjects,
-            INcheckingProjects,
-            ExportProjects,
-            CompleteProjects,
-            ReworkProjects,
-          } = COLUMN_NAMES;
-          switch (name) {
-            case PendingQuotes:
-              changeItemColumn(item, PendingQuotes);
-              break;
-            case UnassignedToEditor:
-              changeItemColumn(item, UnassignedToEditor);
-              break;
-            case RunningProjects:
-              changeItemColumn(item, RunningProjects);
-              break;
-            case INcheckingProjects:
-              changeItemColumn(item, INcheckingProjects);
-              break;
-            case ExportProjects:
-              changeItemColumn(item, ExportProjects);
-              break;
-            case CompleteProjects:
-              changeItemColumn(item, CompleteProjects);
-              break;
-            case ReworkProjects:
-              changeItemColumn(item, ReworkProjects);
-              break;
-            case PendingDataCollection:
-              changeItemColumn(item, PendingDataCollection);
-              break;
-            default:
-              break;
-          }
-        }
-      },
-      collect: monitor => ({
-        isDragging: monitor.isDragging(),
-      }),
-    });
-
-    const opacity = isDragging ? 0.4 : 1;
-
-    drag(drop(ref));
     return (
       <div
-        ref={ref}
-        className="movable-item"
-        onClick={() =>
-          currentColumnName === CompleteProjects && setWorkSubmission(true)
-        }
+        // ref={ref}
+        className="movable-item background_animation_color cursor_pointer"
+        // onClick={() =>
+        //   currentColumnName === CompleteProjects && setWorkSubmission(true)
+        // }
+        onClick={() => navigate(`/editing-flow/${_id}`)}
       >
         <div className="company_header">
-          <div className="company_logo">{name[0] + name[1]}</div>
+          <div className="company_logo">
+            {company_name && company_name[0] + company_name[1]}
+          </div>
           <div className="company_name">
-            <h5>{name}</h5>
+            <h5>{company_name}</h5>
           </div>
         </div>
-        <p>Items: Wedding, Teaser, Pre-wedding</p>
+        <p>{item_name}</p>
+        <h5>Couple Name: {couple_name}</h5>
         <div className="d-flex align-items-center justify-content-between companny_footer">
-          <h4>#56897</h4>
-          <p>
+          <h5>Order No: {inquiry_no}</h5>
+          {/* <p>
             29 min ago <img src={TopRightArrow} alt="" />
-          </p>
+          </p> */}
         </div>
       </div>
     );
   };
 
-  const footerContent = (
-    <div className="footer_wrap d-flex justify-content-end align-items-center">
-      <div className="footer_button">
-        <Button
-          className="btn_border_dark"
-          onClick={() => setWorkSubmission(false)}
-        >
-          Cancel
-        </Button>
-        <Button
-          className="btn_primary"
-          onClick={() => setWorkSubmission(false)}
-        >
-          Submit
-        </Button>
-      </div>
-    </div>
-  );
+  //   const footerContent = (
+  //     <div className="footer_wrap d-flex justify-content-end align-items-center">
+  //       <div className="footer_button">
+  //         <Button
+  //           className="btn_border_dark"
+  //           onClick={() => setWorkSubmission(false)}
+  //         >
+  //           Cancel
+  //         </Button>
+  //         <Button
+  //           className="btn_primary"
+  //           onClick={() => setWorkSubmission(false)}
+  //         >
+  //           Submit
+  //         </Button>
+  //       </div>
+  //     </div>
+  //   );
+
+  const getColumnLength = columnName => {
+    return projectStatusListData.filter(item => item.column === columnName)
+      .length;
+  };
 
   return (
     <div className="main_Wrapper">
@@ -344,22 +241,22 @@ export default function ProjectStatus() {
               <div className="right_filter_wrapper">
                 <ul>
                   <li className="flex-sm-grow-0 flex-grow-1">
-                    <div className="form_group">
+                    {/* <div className="form_group">
                       <InputText
                         id="search"
                         placeholder="Search"
                         type="search"
                         className="input_wrap small search_wrap"
                       />
-                    </div>
+                    </div> */}
                   </li>
                   <li>
-                    <Button
+                    {/* <Button
                       className="btn_border filter_btn"
                       onClick={e => op.current.toggle(e)}
                     >
                       <img src={FilterIcon} alt="" /> Filter by Status
-                    </Button>
+                    </Button> */}
                     <OverlayPanel
                       className="payment-status-overlay"
                       ref={op}
@@ -423,6 +320,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(PendingDataCollection)}
               >
                 {returnItemsForColumn(PendingDataCollection)}
               </Column>
@@ -432,6 +330,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(PendingQuotes)}
               >
                 {returnItemsForColumn(PendingQuotes)}
               </Column>
@@ -441,6 +340,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(UnassignedToEditor)}
               >
                 {returnItemsForColumn(UnassignedToEditor)}
               </Column>
@@ -450,6 +350,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(RunningProjects)}
               >
                 {returnItemsForColumn(RunningProjects)}
               </Column>
@@ -459,6 +360,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(INcheckingProjects)}
               >
                 {returnItemsForColumn(INcheckingProjects)}
               </Column>
@@ -468,6 +370,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(ExportProjects)}
               >
                 {returnItemsForColumn(ExportProjects)}
               </Column>
@@ -477,6 +380,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(CompleteProjects)}
               >
                 {returnItemsForColumn(CompleteProjects)}
               </Column>
@@ -486,6 +390,7 @@ export default function ProjectStatus() {
                   / /g,
                   '_',
                 )}`}
+                length={getColumnLength(ReworkProjects)}
               >
                 {returnItemsForColumn(ReworkProjects)}
               </Column>
@@ -493,7 +398,7 @@ export default function ProjectStatus() {
           </div>
         </div>
       </div>
-      <Dialog
+      {/* <Dialog
         header="Work Submission"
         visible={workSubmission}
         draggable={false}
@@ -515,7 +420,7 @@ export default function ProjectStatus() {
             </Col>
           </Row>
         </div>
-      </Dialog>
+      </Dialog> */}
     </div>
   );
 }

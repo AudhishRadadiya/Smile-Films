@@ -15,6 +15,7 @@ export default function EditInquiry() {
     ({ inquiry }) => inquiry,
   );
   const [initialData, setInitialData] = useState({});
+  
   useEffect(() => {
     if (id) {
       if (isGetInintialValuesInquiry?.update === true) {

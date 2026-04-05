@@ -1,22 +1,9 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Col, Dropdown, Row } from 'react-bootstrap';
-import { InputText } from 'primereact/inputtext';
-import { Button } from 'primereact/button';
-import PlusIcon from '../../Assets/Images/plus.svg';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
-import CompanySidebar from './CompanySidebar';
-import CustomPaginator from 'Components/Common/CustomPaginator';
-import ActionBtn from '../../Assets/Images/action.svg';
-import EditIcon from '../../Assets/Images/edit.svg';
-import TrashIcon from '../../Assets/Images/trash.svg';
 import ConfirmDeletePopup from 'Components/Common/ConfirmDeletePopup';
-import ReactSelectSingle from '../Common/ReactSelectSingle';
-import { Dialog } from 'primereact/dialog';
-import { RadioButton } from 'primereact/radiobutton';
-import { useDispatch, useSelector } from 'react-redux';
+import CustomPaginator from 'Components/Common/CustomPaginator';
 import {
+  addAccount,
   deleteAccount,
+  editAccount,
   getAccount,
   getAccountList,
   setAccountCurrentPage,
@@ -25,20 +12,35 @@ import {
   setIsAddAccount,
   setIsDeleteAccount,
   setIsUpdateAccount,
-  addAccount,
-  editAccount,
 } from 'Store/Reducers/Settings/AccountMaster/AccountSlice';
 import { useFormik } from 'formik';
+import { Button } from 'primereact/button';
+import { Column } from 'primereact/column';
+import { DataTable } from 'primereact/datatable';
+import { Dialog } from 'primereact/dialog';
+import { InputText } from 'primereact/inputtext';
+import { RadioButton } from 'primereact/radiobutton';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Col, Dropdown, Row } from 'react-bootstrap';
+import { useDispatch, useSelector } from 'react-redux';
+import ActionBtn from '../../Assets/Images/action.svg';
+import EditIcon from '../../Assets/Images/edit.svg';
+import PlusIcon from '../../Assets/Images/plus.svg';
+import TrashIcon from '../../Assets/Images/trash.svg';
+import ReactSelectSingle from '../Common/ReactSelectSingle';
+import CompanySidebar from './CompanySidebar';
 
 import Loader from 'Components/Common/Loader';
-import { InputNumber } from 'primereact/inputnumber';
-import { Checkbox } from 'primereact/checkbox';
-import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
-import { getCityList } from 'Store/Reducers/Settings/Master/CitySlice';
-import { getStateList } from 'Store/Reducers/Settings/Master/StateSlice';
 import { accountSchema } from 'Schema/Setting/accountMasterSchema';
-import _ from 'lodash';
 import { getDropdownGroupList } from 'Store/Reducers/Settings/AccountMaster/GroupSlice';
+import { getCityList } from 'Store/Reducers/Settings/Master/CitySlice';
+import { getCountryList } from 'Store/Reducers/Settings/Master/CountrySlice';
+import { getStateList } from 'Store/Reducers/Settings/Master/StateSlice';
+import _ from 'lodash';
+import { Checkbox } from 'primereact/checkbox';
+import { InputNumber } from 'primereact/inputnumber';
+import { getChangeFinancialYearList } from 'Store/Reducers/Settings/Master/ChangeFinancialYearSlice';
+import { Link } from 'react-router-dom';
 
 let accountData = {
   id: '',
@@ -46,7 +48,7 @@ let accountData = {
   group_name: '',
   balance_method: '',
   opening_balance: 0,
-  type: 1,
+  opening_balance_type: 1,
   country: '',
   state: '',
   city: '',
@@ -57,9 +59,10 @@ let accountData = {
   isActive: true,
 };
 
+const balanceMethodList = [{ label: 'Balance Only', value: 'Balance Only' }];
+
 export default function Account({ hasAccess }) {
   const { is_create_access, is_delete_access, is_edit_access } = hasAccess;
-
   const dispatch = useDispatch();
 
   const {
@@ -73,13 +76,18 @@ export default function Account({ hasAccess }) {
     accountLoading,
     selectedAccountData,
   } = useSelector(({ account }) => account);
-  const { countryLoading } = useSelector(({ country }) => country);
-  const { stateLoading } = useSelector(({ state }) => state);
   const { cityLoading } = useSelector(({ city }) => city);
-  const [deletePopup, setDeletePopup] = useState(false);
+  const { stateLoading } = useSelector(({ state }) => state);
+  const { countryLoading } = useSelector(({ country }) => country);
+  const { changeYearList } = useSelector(
+    ({ changeFinancialYear }) => changeFinancialYear,
+  );
+
   const [deleteId, setDeleteId] = useState('');
-  const [accountModel, setAccountModel] = useState(false);
   const [editData, setEditData] = useState(accountData);
+  const [deletePopup, setDeletePopup] = useState(false);
+  const [accountModel, setAccountModel] = useState(false);
+  const [financialYear, setFinancialYear] = useState('');
   const [dropdownOptionList, setDropdownOptionList] = useState({
     countryList: [],
     stateList: [],
@@ -91,35 +99,78 @@ export default function Account({ hasAccess }) {
     let dummyArray = [];
     if (accountList?.list?.length > 0) {
       accountList?.list.forEach(item => {
-        item.accounts?.forEach(d => {
-          dummyArray.push({ ...d });
-        });
+        dummyArray = [...dummyArray, ...item.account];
       });
     }
     return dummyArray;
   }, [accountList]);
 
+  const getAccountListApi = useCallback(
+    (start = 1, limit = 10, search = '', financialYearId = financialYear) => {
+      dispatch(
+        getAccountList({
+          start: start,
+          limit: limit,
+          isActive: '',
+          search: search?.trim(),
+          financial_year_id: financialYearId,
+        }),
+      );
+    },
+    [dispatch, financialYear],
+  );
+
+  const getChangeFinancialYearListApi = useCallback(
+    (start = 0, limit = 0, search = '') => {
+      dispatch(
+        getChangeFinancialYearList({
+          start: start,
+          limit: limit,
+          search: search?.trim(),
+          isActive: '',
+        }),
+      ).then(response => {
+        const financialYearList = response?.payload?.data?.list || {};
+
+        const selectedFinancialYear =
+          Object.keys(financialYearList).length > 0 &&
+          financialYearList?.find(item => item.default === true)?._id;
+
+        if (selectedFinancialYear) {
+          setFinancialYear(selectedFinancialYear);
+        }
+        getAccountListApi(
+          accountCurrentPage,
+          accountPageLimit,
+          accountSearchParam,
+          selectedFinancialYear,
+        );
+      });
+    },
+    [
+      dispatch,
+      getAccountListApi,
+      accountCurrentPage,
+      accountPageLimit,
+      accountSearchParam,
+    ],
+  );
+
   useEffect(() => {
-    dispatch(
-      getAccountList({
-        start: accountCurrentPage,
-        limit: accountPageLimit,
-        isActive: '',
-        search: accountSearchParam,
-      }),
-    );
-  }, [dispatch, accountCurrentPage, accountPageLimit]);
+    getChangeFinancialYearListApi();
+  }, []);
 
   useEffect(() => {
     if (isAddAccount || isUpdateAccount || isDeleteAccount) {
-      dispatch(
-        getAccountList({
-          start: accountCurrentPage,
-          limit: accountPageLimit,
-          isActive: '',
-          search: accountSearchParam,
-        }),
+      getAccountListApi(
+        accountCurrentPage,
+        accountPageLimit,
+        accountSearchParam,
+        financialYear,
       );
+      resetForm();
+      setEditData(accountData);
+      setAccountModel(false);
     }
     if (isUpdateAccount) {
       dispatch(setIsUpdateAccount(false));
@@ -130,15 +181,8 @@ export default function Account({ hasAccess }) {
     if (isDeleteAccount) {
       dispatch(setIsDeleteAccount(false));
     }
-  }, [
-    isAddAccount,
-    isUpdateAccount,
-    isDeleteAccount,
-    dispatch,
-    accountCurrentPage,
-    accountPageLimit,
-    accountSearchParam,
-  ]);
+  }, [dispatch, isAddAccount, isUpdateAccount, isDeleteAccount]);
+
   const getRequiredList = () => {
     dispatch(
       getCountryList({
@@ -164,7 +208,7 @@ export default function Account({ hasAccess }) {
           const countyDataOption = countyData?.data?.list?.map(item => {
             return { label: item?.country, value: item?._id };
           });
-          const groupData = response.payload?.data?.map(item => ({
+          const groupData = response.payload?.map(item => ({
             label: item?.group_name,
             value: item?._id,
           }));
@@ -190,48 +234,51 @@ export default function Account({ hasAccess }) {
 
   useEffect(() => {
     if (Object.keys(selectedAccountData)?.length) {
-      let stateOptionList = [],
-        cityOptionList = [];
-
       setEditData(selectedAccountData);
-      dispatch(
-        getStateList({
-          country_id: selectedAccountData?.country,
-          start: 0,
-          limit: 0,
-          isActive: true,
-        }),
-      )
-        .then(response => {
-          stateOptionList = response.payload?.data?.list?.map(item => {
-            return { label: item?.state, value: item?._id };
+
+      if (selectedAccountData?.country) {
+        let cityOptionList = [];
+        let stateOptionList = [];
+
+        dispatch(
+          getStateList({
+            country_id: selectedAccountData?.country,
+            start: 0,
+            limit: 0,
+            isActive: true,
+          }),
+        )
+          .then(response => {
+            stateOptionList = response.payload?.data?.list?.map(item => {
+              return { label: item?.state, value: item?._id };
+            });
+
+            return dispatch(
+              getCityList({
+                country_id: selectedAccountData?.country,
+                state_id: selectedAccountData?.state,
+                start: 0,
+                limit: 0,
+                isActive: true,
+              }),
+            );
+          })
+          .then(cityResponse => {
+            cityOptionList = cityResponse.payload?.data?.list?.map(item => ({
+              label: item?.city,
+              value: item?._id,
+            }));
+
+            setDropdownOptionList(prevState => ({
+              ...prevState,
+              stateList: stateOptionList,
+              cityList: cityOptionList,
+            }));
+          })
+          .catch(error => {
+            console.error('Error fetching company data:', error);
           });
-
-          return dispatch(
-            getCityList({
-              country_id: selectedAccountData?.country,
-              state_id: selectedAccountData?.state,
-              start: 0,
-              limit: 0,
-              isActive: true,
-            }),
-          );
-        })
-        .then(cityResponse => {
-          cityOptionList = cityResponse.payload?.data?.list?.map(item => ({
-            label: item?.city,
-            value: item?._id,
-          }));
-
-          setDropdownOptionList(prevState => ({
-            ...prevState,
-            stateList: stateOptionList,
-            cityList: cityOptionList,
-          }));
-        })
-        .catch(error => {
-          console.error('Error fetching company data:', error);
-        });
+      }
     }
   }, [selectedAccountData, dispatch]);
 
@@ -251,58 +298,139 @@ export default function Account({ hasAccess }) {
     );
   };
 
-  const balanceMethodList = [{ label: 'Balance Only', value: 'Balance Only' }];
+  const currentBalanceTemplate = data => {
+    const history = data?.accountHistory || {};
+
+    if (Object.keys(history).length > 0) {
+      return (
+        <div>{`${Math.abs(data?.current_balance) || ''} ${
+          data?.current_balance ? (data?.current_balance > 0 ? 'CR' : 'DB') : ''
+        }`}</div>
+      );
+    }
+
+    return '-';
+  };
+
+  const openingBalanceTemplate = data => {
+    const history = data?.accountHistory || {};
+
+    if (Object.keys(history).length > 0) {
+      return (
+        <div>{`${Math.abs(data?.opening_balance) || ''} ${
+          data?.opening_balance ? (data?.opening_balance > 0 ? 'CR' : 'DB') : ''
+        }`}</div>
+      );
+    }
+
+    return '-';
+  };
 
   const actionBodyTemplate = row => {
-    return (
-      <div className="dropdown_action_wrap">
-        <Dropdown className="dropdown_common position-static">
-          <Dropdown.Toggle
-            id="dropdown-basic"
-            className="action_btn"
-            disabled={is_edit_access || is_delete_access ? false : true}
-          >
-            <img src={ActionBtn} alt="" />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            {is_edit_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  getRequiredList();
-                  dispatch(getAccount({ account_id: row?._id }));
-                  setAccountModel(true);
-                }}
-              >
-                <img src={EditIcon} alt="EditIcon" /> Edit
-              </Dropdown.Item>
-            )}
-            {is_delete_access && (
-              <Dropdown.Item
-                onClick={() => {
-                  setDeleteId(row?._id);
-                  setDeletePopup(true);
-                }}
-              >
-                <img src={TrashIcon} alt="TrashIcon" /> Delete
-              </Dropdown.Item>
-            )}
-          </Dropdown.Menu>
-        </Dropdown>
+    return row?.type === 'account' ? (
+      // <div className="dropdown_action_wrap">
+      //   <Dropdown className="dropdown_common position-static">
+      //     <Dropdown.Toggle
+      //       id="dropdown-basic"
+      //       className="action_btn"
+      //       disabled={is_edit_access || is_delete_access ? false : true}
+      //     >
+      //       <img src={ActionBtn} alt="" />
+      //     </Dropdown.Toggle>
+      //     <Dropdown.Menu>
+      //       {is_edit_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             getRequiredList();
+      //             dispatch(getAccount({ account_id: row?._id }));
+      //             setAccountModel(true);
+      //           }}
+      //         >
+      //           <img src={EditIcon} alt="EditIcon" /> Edit
+      //         </Dropdown.Item>
+      //       )}
+      //       {is_delete_access && (
+      //         <Dropdown.Item
+      //           onClick={() => {
+      //             setDeleteId(row?._id);
+      //             setDeletePopup(true);
+      //           }}
+      //         >
+      //           <img src={TrashIcon} alt="TrashIcon" /> Delete
+      //         </Dropdown.Item>
+      //       )}
+      //     </Dropdown.Menu>
+      //   </Dropdown>
+      // </div>
+
+      <div className="d-flex gap-3">
+        {is_edit_access && (
+          <img
+            alt=""
+            src={EditIcon}
+            className="cursor_pointer"
+            onClick={() => {
+              getRequiredList();
+              dispatch(getAccount({ account_id: row?._id }));
+              setAccountModel(true);
+            }}
+          />
+        )}
+        {is_delete_access && (
+          <img
+            src={TrashIcon}
+            alt=""
+            className="cursor_pointer"
+            onClick={() => {
+              setDeleteId(row?._id);
+              setDeletePopup(true);
+            }}
+          />
+        )}
       </div>
+    ) : (
+      ''
     );
   };
 
   const onPageChange = page => {
-    let pageIndex = accountCurrentPage;
-    if (page?.page === 'Prev') pageIndex--;
-    else if (page?.page === 'Next') pageIndex++;
-    else pageIndex = page;
-    dispatch(setAccountCurrentPage(pageIndex));
+    if (page !== accountCurrentPage) {
+      let pageIndex = accountCurrentPage;
+      if (page?.page === 'Prev') pageIndex--;
+      else if (page?.page === 'Next') pageIndex++;
+      else pageIndex = page;
+      dispatch(setAccountCurrentPage(pageIndex));
+      getAccountListApi(
+        pageIndex,
+        accountPageLimit,
+        accountSearchParam,
+        financialYear,
+      );
+    }
   };
 
   const onPageRowsChange = page => {
     dispatch(setAccountCurrentPage(page === 0 ? 0 : 1));
     dispatch(setAccountPageLimit(page));
+    const pageValue =
+      page === 0 ? (accountList?.totalRows ? accountList?.totalRows : 0) : page;
+    const prevPageValue =
+      accountPageLimit === 0
+        ? accountList?.totalRows
+          ? accountList?.totalRows
+          : 0
+        : accountPageLimit;
+    if (
+      prevPageValue < accountList?.totalRows ||
+      pageValue < accountList?.totalRows
+    ) {
+      getAccountListApi(
+        page === 0 ? 0 : 1,
+        page,
+        accountSearchParam,
+        financialYear,
+      );
+    }
   };
 
   const handleDelete = useCallback(() => {
@@ -315,14 +443,49 @@ export default function Account({ hasAccess }) {
     setDeletePopup(false);
   }, [dispatch, deleteId]);
 
-  const countryTemplate = option => {
-    return (
-      <div className="d-flex align-items-center justify-content-between">
-        <div>{option.label}</div>
-        <div>{option.code}</div>
-      </div>
-    );
-  };
+  const submitHandle = useCallback(
+    values => {
+      const payload = {
+        account_name: values?.account_name,
+        group_name: values?.group_name,
+        balance_method: values?.balance_method,
+        opening_balance: values?.opening_balance,
+        opening_balance_type: values?.opening_balance_type,
+        area: values?.area,
+        pincode: values?.pincode,
+        email_id: values?.email_id,
+        mobile_no: values?.mobile_no,
+        isActive: values?.isActive,
+        ...(values?._id && { account_id: values?._id }),
+        ...(values?.city && { city: values?.city }),
+        ...(values?.state && { state: values?.state }),
+        ...(values?.country && { country: values?.country }),
+      };
+
+      if (values?._id) {
+        dispatch(editAccount(payload));
+      } else {
+        dispatch(addAccount(payload));
+      }
+    },
+    [dispatch],
+  );
+
+  const {
+    values,
+    errors,
+    touched,
+    handleBlur,
+    handleChange,
+    handleSubmit,
+    resetForm,
+    setFieldValue,
+  } = useFormik({
+    enableReinitialize: true,
+    initialValues: editData,
+    validationSchema: accountSchema,
+    onSubmit: submitHandle,
+  });
 
   const loadStateData = useCallback(
     async e => {
@@ -355,38 +518,6 @@ export default function Account({ hasAccess }) {
     [dispatch, dropdownOptionList],
   );
 
-  const submitHandle = useCallback(
-    async values => {
-      if (values?._id) {
-        const payload = {
-          ...values,
-          account_id: values?._id,
-        };
-        dispatch(editAccount(payload));
-      } else {
-        dispatch(addAccount(values));
-      }
-      setAccountModel(false);
-    },
-    [dispatch],
-  );
-
-  const {
-    values,
-    errors,
-    touched,
-    handleBlur,
-    handleChange,
-    handleSubmit,
-    resetForm,
-    setFieldValue,
-  } = useFormik({
-    enableReinitialize: true,
-    initialValues: editData,
-    validationSchema: accountSchema,
-    onSubmit: submitHandle,
-  });
-
   const loadCityData = useCallback(
     async e => {
       const isSuccessCity = await dispatch(
@@ -415,6 +546,7 @@ export default function Account({ hasAccess }) {
 
   const onCancel = useCallback(() => {
     resetForm();
+    setEditData(accountData);
     setAccountModel(false);
   }, [resetForm]);
 
@@ -442,7 +574,7 @@ export default function Account({ hasAccess }) {
           Cancel
         </Button>
         <Button className="btn_primary" onClick={handleSubmit}>
-          Save
+          {values?._id ? 'Update' : 'Save'}
         </Button>
       </div>
     </div>
@@ -450,20 +582,46 @@ export default function Account({ hasAccess }) {
 
   const handleSearchInput = e => {
     dispatch(setAccountCurrentPage(1));
-    dispatch(
-      getAccountList({
-        start: 1,
-        limit: accountPageLimit,
-        isActive: '',
-        search: e.target.value,
-      }),
+
+    getAccountListApi(
+      1,
+      accountPageLimit,
+      e.target.value?.trim(),
+      financialYear,
     );
   };
 
   const debounceHandleSearchInput = useCallback(
     _.debounce(handleSearchInput, 800),
-    [],
+    [financialYear],
   );
+
+  const financialYearOptions = useMemo(() => {
+    return (changeYearList?.list || []).map(item => {
+      const startYear = new Date(item.start_date).getFullYear();
+      const endYear = new Date(item.end_date).getFullYear();
+      return {
+        label: `${startYear} - ${endYear}`,
+        value: item._id,
+      };
+    });
+  }, [changeYearList]);
+
+  const handleSelectFinancialYear = useCallback(
+    data => {
+      setFinancialYear(data);
+      getAccountListApi(1, accountPageLimit, accountSearchParam, data);
+    },
+    [accountPageLimit, accountSearchParam, getAccountListApi],
+  );
+
+  const accountNameTemplate = data => {
+    return (
+      <Link to={`/account-history/${data?._id}`} className="hover_text">
+        {data?.account_name}
+      </Link>
+    );
+  };
 
   return (
     <div className="main_Wrapper">
@@ -484,6 +642,17 @@ export default function Account({ hasAccess }) {
                 <Col sm={9}>
                   <div className="right_filter_wrapper">
                     <ul>
+                      <li>
+                        <ReactSelectSingle
+                          id="financial_year"
+                          filter
+                          value={financialYear}
+                          options={financialYearOptions}
+                          onBlur={handleBlur}
+                          onChange={e => handleSelectFinancialYear(e.value)}
+                          placeholder="Select Financial Year"
+                        />
+                      </li>
                       <li>
                         <div className="form_group">
                           <InputText
@@ -533,14 +702,27 @@ export default function Account({ hasAccess }) {
                 <Column
                   field="account_name"
                   header="Account Name"
+                  body={accountNameTemplate}
                   sortable
                 ></Column>
                 <Column field="city" header="City" sortable></Column>
-                <Column field="area" header="Area" sortable></Column>
+                <Column
+                  field="address"
+                  header="Address"
+                  sortable
+                  className="address_manage_wrapper"
+                ></Column>
                 <Column
                   field="opening_balance"
                   header="Opening Balance"
                   sortable
+                  body={openingBalanceTemplate}
+                ></Column>
+                <Column
+                  field="current_balance"
+                  header="Closing Balance"
+                  sortable
+                  body={currentBalanceTemplate}
                 ></Column>
                 <Column
                   field="isActive"
@@ -561,13 +743,14 @@ export default function Account({ hasAccess }) {
         </div>
       </div>
       <ConfirmDeletePopup
+        moduleName={'account'}
         deletePopup={deletePopup}
         deleteId={deleteId}
         handleDelete={handleDelete}
         setDeletePopup={setDeletePopup}
       />
       <Dialog
-        header="Account"
+        header={values?._id ? 'Update Account' : 'Create Account'}
         visible={accountModel}
         draggable={false}
         className="modal_Wrapper modal_medium"
@@ -578,10 +761,12 @@ export default function Account({ hasAccess }) {
           <Row>
             <Col sm={6}>
               <div className="form_group mb-3">
-                <label htmlFor="Name">Name</label>
+                <label htmlFor="Name">
+                  Account Name <span className="text-danger fs-6">*</span>
+                </label>
                 <InputText
                   id="Name"
-                  placeholder="Name"
+                  placeholder="Account Name"
                   className="input_wrap"
                   value={values?.account_name || ''}
                   name="account_name"
@@ -596,12 +781,15 @@ export default function Account({ hasAccess }) {
             </Col>
             <Col sm={6}>
               <div className="form_group mb-3">
-                <label>Group Name</label>
+                <label>
+                  Group Name <span className="text-danger fs-6">*</span>
+                </label>
                 <ReactSelectSingle
                   filter
                   value={values?.group_name}
                   options={dropdownOptionList?.dropdownGroupList}
                   name="group_name"
+                  onBlur={handleBlur}
                   onChange={e => setFieldValue('group_name', e.value)}
                   optionLabel="label"
                   optionGroupLabel="label"
@@ -622,7 +810,9 @@ export default function Account({ hasAccess }) {
           <Row>
             <Col sm={6}>
               <div className="form_group mb-3">
-                <label>Balance Method</label>
+                <label>
+                  Balance Method <span className="text-danger fs-6">*</span>
+                </label>
                 <ReactSelectSingle
                   filter
                   value={values?.balance_method || ''}
@@ -648,19 +838,19 @@ export default function Account({ hasAccess }) {
                   id="OpeningBalance"
                   placeholder="Opening Balance"
                   name="opening_balance"
-                  useGrouping={false}
                   value={values?.opening_balance || ''}
-                  onBlur={handleBlur}
                   onChange={e => {
                     setFieldValue('opening_balance', e.value);
                   }}
+                  min={0}
+                  useGrouping={false}
+                  onBlur={handleBlur}
+                  maxFractionDigits={2}
                   required
                 />
-                {touched?.opening_balance &&
-                  errors?.opening_balance &&
-                  !values?.opening_balance && (
-                    <p className="text-danger">{errors?.opening_balance}</p>
-                  )}
+                {touched?.opening_balance && errors?.opening_balance && (
+                  <p className="text-danger">{errors?.opening_balance}</p>
+                )}
               </div>
             </Col>
             <Col sm={6}>
@@ -669,11 +859,11 @@ export default function Account({ hasAccess }) {
                 <div className="radio-inner-wrap d-flex align-items-center me-3">
                   <RadioButton
                     inputId="Credits"
-                    name="type"
+                    name="opening_balance_type"
                     value={1}
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    checked={values?.type === 1}
+                    checked={values?.opening_balance_type === 1}
                   />
                   <label htmlFor="Credits" className="ms-2">
                     Credits
@@ -682,11 +872,11 @@ export default function Account({ hasAccess }) {
                 <div className="radio-inner-wrap d-flex align-items-center">
                   <RadioButton
                     inputId="Debits"
-                    name="type"
+                    name="opening_balance_type"
                     value={2}
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    checked={values?.type === 2}
+                    checked={values?.opening_balance_type === 2}
                   />
                   <label htmlFor="Debits" className="ms-2">
                     Debits
@@ -714,9 +904,6 @@ export default function Account({ hasAccess }) {
                   options={dropdownOptionList?.countryList}
                   placeholder="Select Country"
                 />
-                {touched?.country && errors?.country && !values?.country && (
-                  <p className="text-danger">{errors?.country}</p>
-                )}
               </div>
             </Col>
             <Col sm={6}>
@@ -735,9 +922,6 @@ export default function Account({ hasAccess }) {
                   options={dropdownOptionList?.stateList}
                   placeholder="Select State"
                 />
-                {touched?.state && errors?.state && !values?.state && (
-                  <p className="text-danger">{errors?.state}</p>
-                )}
               </div>
             </Col>
             <Col sm={6}>
@@ -752,17 +936,14 @@ export default function Account({ hasAccess }) {
                   options={dropdownOptionList?.cityList}
                   placeholder="Select City"
                 />
-                {touched?.city && errors?.city && !values?.city && (
-                  <p className="text-danger">{errors?.city}</p>
-                )}
               </div>
             </Col>
             <Col sm={6}>
               <div className="form_group mb-3">
-                <label htmlFor="Area">Area</label>
+                <label htmlFor="Address">Address</label>
                 <InputText
-                  id="Area"
-                  placeholder="Area"
+                  id="Address"
+                  placeholder="Address"
                   className="input_wrap"
                   name="area"
                   value={values?.area || ''}

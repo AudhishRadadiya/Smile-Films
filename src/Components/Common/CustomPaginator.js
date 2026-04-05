@@ -42,7 +42,11 @@ const CustomPaginator = memo(
           <button
             className="border border-0 next_arrow"
             onClick={() => onPageChange({ page: 'Next' })}
-            disabled={currentPage === totalPages ? true : false}
+            disabled={
+              dataList?.length === 0 || currentPage === totalPages
+                ? true
+                : false
+            }
           >
             <img
               src={RightArrow}

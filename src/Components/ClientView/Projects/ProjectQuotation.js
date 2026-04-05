@@ -1,14 +1,4 @@
-import { Button } from 'primereact/button';
-import { Dialog } from 'primereact/dialog';
-import React, { useEffect, useState } from 'react';
-import { Col, Row } from 'react-bootstrap';
-import { Link, useParams } from 'react-router-dom';
-import ShowIcon from '../../../Assets/Images/show-icon.svg';
-import PdfIcon from '../../../Assets/Images/pdf-icon.svg';
-import { ColumnGroup } from 'primereact/columngroup';
-import { Column } from 'primereact/column';
-import { DataTable } from 'primereact/datatable';
-import { useDispatch, useSelector } from 'react-redux';
+import Loader from 'Components/Common/Loader';
 import {
   editClientQuotation,
   getClientBilling,
@@ -16,21 +6,35 @@ import {
   getClientQuotation,
   getClientQuotationList,
 } from 'Store/Reducers/ClientFlow/Project/ClientProjectSlice';
-import Loader from 'Components/Common/Loader';
 import moment from 'moment';
+import { Button } from 'primereact/button';
+import { Column } from 'primereact/column';
+import { ColumnGroup } from 'primereact/columngroup';
+import { DataTable } from 'primereact/datatable';
+import { Dialog } from 'primereact/dialog';
+import { memo, useEffect, useState } from 'react';
+import { Col, Row } from 'react-bootstrap';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useParams } from 'react-router-dom';
+import PdfIcon from '../../../Assets/Images/pdf-icon.svg';
+import ShowIcon from '../../../Assets/Images/show-icon.svg';
+import { convertIntoNumber } from 'Helper/CommonHelper';
 
-export default function ProjectQuotation() {
+const ProjectQuotation = () => {
+  const { id } = useParams();
   const dispatch = useDispatch();
+
   const [visible, setVisible] = useState(false);
   const [billingPopup, setBillingPopup] = useState(false);
-  const { id } = useParams();
+
   const {
-    clientQuotationList,
-    clientQuotationLoading,
-    selectedClientQuotationData,
     clientBillingList,
+    clientQuotationList,
     clientBillingLoading,
+    clientQuotationLoading,
     selectedClientBillingData,
+    clientProjectOverviewData,
+    selectedClientQuotationData,
   } = useSelector(({ clientProject }) => clientProject);
 
   useEffect(() => {
@@ -44,7 +48,7 @@ export default function ProjectQuotation() {
         order_id: id,
       }),
     );
-  }, [dispatch, id]);
+  }, [dispatch]);
 
   const handleMarkAsApprovedChange = () => {
     let payload = {
@@ -65,11 +69,73 @@ export default function ProjectQuotation() {
       });
   };
 
+  const viewQuotationRateTemplate = rowData => {
+    return (
+      <div className="d-flex gap-1">
+        <span>
+          {selectedClientQuotationData?.currency_symbol
+            ? selectedClientQuotationData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.rate}</span>
+      </div>
+    );
+  };
+
+  const viewQuotationAmountTemplate = rowData => {
+    return (
+      <div className="d-flex gap-1">
+        <span>
+          {selectedClientQuotationData?.currency_symbol
+            ? selectedClientQuotationData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.amount}</span>
+      </div>
+    );
+  };
+
+  const viewBillingRateTemplate = rowData => {
+    return (
+      <div className="d-flex gap-1">
+        <span>
+          {selectedClientBillingData?.currency_symbol
+            ? selectedClientBillingData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.rate}</span>
+      </div>
+    );
+  };
+
+  const viewBillingAmountTemplate = rowData => {
+    return (
+      <div className="d-flex gap-1">
+        <span>
+          {selectedClientBillingData?.currency_symbol
+            ? selectedClientBillingData?.currency_symbol
+            : ''}
+        </span>
+        <span>{rowData?.amount}</span>
+      </div>
+    );
+  };
+
   const QuotationfooterGroup = (
     <ColumnGroup>
       <Row>
         <Column footer="Total Amount" colSpan={3} />
-        <Column footer={selectedClientQuotationData?.sub_total} />
+        <Column
+          footer={`${
+            selectedClientQuotationData?.currency_symbol
+              ? selectedClientQuotationData?.currency_symbol
+              : ''
+          } ${
+            selectedClientQuotationData?.sub_total
+              ? selectedClientQuotationData?.sub_total
+              : 0
+          }`}
+        />
       </Row>
     </ColumnGroup>
   );
@@ -77,10 +143,21 @@ export default function ProjectQuotation() {
     <ColumnGroup>
       <Row>
         <Column footer="Total Amount" colSpan={3} />
-        <Column footer={selectedClientBillingData?.sub_total} />
+        <Column
+          footer={`${
+            selectedClientBillingData?.currency_symbol
+              ? selectedClientBillingData?.currency_symbol
+              : ''
+          } ${
+            selectedClientBillingData?.sub_total
+              ? selectedClientBillingData?.sub_total
+              : 0
+          }`}
+        />
       </Row>
     </ColumnGroup>
   );
+
   return (
     <div>
       {(clientQuotationLoading || clientBillingLoading) && <Loader />}
@@ -99,7 +176,15 @@ export default function ProjectQuotation() {
                       <Col xl={6} lg={12} md={6}>
                         <div className="quotation_name">
                           <h5>{data?.quotation_name}</h5>
-                          <h5 className="fw_400 m-0"> {data?.total_amount}</h5>
+                          <h5 className="fw_400 m-0">
+                            {`${
+                              data?.currency_symbol ? data?.currency_symbol : ''
+                            } ${
+                              data?.total_amount
+                                ? convertIntoNumber(data?.total_amount)
+                                : ''
+                            }`}
+                          </h5>
                         </div>
                       </Col>
                       <Col xl={6} lg={12} md={6}>
@@ -134,7 +219,7 @@ export default function ProjectQuotation() {
                                 {' '}
                                 {data?.approved_at &&
                                   moment(data?.approved_at)?.format(
-                                    'DD-MM-YYYY hh:mm:ss A',
+                                    'DD-MM-YYYY',
                                   )}
                               </h6>
                             </div>
@@ -212,9 +297,6 @@ export default function ProjectQuotation() {
         <div class="quotation-details-head p10 border-bottom">
           <h3 class="fw_600 m-0">Billing</h3>
         </div>
-        {/* <div class="quotation_save_data">
-                  <h6>No Quotation saved</h6>
-                </div> */}
         <div className="saved_quotation p10">
           <ul>
             {clientBillingList &&
@@ -226,7 +308,13 @@ export default function ProjectQuotation() {
                       <Col xl={6} lg={12} md={6}>
                         <div className="quotation_name">
                           <h5>Invoice No. #{data?.invoice_no}</h5>
-                          <h5 className="fw_400 m-0">{data?.total_amount}</h5>
+                          <h5 className="fw_400 m-0">{`${
+                            data?.currency_symbol ? data?.currency_symbol : ''
+                          } ${
+                            data?.total_amount
+                              ? convertIntoNumber(data?.total_amount)
+                              : ''
+                          }`}</h5>
                         </div>
                       </Col>
                       <Col xl={6} lg={12} md={6}>
@@ -236,7 +324,7 @@ export default function ProjectQuotation() {
                               Pending Due Date{' '}
                               {data?.created_at &&
                                 moment(data?.created_at)?.format(
-                                  'DD-MM-YYYY hh:mm:ss A',
+                                  'DD-MM-YYYY',
                                 )}{' '}
                             </h6>
                           </div>
@@ -271,7 +359,8 @@ export default function ProjectQuotation() {
         <div className="saved_quotation py20 px10">
           <Link to="/" className="link_text_blue">
             <p className="m-0">
-              https://www.example.nl.examplelogin.nl/mail/login/
+              {/* https://www.example.nl.examplelogin.nl/mail/login/ */}
+              {clientProjectOverviewData?.final_work}
             </p>
           </Link>
         </div>
@@ -281,8 +370,12 @@ export default function ProjectQuotation() {
         header={
           <div className="dialog_logo">
             <img
-              src={selectedClientQuotationData?.company_logo}
-              alt="company logo"
+              src={
+                selectedClientQuotationData?.company_logo
+                  ? selectedClientQuotationData?.company_logo
+                  : ''
+              }
+              alt=""
             />
           </div>
         }
@@ -318,7 +411,17 @@ export default function ProjectQuotation() {
                 <div className="user_bank_details bank_details_light">
                   <h5>
                     Order Date{' '}
-                    <span>{selectedClientQuotationData?.created_at}</span>
+                    <span>
+                      {moment(selectedClientQuotationData?.created_at)?.format(
+                        'DD-MM-YYYY',
+                      )}
+                    </span>
+                  </h5>
+                </div>
+                <div className="user_bank_details bank_details_light">
+                  <h5>
+                    Couple Name{' '}
+                    <span>{selectedClientQuotationData?.couple_name}</span>
                   </h5>
                 </div>
               </Col>
@@ -334,8 +437,18 @@ export default function ProjectQuotation() {
             >
               <Column field="item_name" header="Item" sortable></Column>
               <Column field="quantity" header="Qty" sortable></Column>
-              <Column field="rate" header="Rate" sortable></Column>
-              <Column field="amount" header="Amount" sortable></Column>
+              <Column
+                field="rate"
+                header="Rate"
+                sortable
+                body={viewQuotationRateTemplate}
+              ></Column>
+              <Column
+                field="amount"
+                header="Amount"
+                sortable
+                body={viewQuotationAmountTemplate}
+              ></Column>
             </DataTable>
           </div>
           <div className="quotation-wrapper amount_condition mt20">
@@ -343,7 +456,7 @@ export default function ProjectQuotation() {
               <Col lg={6}>
                 <div className="amount-condition-wrapper">
                   <div className="pb10">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div className="condition-content">
                     {/* <ul>
@@ -382,7 +495,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text-end">
-                          {' '}
+                          {selectedClientQuotationData?.currency_symbol
+                            ? selectedClientQuotationData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientQuotationData?.sub_total}
                         </h5>
                       </div>
@@ -393,6 +508,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
+                          {selectedClientQuotationData?.currency_symbol
+                            ? selectedClientQuotationData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientQuotationData?.discount}
                         </h5>
                       </div>
@@ -411,6 +529,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
+                          {selectedClientQuotationData?.currency_symbol
+                            ? selectedClientQuotationData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientQuotationData?.tax}
                         </h5>
                       </div>
@@ -421,7 +542,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="fw_700 text-end">
-                          {' '}
+                          {selectedClientQuotationData?.currency_symbol
+                            ? selectedClientQuotationData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientQuotationData?.total_amount}
                         </h5>
                       </div>
@@ -465,10 +588,18 @@ export default function ProjectQuotation() {
       <Dialog
         header={
           <div className="dialog_logo">
-            <img
-              src={selectedClientQuotationData?.company_logo}
-              alt="company logo"
-            />
+            {selectedClientQuotationData?.company_logo ? (
+              <img
+                src={
+                  selectedClientQuotationData?.company_logo
+                    ? selectedClientQuotationData?.company_logo
+                    : ''
+                }
+                alt=""
+              />
+            ) : (
+              ''
+            )}
           </div>
         }
         className="modal_Wrapper payment_dialog quotation_dialog"
@@ -501,8 +632,18 @@ export default function ProjectQuotation() {
                 </div>
                 <div className="user_bank_details bank_details_light">
                   <h5>
-                    Order Date{' '}
-                    <span>{selectedClientBillingData?.created_at}</span>
+                    Order Date
+                    <span>
+                      {moment(selectedClientBillingData?.created_at)?.format(
+                        'DD-MM-YYYY',
+                      )}
+                    </span>
+                  </h5>
+                </div>
+                <div className="user_bank_details bank_details_light">
+                  <h5>
+                    Couple Name{' '}
+                    <span>{selectedClientBillingData?.couple_name}</span>
                   </h5>
                 </div>
               </Col>
@@ -518,8 +659,18 @@ export default function ProjectQuotation() {
             >
               <Column field="item_name" header="Item" sortable></Column>
               <Column field="quantity" header="Qty" sortable></Column>
-              <Column field="rate" header="Rate" sortable></Column>
-              <Column field="amount" header="Amount" sortable></Column>
+              <Column
+                field="rate"
+                header="Rate"
+                sortable
+                body={viewBillingRateTemplate}
+              ></Column>
+              <Column
+                field="amount"
+                header="Amount"
+                sortable
+                body={viewBillingAmountTemplate}
+              ></Column>
             </DataTable>
           </div>
           <div className="quotation-wrapper amount_condition mt20">
@@ -527,7 +678,7 @@ export default function ProjectQuotation() {
               <Col lg={6}>
                 <div className="amount-condition-wrapper">
                   <div className="pb10">
-                    <h5 className="m-0">Term & Condition</h5>
+                    <h5 className="m-0">Terms & Condition</h5>
                   </div>
                   <div className="condition-content">
                     {/* <ul>
@@ -566,7 +717,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text-end">
-                          {' '}
+                          {selectedClientBillingData?.currency_symbol
+                            ? selectedClientBillingData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientBillingData?.sub_total}
                         </h5>
                       </div>
@@ -577,6 +730,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
+                          {selectedClientBillingData?.currency_symbol
+                            ? selectedClientBillingData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientBillingData?.discount}
                         </h5>
                       </div>
@@ -595,6 +751,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="text_gray text-end">
+                          {selectedClientBillingData?.currency_symbol
+                            ? selectedClientBillingData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientBillingData?.tax}
                         </h5>
                       </div>
@@ -605,7 +764,9 @@ export default function ProjectQuotation() {
                       </div>
                       <div className="subtotal-input">
                         <h5 className="fw_700 text-end">
-                          {' '}
+                          {selectedClientBillingData?.currency_symbol
+                            ? selectedClientBillingData?.currency_symbol
+                            : ''}{' '}
                           {selectedClientBillingData?.total_amount}
                         </h5>
                       </div>
@@ -635,4 +796,5 @@ export default function ProjectQuotation() {
       </Dialog>
     </div>
   );
-}
+};
+export default memo(ProjectQuotation);

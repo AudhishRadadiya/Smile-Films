@@ -57,9 +57,14 @@ const ExposingProgress = () => {
                   exposingSelectedProgressIndex === 4 ||
                   exposingSelectedProgressIndex === 5 ||
                   exposingSelectedProgressIndex === 6
-                ? 'm-0 complete'
+                ? 'm-0 complete cursor_pointer'
                 : 'm-0'
             }
+            onClick={() => {
+              if ([2, 3, 4, 5, 6].includes(exposingSelectedProgressIndex)) {
+                dispatch(setExposingSelectedProgressIndex(1));
+              }
+            }}
           >
             Order Form
           </h4>
@@ -82,9 +87,14 @@ const ExposingProgress = () => {
                   exposingSelectedProgressIndex === 4 ||
                   exposingSelectedProgressIndex === 5 ||
                   exposingSelectedProgressIndex === 6
-                ? 'm-0 complete'
+                ? 'm-0 complete cursor_pointer'
                 : 'm-0'
             }
+            onClick={() => {
+              if ([3, 4, 5, 6].includes(exposingSelectedProgressIndex)) {
+                dispatch(setExposingSelectedProgressIndex(2));
+              }
+            }}
           >
             Quotation
           </h4>
@@ -106,9 +116,14 @@ const ExposingProgress = () => {
                 : exposingSelectedProgressIndex === 4 ||
                   exposingSelectedProgressIndex === 5 ||
                   exposingSelectedProgressIndex === 6
-                ? 'm-0 complete'
+                ? 'm-0 complete cursor_pointer'
                 : 'm-0'
             }
+            onClick={() => {
+              if ([4, 5, 6].includes(exposingSelectedProgressIndex)) {
+                dispatch(setExposingSelectedProgressIndex(3));
+              }
+            }}
           >
             Quotes Approve
           </h4>
@@ -129,9 +144,14 @@ const ExposingProgress = () => {
                 ? 'm-0 active'
                 : exposingSelectedProgressIndex === 5 ||
                   exposingSelectedProgressIndex === 6
-                ? 'm-0 complete'
+                ? 'm-0 complete cursor_pointer'
                 : 'm-0'
             }
+            onClick={() => {
+              if ([5, 6].includes(exposingSelectedProgressIndex)) {
+                dispatch(setExposingSelectedProgressIndex(4));
+              }
+            }}
           >
             Assign to Exposer
           </h4>
@@ -151,9 +171,14 @@ const ExposingProgress = () => {
               exposingSelectedProgressIndex === 5
                 ? 'm-0 active'
                 : exposingSelectedProgressIndex === 6
-                ? 'm-0 complete'
+                ? 'm-0 complete cursor_pointer'
                 : 'm-0'
             }
+            onClick={() => {
+              if (exposingSelectedProgressIndex === 6) {
+                dispatch(setExposingSelectedProgressIndex(5));
+              }
+            }}
           >
             Overview
           </h4>

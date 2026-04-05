@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 import CompanySidebar from '../CompanySidebar';
-import CompanyLogo from '../../../Assets/Images/company_logo.png';
 import UploadLogo from '../../../Assets/Images/upload-logo.svg';
 import { InputText } from 'primereact/inputtext';
 import ReactSelectSingle from '../../Common/ReactSelectSingle';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import { companySchema } from 'Schema/Setting/companySchema';
 import { Button } from 'primereact/button';
@@ -22,7 +21,9 @@ import {
   clearUpdateSelectedCompanyData,
   editCompany,
   setAddSelectedCompanyData,
+  setIsAddCompany,
   setIsGetInitialValues,
+  setIsUpdateCompany,
   setUpdateSelectedCompanyData,
 } from 'Store/Reducers/Settings/CompanySetting/CompanySlice';
 import { Checkbox } from 'primereact/checkbox';
@@ -31,14 +32,18 @@ import Loader from 'Components/Common/Loader';
 import TrashIcon from '../../../Assets/Images/trash.svg';
 
 export default function CompanyDetail({ initialValues }) {
+  const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { id } = useParams();
+  const location = useLocation();
+
   const {
+    isAddCompany,
+    companyLoading,
+    isUpdateCompany,
+    isGetInitialValues,
     addSelectedCompanyData,
     updateSelectedCompanyData,
-    isGetInitialValues,
-    companyLoading,
   } = useSelector(({ company }) => company);
   const { uploadfileLoading } = useSelector(({ employee }) => employee);
   const [dropdownOption, setDropdownOption] = useState({
@@ -80,11 +85,16 @@ export default function CompanyDetail({ initialValues }) {
   const submitHandle = useCallback(
     async values => {
       if (id) {
-        let payload = {
-          ...values,
-          company_id: id,
+        const { admin_password, ...rest } = values;
+
+        const updatedPayload = {
+          ...rest,
+          ...(!!admin_password && {
+            admin_password,
+          }),
         };
-        dispatch(editCompany(payload));
+
+        dispatch(editCompany(updatedPayload));
         dispatch(
           setIsGetInitialValues({ ...isGetInitialValues, update: false }),
         );
@@ -94,24 +104,17 @@ export default function CompanyDetail({ initialValues }) {
         dispatch(setIsGetInitialValues({ ...isGetInitialValues, add: false }));
         dispatch(clearAddSelectedCompanyData());
       }
-      navigate('/company-list');
     },
-    [id, dispatch, navigate, isGetInitialValues],
+    [id, dispatch, isGetInitialValues],
   );
-  const {
-    values,
-    errors,
-    touched,
-    setFieldValue,
-    handleBlur,
-    handleChange,
-    handleSubmit,
-  } = useFormik({
-    enableReinitialize: true,
-    initialValues: initialValues,
-    validationSchema: companySchema,
-    onSubmit: submitHandle,
-  });
+
+  const { values, errors, touched, setFieldValue, handleBlur, handleSubmit } =
+    useFormik({
+      enableReinitialize: true,
+      initialValues: initialValues,
+      validationSchema: companySchema,
+      onSubmit: submitHandle,
+    });
 
   const fetchData = useCallback(async () => {
     const isSuccessState = await dispatch(
@@ -177,13 +180,30 @@ export default function CompanyDetail({ initialValues }) {
         cityOptionList: [],
       }));
     }
-  }, [dispatch, values?.country, values?.state, dropdownOption]);
+  }, [dispatch, values?.country, values?.state]);
 
   useEffect(() => {
     if (id && values?.country && values?.state) {
       fetchData();
     }
-  }, [id, values?.country, values?.state]);
+  }, [id, values?.country, values?.state, fetchData]);
+
+  useEffect(() => {
+    if (isAddCompany) {
+      navigate('/company-list');
+      dispatch(setIsAddCompany(false));
+    }
+  }, [navigate, dispatch, isAddCompany]);
+
+  useEffect(() => {
+    if (isUpdateCompany) {
+      dispatch(setIsUpdateCompany(false));
+
+      if (!location.pathname.includes('update-company-profile')) {
+        navigate('/company-list');
+      }
+    }
+  }, [navigate, dispatch, isUpdateCompany]);
 
   const handleCountryChange = useCallback(
     async e => {
@@ -235,7 +255,7 @@ export default function CompanyDetail({ initialValues }) {
         setDropdownOption({ ...dropdownOption, cityOptionList: [] });
       }
     },
-    [dispatch, dropdownOption],
+    [dispatch, dropdownOption, values?.country],
   );
 
   const fileHandler = async (key, files) => {
@@ -299,8 +319,6 @@ export default function CompanyDetail({ initialValues }) {
     navigate('/company-list');
   };
 
-  console.log('values', values);
-
   return (
     <div className="main_Wrapper">
       {(uploadfileLoading || companyLoading) && <Loader />}
@@ -313,7 +331,7 @@ export default function CompanyDetail({ initialValues }) {
                 <Col sm={5}>
                   <h2 className="m-0">Company Profile</h2>
                 </Col>
-                <Col sm={7}>
+                {/* <Col sm={7}>
                   <ul className=" mt-2 mt-sm-0 d-flex justify-content-end">
                     <li>
                       <Button
@@ -333,7 +351,7 @@ export default function CompanyDetail({ initialValues }) {
                       </Button>
                     </li>
                   </ul>
-                </Col>
+                </Col> */}
               </Row>
             </div>
             <div className="add_company_list_wrap p20 p15-xs">
@@ -415,6 +433,30 @@ export default function CompanyDetail({ initialValues }) {
                             );
                           }}
                         />
+                      </div>
+                      <div className="form_group mb-3">
+                        <label htmlFor="employee_code">
+                          Employee Code{' '}
+                          <span className="text-danger fs-6">*</span>
+                        </label>
+                        <InputText
+                          id="employee_code"
+                          placeholder="Employee Code"
+                          className="input_wrap"
+                          name="employee_code"
+                          value={values?.employee_code || ''}
+                          onBlur={handleBlur}
+                          onChange={e => {
+                            commonUpdateFieldValue(
+                              e.target.name,
+                              e.target.value,
+                            );
+                          }}
+                          required
+                        />
+                        {touched?.employee_code && errors?.employee_code && (
+                          <p className="text-danger">{errors?.employee_code}</p>
+                        )}
                       </div>
                     </Col>
                   </Row>
@@ -523,7 +565,6 @@ export default function CompanyDetail({ initialValues }) {
                     </Col>
                   </Row>
                 </Col>
-
                 <Col lg={4} sm={6}>
                   <div className="form_group mb-3">
                     <label htmlFor="website">Website</label>
@@ -644,6 +685,29 @@ export default function CompanyDetail({ initialValues }) {
                     )}
                   </div>
                 </Col>
+                <Col lg={4} sm={6}>
+                  <div className="form_group mb-3">
+                    <label htmlFor="admin_password">
+                      Admin Password{' '}
+                      {!id && <span className="text-danger fs-6">*</span>}
+                    </label>
+                    <InputText
+                      id="admin_password"
+                      placeholder="Admin Password"
+                      className="input_wrap"
+                      name="admin_password"
+                      value={values?.admin_password}
+                      onBlur={handleBlur}
+                      onChange={e => {
+                        commonUpdateFieldValue(e.target.name, e.target.value);
+                      }}
+                      required
+                    />
+                    {touched?.admin_password && errors?.admin_password && (
+                      <p className="text-danger">{errors?.admin_password}</p>
+                    )}
+                  </div>
+                </Col>
               </Row>
               <h2 className="mt20 mt10-xl mb30 mb20-xl">Address Details</h2>
               <Row>
@@ -687,7 +751,7 @@ export default function CompanyDetail({ initialValues }) {
                       }}
                       placeholder="Select Country"
                     />
-                    {touched?.country && errors?.country && (
+                    {errors?.country && (
                       <p className="text-danger">{errors?.country}</p>
                     )}
                   </div>
@@ -710,7 +774,7 @@ export default function CompanyDetail({ initialValues }) {
                       }}
                       placeholder="Select State"
                     />
-                    {touched?.state && errors?.state && (
+                    {errors?.state && (
                       <p className="text-danger">{errors?.state}</p>
                     )}
                   </div>
@@ -732,7 +796,7 @@ export default function CompanyDetail({ initialValues }) {
                       placeholder="Select City"
                       onBlur={handleBlur}
                     />
-                    {touched?.city && errors?.city && (
+                    {errors?.city && (
                       <p className="text-danger">{errors?.city}</p>
                     )}
                   </div>
@@ -918,6 +982,28 @@ export default function CompanyDetail({ initialValues }) {
                       <p className="text-danger">{errors?.isActive}</p>
                     )}
                   </div>
+                </Col>
+                <Col xs={12}>
+                  <ul className=" mt-2 mt-sm-0 d-flex justify-content-end">
+                    <li>
+                      <Button
+                        onClick={handleCancel}
+                        className="btn_border_dark"
+                      >
+                        Exit Page
+                      </Button>
+                    </li>
+                    <li>
+                      <Button
+                        type="submit"
+                        className="btn_primary ms-2"
+                        onClick={handleSubmit}
+                        // onClick={() => navigate('/company-list')}
+                      >
+                        {id ? 'Update' : 'Save'} Company
+                      </Button>
+                    </li>
+                  </ul>
                 </Col>
               </Row>
             </div>
